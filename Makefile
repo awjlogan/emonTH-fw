@@ -29,23 +29,24 @@ CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 LDFLAGS += -mcpu=cortex-m0plus -mthumb
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -Wl,--print-memory-usage
-LDFLAGS += -Wl,--script=./linker/samd10d14.ld
+LDFLAGS += -Wl,--script=./linker/samd10d13.ld
 
 INCLUDES += \
   -I./include/samd10 \
   -I./third_party/RFM69 \
+  -I./third_party/qfplib \
   -I./src/
 
 SRCS += $(wildcard ./src/*.c)
 
 DEFINES += \
-  -D__SAMD10D14AM__ \
+  -D__SAMD10D13AM__ \
   -DDONT_USE_CMSIS_INIT
 
 CFLAGS += $(INCLUDES) $(DEFINES)
 
 OBJS = $(addprefix $(BUILD)/, $(notdir %/$(subst .c,.o, $(SRCS))))
-OBJS += $(BUILD)/qfplib-m0-full.o
+OBJS += $(BUILD)/qfplib.o
 
 # Always update the build information. This forces this to run every time. Exit
 # if this fails - likely to be a path of Python version issue.
@@ -78,9 +79,9 @@ $(BUILD)/$(BIN).uf2: $(BUILD)/$(BIN).bin
 	@python3 ./scripts/bin_to_uf2.py $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2
 	@[ -f $@ ] && cp $@ $(OUT)/$(VERSION_INFO).uf2 || true
 
-$(BUILD)/qfplib-m0-full.o:
+$(BUILD)/qfplib.o:
 	@echo AS $@
-	@$(CC) $(CFLAGS) third_party/qfplib/qfplib-m0-full.s -c -o $@
+	@$(CC) $(CFLAGS) third_party/qfplib/qfplib.s -c -o $@
 
 %.o:
 	@echo CC $@

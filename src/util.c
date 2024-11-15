@@ -3,7 +3,7 @@
 
 #include "util.h"
 
-#include "qfplib-m0-full.h"
+#include "qfplib.h"
 
 static bool isnumeric(const char c);
 

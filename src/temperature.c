@@ -10,14 +10,6 @@ static bool tempSampled      = false;
 static int  numSensors       = 0;
 static int  millisLastSample = 0;
 
-float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed) {
-  float ret = -1000.0;
-  if (TEMP_INTF_ONEWIRE == intf) {
-    ret = ds18b20SampleToCelsius(tFixed);
-  }
-  return ret;
-}
-
 unsigned int tempInitSensors(const TEMP_INTF_t intf, const void *pParams) {
   EMONTH_ASSERT(pParams);
 

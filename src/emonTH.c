@@ -22,7 +22,6 @@
 #include "periph_rfm69.h"
 #include "pulse.h"
 #include "temperature.h"
-#include "ui.h"
 #include "util.h"
 
 typedef struct TransmitOpt_ {
@@ -45,7 +44,6 @@ AssertInfo_t             g_assert_info;
 
 static void      datasetAddPulse(EmonTHDataset_t *pDst);
 static RFMOpt_t *dataTxConfigure(const EmonTHConfig_t *pCfg);
-static void      evtKiloHertz(void);
 static uint32_t  evtPending(EVTSRC_t evt);
 static void      pulseConfigure(const EmonTHConfig_t *pCfg);
 void             putchar_(char c);
@@ -87,21 +85,15 @@ static RFMOpt_t *dataTxConfigure(const EmonTHConfig_t *pCfg) {
     rfmOpt->threshold = 0u;
     rfmOpt->timeout   = 1000u;
     rfmOpt->n         = 23u;
-    if (sercomExtIntfEnabled()) {
-      rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq);
-    }
+
+    rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq);
   }
   return rfmOpt;
 }
 
 void dbgPuts(const char *s) {
   EMONTH_ASSERT(s);
-
-  if (usbCDCIsConnected()) {
-    usbCDCPutsBlocking(s);
-  } else {
-    uartPutsBlocking(SERCOM_UART_DBG, s);
-  }
+  uartPutsBlocking(SERCOM_UART_DBG, s);
 }
 
 void emonTHEventClr(const EVTSRC_t evt) {
@@ -118,38 +110,6 @@ void emonTHEventSet(const EVTSRC_t evt) {
   __disable_irq();
   evtPend |= evtDecode;
   __enable_irq();
-}
-
-/*! @brief This function is called when the 1 ms timer fires.
- *         Latency is not guaranteed, so only non-timing critical things
- *         should be done here (UI update, watchdog etc)
- */
-static void evtKiloHertz(void) {
-  int                      extEnabled;
-  uint32_t                 msDelta;
-  static volatile uint32_t msLast = 0;
-  int                      ndisable_ext;
-  static unsigned int      statLedOff_time = 0;
-
-  /* Feed watchdog - placed in the event handler to allow reset of stuck
-   * processing rather than entering the interrupt reliably.
-   */
-  wdtFeed();
-
-  /* Update the pulse counters, looking on different edges */
-  pulseUpdate();
-
-  /* Track milliseconds to indicate uptime */
-  msDelta = timerMillisDelta(msLast);
-  if (msDelta >= 1000) {
-    timerUptimeIncr();
-    msLast = timerMillis();
-    /* Account for any jitter in the 1 ms tick */
-    if (msDelta > 1000) {
-      msDelta -= 1000;
-      msLast -= msDelta;
-    }
-  }
 }
 
 /*! @brief Check if an event source is active
@@ -189,7 +149,6 @@ static void pulseConfigure(const EmonTHConfig_t *pCfg) {
 void putchar_(char c) { uartPutcBlocking(SERCOM_UART_DBG, c); }
 
 static void putsDbgNonBlocking(const char *const s, uint16_t len) {
-  usbCDCPutsBlocking(s);
   uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
 }
 
@@ -257,7 +216,6 @@ int main(void) {
   unsigned int    tempCount      = 0;
 
   ucSetup();
-  uiLedOn(LED_STATUS);
   configFirmwareBoardInfo();
 
   /* Load stored values (configuration and accumulated energy) from

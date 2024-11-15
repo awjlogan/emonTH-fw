@@ -94,7 +94,7 @@ def generate_build_info_c(configuration):
     static const char release[] = "{release}";
     static const char build_info[] = "{build_info_string}";
 
-    struct EmonTHBuildInfo emonTH_build_info() {{
+    struct EmonTHBuildInfo emonTH_build_info(void) {{
         return (struct EmonTHBuildInfo){{
             .revision = revision,
             .date = date,
@@ -107,7 +107,7 @@ def generate_build_info_c(configuration):
         }};
     }}
 
-    const char* emonTH_build_info_string() {{ return build_info; }}
+    const char* emonTH_build_info_string(void) {{ return build_info; }}
     """
     )
 

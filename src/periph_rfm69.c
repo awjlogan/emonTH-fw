@@ -21,8 +21,8 @@ static RFMOpt_t rfmOpt;
 static uint8_t rfmReadReg(const unsigned int addr) {
   uint8_t rdByte;
   spiSelect(sel);
-  (void)spiSendByte(SERCOM_SPI_DATA, (uint8_t)addr);
-  rdByte = spiSendByte(SERCOM_SPI_DATA, 0x00);
+  (void)spiSendByte(SERCOM_SPI, (uint8_t)addr);
+  rdByte = spiSendByte(SERCOM_SPI, 0x00);
   spiDeSelect(sel);
   return rdByte;
 }
@@ -30,8 +30,8 @@ static uint8_t rfmReadReg(const unsigned int addr) {
 static void rfmWriteReg(const unsigned int addr, const uint8_t data) {
   spiSelect(sel);
   /* Datasheet 5.2.1, Figure 24: "wnr is 1 for write" */
-  (void)spiSendByte(SERCOM_SPI_DATA, ((uint8_t)addr | 0x80));
-  (void)spiSendByte(SERCOM_SPI_DATA, data);
+  (void)spiSendByte(SERCOM_SPI, ((uint8_t)addr | 0x80));
+  (void)spiSendByte(SERCOM_SPI, data);
   spiDeSelect(sel);
 }
 
@@ -54,8 +54,8 @@ static void rfmSetAESKey(void) {
    * address byte as well.
    */
   spiSelect(sel);
-  spiSendByte(SERCOM_SPI_DATA, (REG_AESKEY1 | 0x80));
-  spiSendBuffer(SERCOM_SPI_DATA, aesKey, (sizeof(aesKey) - 1));
+  spiSendByte(SERCOM_SPI, (REG_AESKEY1 | 0x80));
+  spiSendBuffer(SERCOM_SPI, aesKey, (sizeof(aesKey) - 1));
   spiDeSelect(sel);
 }
 

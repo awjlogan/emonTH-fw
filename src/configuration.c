@@ -85,14 +85,7 @@ static void configDefault(void) {
 /*! @brief Write the configuration values to index 0, and zero the
  *         accumulator space to.
  */
-static void configInitialiseNVM(void) {
-
-  dbgPuts("  - Initialising NVM... ");
-
-  configDefault();
-  eepromInitBlock(0, 0, 256);
-  eepromInitConfig(&config, sizeof(config));
-}
+static void configInitialiseNVM(void) { configDefault(); }
 
 static void configurePulse(void) {
   /* String format in inBuffer:
@@ -347,7 +340,7 @@ void configFirmwareBoardInfo(void) {
   // printf_("  - Version:    %d.%d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN,
   //         VERSION_FW_REV);
   dbgPuts("  - Build:      ");
-  dbgPuts(emonTH_build_info_string());
+  // dbgPuts(emonTH_build_info_string());
   dbgPuts("\r\n\r\n");
   dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
   dbgPuts("  - emonTH Copyright (C) 2024-25 Angus Logan\r\n");
@@ -356,38 +349,7 @@ void configFirmwareBoardInfo(void) {
 
 EmonTHConfig_t *configGetConfig(void) { return &config; }
 
-void configLoadFromNVM(void) {
-
-  const uint32_t cfgSize     = sizeof(config);
-  uint16_t       crc16_ccitt = 0;
-  char           c           = 0;
-
-  /* Load from "static" part of EEPROM. If the key does not match
-   * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
-   * wear levelled portion. Otherwise, read configuration from EEPROM.
-   */
-  eepromRead(0, &config, cfgSize);
-
-  if (CONFIG_NVM_KEY != config.key) {
-    configInitialiseNVM();
-  } else {
-    /* Check the CRC and raise a warning if not matched. -2 from the base
-     * size to account for the stored 16 bit CRC.
-     */
-    crc16_ccitt = calcCRC16_ccitt(&config, cfgSize - 2u);
-    if (crc16_ccitt != config.crc16_ccitt) {
-      // printf_("  - CRC mismatch. Found: 0x%04x -- Expected: 0x%04x\r\n",
-      //         config.crc16_ccitt, crc16_ccitt);
-      dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
-      while ('y' != c && 'n' != c) {
-        c = waitForChar();
-      }
-      if ('y' == c) {
-        configInitialiseNVM();
-      }
-    }
-  }
-}
+void configLoadFromNVM(void) {}
 
 void configProcessCmd(void) {
   unsigned int arglen    = 0;
@@ -485,10 +447,6 @@ void configProcessCmd(void) {
      * reset is required.
      */
     config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2));
-
-    dbgPuts("> Saving configuration to NVM... ");
-    eepromInitConfig(&config, sizeof(config));
-    dbgPuts("Done!\r\n");
 
     unsavedChange = false;
     if (!resetReq) {
