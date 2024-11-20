@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "emonTH_samd.h"
 
 #include "board_def.h"
@@ -26,7 +28,7 @@ static int          oneWireFirst(void);
 static int          oneWireNext(void);
 static unsigned int oneWireReadBit(void);
 static void         oneWireReadBytes(void *pDst, const uint8_t n);
-static unsigned int oneWireReset(void);
+static bool         oneWireReset(void);
 static int          oneWireSearch(void);
 static void         oneWireWriteBit(unsigned int bit);
 static void         oneWireWriteBytes(const void *pSrc, const uint8_t n);
@@ -112,32 +114,27 @@ static void oneWireReadBytes(void *pDst, const uint8_t n) {
   }
 }
 
-static unsigned int oneWireReset(void) {
+static bool oneWireReset(void) {
   /* t_RSTL (min) = 480 us
    * t_RSTH (min) = 480 us
    * t_PDHIGH (max) = 60 us
    * t_PDLOW (max) = 240 us
    */
 
-  unsigned int presence  = 0;
-  uint32_t     timeStart = 0;
+  bool presence = false;
 
   portPinDir(cfg.grp, cfg.pin, PIN_DIR_OUT);
 
-  timerDelay_us(500u);
-  portPinDir(cfg.grp, cfg.pin, PIN_DIR_IN);
-  /* Wait 75 us to ensure t_PDHIGH has elapsed, then wait the full t_RSTH
-   * time +25 us slack to complete the reset sequence.
-   */
-  timerDelay_us(75u);
+  timerDelaySleep_us(512u, SLEEP_MODE_STANDBY, false);
 
-  timeStart = timerMicros();
-  while (timerMicrosDelta(timeStart) < 425u) {
-    /* Latch presence if found */
-    if (0 == presence) {
-      presence = !portPinValue(cfg.grp, cfg.pin);
-    }
-  }
+  portPinDir(cfg.grp, cfg.pin, PIN_DIR_IN);
+  /* Wait 48+20 us (wake up) to ensure t_PDHIGH has elapsed, then wait the full
+   * t_RSTH time +25 us slack to complete the reset sequence.
+   */
+  timerDelaySleep_us(48, SLEEP_MODE_STANDBY, false);
+
+  /* Enable the interrupt for the OneWire pin and go back to sleep */
+  timerDelaySleep_us(440u, SLEEP_MODE_STANDBY, true);
 
   return presence;
 }
@@ -157,7 +154,7 @@ static int oneWireSearch(void) {
   /* If the last call was not the last one... */
   if (!lastDeviceFlag) {
     /* ... reset the OneWire bus... */
-    if (0 == oneWireReset()) {
+    if (!oneWireReset()) {
       /* Reset the search */
       lastDiscrepancy       = 0;
       lastDeviceFlag        = 0;
@@ -297,7 +294,7 @@ int ds18b20StartSample(void) {
   const uint8_t cmds[2] = {0xCC, 0x44};
 
   /* Check for presence pulse before continuing */
-  if (0 == oneWireReset()) {
+  if (!oneWireReset()) {
     return -1;
   }
 
@@ -312,7 +309,7 @@ int16_t ds18b20ReadSample(const unsigned int dev) {
   int             tempData       = 0;
 
   /* Check for presence pulse before continuing */
-  if (0 == oneWireReset()) {
+  if (!oneWireReset()) {
     return INT16_MIN;
   }
 

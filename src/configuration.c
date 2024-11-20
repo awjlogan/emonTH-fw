@@ -31,17 +31,16 @@ typedef enum {
  * Prototypes
  *************************************/
 
-static void     configDefault(void);
-static void     configInitialiseNVM(void);
-static void     configurePulse(void);
-static bool     configureSerialLog(void);
-static uint32_t getBoardRevision(void);
-static char    *getLastReset(void);
-static void     inBufferClear(int n);
-static void     printSettings(void);
-static void     printUptime(void);
-static void     putFloat(float val, int flt_len);
-static char     waitForChar(void);
+static void  configDefault(void);
+static void  configInitialiseNVM(void);
+static void  configurePulse(void);
+static bool  configureSerialLog(void);
+static char *getLastReset(void);
+static void  inBufferClear(int n);
+static void  printSettings(void);
+static void  putInt(const int i);
+static void  putFloat(float val, int flt_len);
+static char  waitForChar(void);
 
 /*************************************
  * Local variables
@@ -49,6 +48,7 @@ static char     waitForChar(void);
 
 #define IN_BUFFER_W 64
 static EmonTHConfig_t config;
+static bool           configLoaded = false;
 static char           inBuffer[IN_BUFFER_W];
 static int            inBufferIdx   = 0;
 static bool           cmdPending    = false;
@@ -173,7 +173,7 @@ static bool configureSerialLog(void) {
  *  @return : null-terminated string with the last cause.
  */
 static char *getLastReset(void) {
-  const RCAUSE_t lastReset = (RCAUSE_t)PM->RCAUSE.reg;
+  const RCAUSE_t lastReset = (RCAUSE_t)RSTC->RCAUSE.reg;
   switch (lastReset) {
   case RCAUSE_SYST:
     return "Reset request";
@@ -229,31 +229,35 @@ static void printSettings(void) {
       dbgPuts("433");
       break;
     }
-    // printf_(" MHz, power %d\r\n", config.dataTxCfg.rfmPwr);
+    dbgPuts(" MHz @ ");
+    putInt(config.dataTxCfg.rfmPwr);
   } else {
     dbgPuts("Serial\r\n");
   }
-  // printf_("Data format:               %s\r\n",
-  // config.baseCfg.useJson ? "JSON" : "Key:Value");
-  dbgPuts("\r\n");
 
   for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
     bool enabled = config.pulseCfg[i].pulseActive;
-    // printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
-    // printf_("  - Hysteresis (ms): %d\r\n", config.pulseCfg[i].period);
-    dbgPuts("  - Edge:            ");
-    switch (config.pulseCfg[i].edge) {
-    case 0:
-      dbgPuts("Rising");
-      break;
-    case 1:
-      dbgPuts("Falling");
-      break;
-    case 2:
-      dbgPuts("Both");
-      break;
-    default:
-      dbgPuts("Unknown");
+    dbgPuts("Pulse channel ");
+    if (enabled) {
+      dbgPuts("  - Hysteresis (ms): ");
+      putInt(config.pulseCfg[i].period);
+      dbgPuts("\r\n");
+      dbgPuts("  - Edge:            ");
+      switch (config.pulseCfg[i].edge) {
+      case 0:
+        dbgPuts("Rising");
+        break;
+      case 1:
+        dbgPuts("Falling");
+        break;
+      case 2:
+        dbgPuts("Both");
+        break;
+      default:
+        dbgPuts("Unknown");
+      }
+    } else {
+      dbgPuts("disabled.");
     }
     dbgPuts("\r\n\r\n");
   }
@@ -261,6 +265,12 @@ static void printSettings(void) {
   if (unsavedChange) {
     dbgPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
   }
+}
+
+static void putInt(const int i) {
+  char strBuffer[8];
+  (void)utilItoa(strBuffer, i, ITOA_BASE10);
+  dbgPuts(strBuffer);
 }
 
 static void putFloat(float val, int flt_len) {
@@ -330,26 +340,36 @@ void configFirmwareBoardInfo(void) {
 
   dbgPuts("> Board:\r\n");
   dbgPuts("  - emonTH3\r\n");
-  // printf_("  - Serial:     0x%02x%02x%02x%02x\r\n",
-  //         (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
-  //         (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
-  // printf_("  - Last reset: %s\r\n", getLastReset());
+  dbgPuts("  - Serial:     ");
+  for (int i = 0; i < 4; i++) {
+    putInt(getUniqueID(i));
+  }
+  dbgPuts("  - Last reset: ");
+  dbgPuts(getLastReset());
   dbgPuts("\r\n");
 
   dbgPuts("> Firmware:\r\n");
-  // printf_("  - Version:    %d.%d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN,
-  //         VERSION_FW_REV);
+  dbgPuts("  - Version: ");
+  putInt(VERSION_FW_MAJ);
+  dbgPuts(".");
+  putInt(VERSION_FW_MIN);
+  dbgPuts(".");
+  putInt(VERSION_FW_REV);
+  dbgPuts("\r\n");
   dbgPuts("  - Build:      ");
-  // dbgPuts(emonTH_build_info_string());
+  dbgPuts(emonTH_build_info_string());
   dbgPuts("\r\n\r\n");
   dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
   dbgPuts("  - emonTH Copyright (C) 2024-25 Angus Logan\r\n");
   dbgPuts("  - For Bear and Moose\r\n\r\n");
 }
 
-EmonTHConfig_t *configGetConfig(void) { return &config; }
-
-void configLoadFromNVM(void) {}
+EmonTHConfig_t *configLoadFromNVM(void) {
+  if (!configLoaded) { /* READ FROM NVM*/
+    configLoaded = true;
+  }
+  return &config;
+}
 
 void configProcessCmd(void) {
   unsigned int arglen    = 0;
@@ -373,10 +393,12 @@ void configProcessCmd(void) {
       "     - x = 0: OFF, x = 1, ON.\r\n"
       "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
       "     - z : minimum period (ms). Ignored if x = 0\r\n"
-      " - n<n>        : set node ID [1..60]\r\n"
+      " - n<n>        : set node ID [1..60].\r\n"
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
       " - s           : save settings to NVM\r\n"
+      " - t<n>        : enable external temperature sensing. n = 0: OFF, n = "
+      "1: ON\r\n"
       " - v           : firmware and board information\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */

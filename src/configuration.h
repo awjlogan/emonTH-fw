@@ -54,14 +54,9 @@ void configCmdChar(const uint8_t c);
 /*! @brief Print the board and firmware information to serial */
 void configFirmwareBoardInfo(void);
 
-/*! @brief Get the configuration pointer
- *  @return pointer to the configuration struct
+/*! @brief This functions loads the default configuration and from NVM
  */
-EmonTHConfig_t *configGetConfig(void);
-
-/*! @brief This functions loads the default configuration and from NVM.
- */
-void configLoadFromNVM(void);
+EmonTHConfig_t *configLoadFromNVM(void);
 
 /*! @brief Process a pending command from the UART */
 void configProcessCmd(void);

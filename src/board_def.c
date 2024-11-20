@@ -9,6 +9,8 @@
 const uint8_t pinsGPIO_Out[][2] = {{GRP_PINA, PIN_SPI_RFM_SS}, {0xFF, 0}};
 
 const uint8_t pinsGPIO_In[][2] = {
-    {GRP_PULSE, PIN_PULSE1}, {GRP_ONEWIRE, PIN_ONEWIRE}, {0xFF, 0}};
+    {GRP_SLIDE_SW, PIN_SW_NODE0}, {GRP_SLIDE_SW, PIN_SW_NODE1},
+    {GRP_SLIDE_SW, PIN_SW_UART},  {GRP_PULSE, PIN_PULSE1},
+    {GRP_ONEWIRE, PIN_ONEWIRE},   {0xFF, 0}};
 
 const uint8_t pinsUnused[][2] = {{GRP_PINA, 0}, {GRP_PINA, 1}, {0xFF, 0}};

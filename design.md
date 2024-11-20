@@ -2,6 +2,8 @@
 
 ## Clocks
 
+NB: PCHCTRL must be sync'd by polling for correct operation (18.6.6)
+
 - OSCULP32K
   - RTC
 

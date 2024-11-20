@@ -19,6 +19,7 @@
 #include "emonTH.h"
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
+#include "periph_HDC2010.h"
 #include "periph_rfm69.h"
 #include "pulse.h"
 #include "temperature.h"
@@ -34,8 +35,8 @@ typedef struct TransmitOpt_ {
  * Persistent state variables
  *************************************/
 
+static bool              uartEnabled = false;
 static volatile uint32_t evtPend;
-static unsigned int      lastStoredWh;
 AssertInfo_t             g_assert_info;
 
 /*************************************
@@ -44,10 +45,11 @@ AssertInfo_t             g_assert_info;
 
 static void      datasetAddPulse(EmonTHDataset_t *pDst);
 static RFMOpt_t *dataTxConfigure(const EmonTHConfig_t *pCfg);
-static uint32_t  evtPending(EVTSRC_t evt);
+static bool      evtPending(EVTSRC_t evt);
 static void      pulseConfigure(const EmonTHConfig_t *pCfg);
 void             putchar_(char c);
 static void      putsDbgNonBlocking(const char *const s, uint16_t len);
+static void      readSlideSW(EmonTHConfig_t *pCfg);
 static uint32_t  tempSetup(void);
 static void      transmitData(const EmonTHDataset_t *pSrc,
                               const TransmitOpt_t   *pOpt);
@@ -114,10 +116,10 @@ void emonTHEventSet(const EVTSRC_t evt) {
 
 /*! @brief Check if an event source is active
  *  @param [in] : event source to check
- *  @return : 1 if pending, 0 otherwise
+ *  @return : true if pending, false otherwise
  */
-static uint32_t evtPending(EVTSRC_t evt) {
-  return (evtPend & (1u << evt)) ? 1u : 0;
+static bool evtPending(EVTSRC_t evt) {
+  return (evtPend & (1u << evt)) ? true : false;
 }
 
 /*! @brief Configure any pulse counter interfaces
@@ -152,6 +154,27 @@ static void putsDbgNonBlocking(const char *const s, uint16_t len) {
   uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
 }
 
+static void readSlideSW(EmonTHConfig_t *pCfg) {
+  bool sw[3]    = {false};
+  int  swPin[3] = {PIN_SW_NODE0, PIN_SW_NODE1, PIN_SW_UART};
+
+  /* Match the pull up/down to match to eliminate current through pull */
+  for (int i = 0; i < 3; i++) {
+    sw[i] = portPinValue(GRP_SLIDE_SW, swPin[i]);
+    if (!sw[i]) {
+      portPinDrv(GRP_SLIDE_SW, swPin[i], PIN_DRV_CLR);
+    }
+  }
+
+  /* Disable UART */
+  if (!sw[2]) {
+    uartEnabled = false;
+    sercomDisable(SERCOM_UART_DBG);
+  } else {
+    uartEnabled = true;
+  }
+}
+
 /*! @brief Initialises the temperature sensors
  *  @return : number of temperature sensors found
  */
@@ -177,14 +200,14 @@ static void transmitData(const EmonTHDataset_t *pSrc,
   if (pOpt->useRFM) {
     PackedData_t packedData = {0};
     dataPackPacked(pSrc, &packedData, PACKED_LOWER);
-    if (sercomExtIntfEnabled()) {
-      /* Try to send in "clean" air. If failed, retry on next loop. Should not
-       * reach RFM_FAILED at all. */
-      RFMSend_t res = rfmSendReady(5u);
-      if (RFM_SUCCESS == res) {
-        rfmSend(&packedData);
-      }
+
+    /* Try to send in "clean" air. If failed, retry on next loop. Should not
+     * reach RFM_FAILED at all. */
+    RFMSend_t res = rfmSendReady(5u);
+    if (RFM_SUCCESS == res) {
+      rfmSend(&packedData);
     }
+
     if (pOpt->logSerial) {
       putsDbgNonBlocking(txBuffer, pktLength);
     }
@@ -202,7 +225,6 @@ static void ucSetup(void) {
   timerSetup();
   portSetup();
   dmacSetup();
-  sercomSetup();
   adcSetup();
   // wdtSetup    (WDT_PER_4K);
 }
@@ -216,15 +238,17 @@ int main(void) {
   unsigned int    tempCount      = 0;
 
   ucSetup();
-  configFirmwareBoardInfo();
 
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then
-   * store default configuration and 0 energy accumulator area.
+   * store default configuration.
    */
-  configLoadFromNVM();
+  pConfig = configLoadFromNVM();
 
-  pConfig = configGetConfig();
+  /* Read the slide switch values to determine status */
+  readSlideSW(pConfig);
+  sercomSetup(uartEnabled,
+              (DATATX_RFM69 == (TxType_t)pConfig->dataTxCfg.txType));
 
   /* Set up data transmission interfaces and configuration */
   rfmOpt = dataTxConfigure(pConfig);
@@ -237,14 +261,12 @@ int main(void) {
   for (;;) {
 
     /* Start ADC and trigger T/H sample */
+    if (evtPending(EVT_RTC_OVF)) {
+      adcTriggerSample();
+      hdc2010ConversionStart();
+    }
     /* Read T/H sample */
     /* Process data */
     /* Send processed data */
-
-    /* Enter STANDBY until woken by the RTC overflow interrupt */
-    samdSleep(SLEEP_MODE_STANDBY);
-    while (!rtcIntOvfStat) {
-      __WFI();
-    }
   };
 }

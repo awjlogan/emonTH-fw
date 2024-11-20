@@ -54,21 +54,16 @@ typedef struct UART_Cfg_ {
   DMACCfgCh_t dmaCfg;
 } UART_Cfg_t;
 
-/*! @brief Disable the external SPI and I2C interfaces */
-void sercomExtIntfDisable(void);
-
-/*! @brief Enable the external SPI and I2C interfaces */
-void sercomExtIntfEnable(void);
-
-/*! @brief Status of the external SPI and I2C interfaces */
-int sercomExtIntfEnabled(void);
-
-/*! @brief configure the serial communication module. This function starts the
- *         debug UART and I2C modules. Further SPI and UART modules are
- *         configured separately
- *  @param [in] pCfg : pointer to the configuration struct
+/*! @brief Disable a SERCOM module
+ *  @param [in] sercom : pointer to the SERCOM instance
  */
-void sercomSetup(void);
+void sercomDisable(Sercom *sercom);
+
+/*! @brief configure the serial communication modules. I2C is always enabled.
+ *  @param [in] uartEn : flag for enabling the UART
+ *  @param [in] spiEn : flag for enabling the SPI
+ */
+void sercomSetup(const bool uartEn, const bool spiEn);
 
 /*! @brief Configure a SERCOM module for SPI */
 void sercomSetupSPI(const Pin_t sel);
@@ -103,6 +98,9 @@ void i2cDataWrite(Sercom *sercom, uint8_t data);
  *  @return : read data
  */
 uint8_t i2cDataRead(Sercom *sercom);
+
+/*! @brief Set timeout flag */
+void i2cSetTimeout(void);
 
 /*! @brief Select an SPI peripheral
  *  @param [in] nSS : grp+pin of chip select line

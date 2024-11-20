@@ -24,7 +24,7 @@ void dmacSetup(void) {
 
   /* Enable the DMAC interrupt in the NVIC, but leave the channel interrupt
    * enable/disable for each channel to the peripheral */
-  NVIC_EnableIRQ(DMAC_IRQn);
+  NVIC_EnableIRQ(DMAC_0_IRQn);
 }
 
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch) {

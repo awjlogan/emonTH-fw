@@ -1,3 +1,3 @@
 #pragma once
 
-#include "samd10.h"
+#include "saml10.h"

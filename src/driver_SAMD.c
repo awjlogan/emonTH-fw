@@ -1,6 +1,8 @@
 #include "driver_SAMD.h"
 #include "emonTH_samd.h"
 
+static SleepMode_t actives[NUM_PERIPHERALS];
+
 uint32_t samdCalibration(const Calibration_t cal) {
   uint32_t mask     = 0;
   uint32_t position = 0;
@@ -40,13 +42,45 @@ uint32_t samdCalibration(const Calibration_t cal) {
   return (uint32_t)(cal_row >> position) & mask;
 }
 
-void samdGateUnused(void) { /* Not using any TC(C) devices */ }
+SleepMode_t samdGetActivity(void) {
+  SleepMode_t sm = SLEEP_MODE_STANDBY;
+  for (int i = 0; i < NUM_PERIPHERALS; i++) {
+    if (actives[i] < sm) {
+      sm = actives[i];
+    }
+  }
+  return sm;
+}
+
+void samdSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx) {
+  actives[periphIdx] = sm;
+  SleepMode_t sm_set = SLEEP_MODE_STANDBY;
+  for (int i = 0; i < NUM_PERIPHERALS; i++) {
+    if (actives[i] < sm_set) {
+      sm_set = actives[i];
+    }
+  }
+
+  if (SLEEP_MODE_STANDBY == sm_set) {
+    SCB->SCR |= (SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk);
+  } else if (SLEEP_MODE_ACTIVE == sm_set) {
+    SCB->SCR &= ~(SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk);
+  } else {
+    SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;
+    PM->SLEEPCFG.reg = sm;
+  }
+}
 
 void samdSleep(SleepMode_t sm) {
   if (SLEEP_MODE_STANDBY == sm) {
     SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
-  } else {
+  } else if ((!(SLEEP_MODE_ACTIVE == sm))) {
     SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;
-    PM->SLEEP.reg = sm;
+    PM->SLEEPCFG.reg = sm;
   }
 }
+
+// IDLE1 = 8
+// IDLE2 = 128
+// IDLE3 = 2048
+// STANDBY = 16384

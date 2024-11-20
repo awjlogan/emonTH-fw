@@ -15,13 +15,24 @@
 #define BOARD_ID_DEV      255
 #define BOARD_ID          BOARD_ID_EMONTH3
 
+/* Define the peripherals by index for use in power reduction */
+#define NUM_PERIPHERALS 7
+typedef enum PeriphIndex_ {
+  PERIPH_IDX_CORE = 0,
+  PERIPH_IDX_I2CM = 1,
+  PERIPH_IDX_SPI  = 2,
+  PERIPH_IDX_UART = 3,
+  PERIPH_IDX_DMAC = 4,
+  PERIPH_IDX_ADC  = 5,
+  PERIPH_IDX_TC   = 6
+} PeriphIndex_t;
+
 /* Clock frequencies
- *  - Core is on the 48 MHz DFLL
+ *  - Core is on OSC8M
  *  - Peripherals are on the OSC8M / 8 -> 1 MHz
  */
-#define F_CORE   48000000ul
-#define F_PERIPH 8000000u
-#define F_TIMER2 F_PERIPH / 8
+#define F_CORE   8000000ul
+#define F_PERIPH 1000000ul
 
 /* Pulse count setup */
 #define NUM_PULSECOUNT 1
@@ -32,14 +43,13 @@
 #define TEMP_MAX_ONEWIRE 4
 
 /* Serial Communication Instances */
-
 #define SERCOM_SPI      SERCOM0
 #define SERCOM_I2CM     SERCOM2
 #define SERCOM_UART_DBG SERCOM1
 
-#define SERCOM_SPI_APBCMASK      PM_APBCMASK_SERCOM0
-#define SERCOM_I2CM_INT_APBCMASK PM_APBCMASK_SERCOM2
-#define SERCOM_UART_DBG_APBCMASK PM_APBCMASK_SERCOM1
+#define SERCOM_SPI_APBCMASK      MCLK_APBCMASK_SERCOM0
+#define SERCOM_I2CM_INT_APBCMASK MCLK_APBCMASK_SERCOM2
+#define SERCOM_UART_DBG_APBCMASK MCLK_APBCMASK_SERCOM1
 
 #define SERCOM_SPI_GCLK_ID      SERCOM0_GCLK_ID_CORE
 #define SERCOM_I2CM_INT_GCLK_ID SERCOM2_GCLK_ID_CORE
@@ -53,22 +63,38 @@
 #define SERCOM_UART_INTERACTIVE_HANDLER irq_handler_sercom1()
 #define SERCOM_UART_INTERACTIVE         SERCOM1
 
-#define SERCOM_UART_DBG_NVIC_IRQn    SERCOM1_IRQn
-#define SERCOM_UART_INTERACTIVE_IRQn SERCOM1_IRQn
+#define SERCOM_UART_DBG_NVIC_IRQn    SERCOM1_0_IRQn
+#define SERCOM_UART_INTERACTIVE_IRQn SERCOM1_0_IRQn
 
 /* Timer configuration */
 #define TIMER_DELAY          TC1
-#define TIMER_DELAY_APBCMASK PM_APBCMASK_TC1
+#define TIMER_DELAY_APBCMASK MCLK_APBCMASK_TC1
 #define TIMER_DELAY_GCLK_ID  TC1_GCLK_ID
 #define TIMER_DELAY_IRQn     TC1_IRQn
 
 /* Pin Configuration (nb. logical, not physical) */
 #define GRP_PINA 0u
 
+/* Level interrupt EIC channels */
+#define EIC_CH_NUM 3
+#define EIC_CH_RFM 0
+#define EIC_CH_HDC 1
+#define EIC_CH_OW  6
+
+/* Slide switches */
+#define GRP_SLIDE_SW GRP_PINA
+#define PIN_SW_NODE0 4
+#define PIN_SW_NODE1 5
+#define PIN_SW_UART  6
+
+/* LED */
+#define GRP_LED GRP_PINA
+#define PIN_LED 17u
+
 /* Battery sensing */
-#define GRP_BATT_SENSE  GRP_PINA
-#define PIN_VBATT_DIV4  2
-#define PIN_nBATT_SENSE 3
+#define GRP_BATT_SENSE GRP_PINA
+#define PIN_VBATT_DIV4 2
+#define AIN_VBATT      ADC_INPUTCTRL_MUXPOS_AIN0
 
 /* OneWire Interface */
 #define GRP_ONEWIRE     GRP_PINA
@@ -95,13 +121,14 @@
 #define PIN_SPI_MOSI   10u
 #define PIN_SPI_RFM_SS 14u
 #define SPI_DATA_BAUD  4000000ul
-#define PMUX_SPI_DATA  PORT_PMUX_PMUXE_C /* SERCOM */
+#define PMUX_SPI_DATA  PORT_PMUX_PMUXE(2) /* SERCOM */
 
 /* I2C related defines */
+#define HDC_ADDR        0x40 /* ADDR tied LOW */
 #define GRP_SERCOM_I2CM GRP_PINA
 #define PIN_I2CM_SDA    22u
 #define PIN_I2CM_SCL    23u
-#define PMUX_I2CM       PORT_PMUX_PMUXE_D /* SERCOM (Alt) */
+#define PMUX_I2CM       PORT_PMUX_PMUXE(2) /* SERCOM (Alt) */
 
 /* DMA defines */
 #define NUM_CHAN_DMA      2u

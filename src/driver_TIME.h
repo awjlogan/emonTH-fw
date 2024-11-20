@@ -1,38 +1,41 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
-/*! @brief  Blocking delay. Use with caution. Returns -1 if the timer is
- *          already in use.
+#include "driver_SAMD.h"
+
+/*! @brief  Blocking delay. Use with caution.
  *  @param [in] delay : period in ms
+ *  @return true if successful, false otherwise.
  */
-int timerDelay_ms(uint16_t delay);
+bool timerDelay_ms(uint8_t delay);
 
-/*! @brief  Blocking delay. Use with caution. Returns -1 if the timer is
- *          already in use.
+/*! @brief  Blocking delay. Use with caution
  *  @param [in] delay : period in us
+ *  @return true if successful, false otherwise.
  */
-int timerDelay_us(uint32_t delay);
+bool timerDelay_us(uint16_t delay);
 
-/*! @brief Returns the current microsecond count value
+/*! @brief Blocking delay in sleep mode
+ *  @param [in] t_us : delay in microseconds
+ *  @param [in] sm: sleep mode
+ *  @param [in] disable : disable at the end if true
+ *  @return true if successful, false otherwise.
  */
-uint32_t timerMicros(void);
+bool timerDelaySleep_us(const uint16_t t_us, const SleepMode_t sm,
+                        const bool disable);
 
-/*! @brief Returns the time delta between microseconds, accounting for wrap
- *  @param [in] prevMicros : previous count value
- *  @return : time delta in microseconds
+/*! @brief Async delay in sleep mode with optional call back
+ *  @param [in] t_us : delay in microseconds
+ *  @param [in] sm: sleep mode
+ *  @param [in] cb : pointer to call back function
+ *  @return true if successful, false otherwise.
  */
-uint32_t timerMicrosDelta(const uint32_t prevMicros);
+bool timerDelaySleepAsync_us(const uint16_t t_us, const SleepMode_t sm,
+                             void (*cb)());
 
-/*! @brief Returns the current millisecond count value
- */
-uint32_t timerMillis(void);
-
-/*! @brief Returns the time delta between milliseconds, accounting for wrap
- *  @param [in] prevMicros : previous count value
- *  @return : time delta in milliseconds
- */
-uint32_t timerMillisDelta(const uint32_t prevMillis);
+bool timerFlush(void);
 
 /*! @brief  Sets up the system timer units */
 void timerSetup(void);

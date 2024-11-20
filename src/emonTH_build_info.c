@@ -4,11 +4,11 @@
 #include "emonTH_build_info.h"
 
 static const char compiler[] = "gcc 12.2.1";
-static const char revision[] = "0a7a191-dirty";
-static const char date[] = "11/15/2024 23:54 UTC";
+static const char revision[] = "f27b6e8-dirty";
+static const char date[] = "11/20/2024 20:34 UTC";
 static const char machine[] = "awjlogan@goose-air.lan";
-static const char release[] = "0a7a191d4124a24461e3928d925dd633add57d3e";
-static const char build_info[] = "0a7a191-dirty (Default) on 11/15/2024 23:54 UTC with gcc 12.2.1 by awjlogan@goose-air.lan";
+static const char release[] = "f27b6e864570da72bd2046c557710de67ee6978e";
+static const char build_info[] = "f27b6e8-dirty (Default) on 11/20/2024 20:34 UTC with gcc 12.2.1 by awjlogan@goose-air.lan";
 
 struct EmonTHBuildInfo emonTH_build_info(void) {
     return (struct EmonTHBuildInfo){

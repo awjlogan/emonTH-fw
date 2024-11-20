@@ -23,16 +23,16 @@ CFLAGS += -fdata-sections -ffunction-sections
 CFLAGS += -funsigned-char -funsigned-bitfields
 CFLAGS += -Wuninitialized
 CFLAGS += -Wshadow -Wdouble-promotion -Wundef
-CFLAGS += -mcpu=cortex-m0plus -mthumb
+CFLAGS += -mcpu=cortex-m23 -mthumb
 CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 
-LDFLAGS += -mcpu=cortex-m0plus -mthumb
+LDFLAGS += -mcpu=cortex-m23 -mthumb
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -Wl,--print-memory-usage
-LDFLAGS += -Wl,--script=./linker/samd10d13.ld
+LDFLAGS += -Wl,--script=./linker/saml10e14.ld
 
 INCLUDES += \
-  -I./include/samd10 \
+  -I./include/saml10 \
   -I./third_party/RFM69 \
   -I./third_party/qfplib \
   -I./src/
@@ -40,8 +40,9 @@ INCLUDES += \
 SRCS += $(wildcard ./src/*.c)
 
 DEFINES += \
-  -D__SAMD10D13AM__ \
-  -DDONT_USE_CMSIS_INIT
+  -D__SAML10E14A__ \
+  -DDONT_USE_CMSIS_INIT \
+  -D__ARM_FEATURE_DSP=0
 
 CFLAGS += $(INCLUDES) $(DEFINES)
 
@@ -57,7 +58,7 @@ endif
 
 VERSION_INFO := $(shell python3 ./scripts/version_info.py)
 
-all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2 size
+all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin size
 
 $(BUILD)/$(BIN).elf: $(OBJS)
 	@echo LD $@
@@ -73,11 +74,6 @@ $(BUILD)/$(BIN).bin: $(BUILD)/$(BIN).elf
 	@echo OBJCOPY $@
 	@$(OBJCOPY) -O binary $^ $@
 	@cp $@ $(OUT)/$(VERSION_INFO).bin
-
-$(BUILD)/$(BIN).uf2: $(BUILD)/$(BIN).bin
-	@echo BIN_TO_UF2 $@
-	@python3 ./scripts/bin_to_uf2.py $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2
-	@[ -f $@ ] && cp $@ $(OUT)/$(VERSION_INFO).uf2 || true
 
 $(BUILD)/qfplib.o:
 	@echo AS $@

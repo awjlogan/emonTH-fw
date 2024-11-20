@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "board_def.h"
 #include "emonTH_samd.h"
 
 typedef enum Calibration_ {
@@ -15,10 +16,11 @@ typedef enum Calibration_ {
 } Calibration_t;
 
 typedef enum SleepMode_t {
-  SLEEP_MODE_IDLE0 = PM_SLEEP_IDLE_CPU, /* CPU clock gated */
-  SLEEP_MODE_IDLE1 = PM_SLEEP_IDLE_AHB, /* IDLE0 + AHB gated */
-  SLEEP_MODE_IDLE2 = PM_SLEEP_IDLE_APB, /* IDLE1 + APB gated */
-  SLEEP_MODE_STANDBY                    /* All off except OSCULP32K and RTC */
+  SLEEP_MODE_IDLE1   = PM_SLEEPCFG_SLEEPMODE_IDLE,    /* CPU clock gated */
+  SLEEP_MODE_IDLE2   = PM_SLEEPCFG_SLEEPMODE_STANDBY, /* IDLE0 + AHB gated */
+  SLEEP_MODE_IDLE3   = PM_SLEEPCFG_SLEEPMODE_OFF,     /* IDLE1 + APB gated */
+  SLEEP_MODE_STANDBY = 3, /* All off except OSCULP32K and RTC */
+  SLEEP_MODE_ACTIVE  = -1 /* No sleep mode selected */
 } SleepMode_t;
 
 /*! @brief Return the calibration value from the NVM Calibration Row, described
@@ -28,8 +30,16 @@ typedef enum SleepMode_t {
  */
 uint32_t samdCalibration(const Calibration_t cal);
 
-/*! @brief Disable all unused peripherals */
-void samdGateUnused(void);
+/*! @brief Returns the minimum allowed sleep mode
+ *  @return : the sleep mode required
+ */
+SleepMode_t samdGetActivity(void);
+
+/*! @brief Set the activity level for each peripheral
+ *  @param [in] sm : the minimum level required
+ *  @param [in] periphIdx : the peripheral index
+ */
+void samdSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx);
 
 /*! @brief Sets the sleep mode. */
 void samdSleep(SleepMode_t sm);

@@ -9,8 +9,9 @@
 
 #define I2CM_ACTIVATE_TIMEOUT_US 200u /* Time to wait for I2C bus */
 
-static void  i2cmCommon(Sercom *pSercom);
-static Pin_t spiSelectPin;
+static void          i2cmCommon(Sercom *pSercom);
+static Pin_t         spiSelectPin;
+static volatile bool i2cTimeout = false;
 
 static void i2cmCommon(Sercom *pSercom) {
   /* For 400 kHz I2C, SCL T_high >= 0.6 us, T_low >= 1.3 us, with
@@ -23,7 +24,7 @@ static void i2cmCommon(Sercom *pSercom) {
       SERCOM_I2CM_BAUD_BAUDLOW(8u) | SERCOM_I2CM_BAUD_BAUD(2u);
 
   /* Configure the master I2C SERCOM */
-  pSercom->I2CM.CTRLA.reg = SERCOM_I2CM_CTRLA_MODE_I2C_MASTER;
+  pSercom->I2CM.CTRLA.reg = SERCOM_I2CM_CTRLA_MODE(5);
 
   /* Enable SERCOM, with sync */
   pSercom->I2CM.CTRLA.reg |= SERCOM_I2CM_CTRLA_ENABLE;
@@ -42,31 +43,45 @@ static void i2cmCommon(Sercom *pSercom) {
                                SERCOM_I2CM_INTENSET_ERROR;
 }
 
-void sercomSetup(void) {
+void sercomDisable(Sercom *sercom) {
+  /* Disable the SERCOM instance and gate GCLK */
+  if (SERCOM_SPI == sercom) {
+    sercom->SPI.CTRLA.reg &= ~(SERCOM_SPI_CTRLA_ENABLE);
+    GCLK->PCHCTRL[SERCOM_SPI_GCLK_ID].reg &= ~GCLK_PCHCTRL_CHEN;
+  } else if (SERCOM_UART_DBG == sercom) {
+    sercom->USART.CTRLA.reg &= ~(SERCOM_USART_CTRLA_ENABLE);
+    GCLK->PCHCTRL[SERCOM_UART_DBG_GCLK_ID].reg &= ~GCLK_PCHCTRL_CHEN;
+  }
+}
+
+void sercomSetup(const bool uartEn, const bool spiEn) {
   /*****************
    * Debug UART setup
    ******************/
 
-  UART_Cfg_t uart_dbg_cfg;
-  uart_dbg_cfg.sercom    = SERCOM_UART_DBG;
-  uart_dbg_cfg.baud      = UART_DBG_BAUD;
-  uart_dbg_cfg.apbc_mask = SERCOM_UART_DBG_APBCMASK;
-  uart_dbg_cfg.gclk_id   = SERCOM_UART_DBG_GCLK_ID;
-  uart_dbg_cfg.gclk_gen  = 3u;
-  uart_dbg_cfg.pad_tx    = UART_DBG_PAD_TX;
-  uart_dbg_cfg.pad_rx    = UART_DBG_PAD_RX;
+  if (uartEn || !spiEn) {
+    UART_Cfg_t uart_dbg_cfg;
+    uart_dbg_cfg.sercom    = SERCOM_UART_DBG;
+    uart_dbg_cfg.baud      = UART_DBG_BAUD;
+    uart_dbg_cfg.apbc_mask = SERCOM_UART_DBG_APBCMASK;
+    uart_dbg_cfg.gclk_id   = SERCOM_UART_DBG_GCLK_ID;
+    uart_dbg_cfg.gclk_gen  = 1u;
+    uart_dbg_cfg.pad_tx    = UART_DBG_PAD_TX;
+    uart_dbg_cfg.pad_rx    = UART_DBG_PAD_RX;
 
-  uart_dbg_cfg.dmaChannel   = DMA_CHAN_UART_DBG;
-  uart_dbg_cfg.dmaCfg.ctrlb = DMAC_CHCTRLB_LVL(1u) |
-                              DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DBG_DMAC_ID_TX) |
-                              DMAC_CHCTRLB_TRIGACT_BEAT;
-  sercomSetupUART(&uart_dbg_cfg);
+    uart_dbg_cfg.dmaChannel = DMA_CHAN_UART_DBG;
+    uart_dbg_cfg.dmaCfg.ctrlb =
+        DMAC_CHCTRLB_LVL(1u) |
+        DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DBG_DMAC_ID_TX) |
+        DMAC_CHCTRLB_TRIGACT_BEAT;
+    sercomSetupUART(&uart_dbg_cfg);
 
-  /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
-  uartConfigureDMA();
-  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
-  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
-  NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+    /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
+    uartConfigureDMA();
+    uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
+    uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
+    NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+  }
 
   /*****************
    * I2C Setup
@@ -74,17 +89,19 @@ void sercomSetup(void) {
   portPinMux(GRP_SERCOM_I2CM, PIN_I2CM_SDA, PMUX_I2CM);
   portPinMux(GRP_SERCOM_I2CM, PIN_I2CM_SCL, PMUX_I2CM);
 
-  PM->APBCMASK.reg |= SERCOM_I2CM_INT_APBCMASK;
-  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(SERCOM_I2CM_INT_GCLK_ID) |
-                      GCLK_CLKCTRL_GEN(3u) | GCLK_CLKCTRL_CLKEN;
+  MCLK->APBCMASK.reg |= SERCOM_I2CM_INT_APBCMASK;
+  GCLK->PCHCTRL[SERCOM_I2CM_INT_GCLK_ID].reg =
+      GCLK_PCHCTRL_GEN_GCLK1 | GCLK_PCHCTRL_CHEN;
 
   i2cmCommon(SERCOM_I2CM);
 
   /*****************
    * SPI Setup
    ******************/
-  Pin_t spiPin = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
-  sercomSetupSPI(spiPin);
+  if (spiEn) {
+    Pin_t spiPin = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
+    sercomSetupSPI(spiPin);
+  }
 }
 
 void sercomSetupUART(const UART_Cfg_t *pCfg) {
@@ -122,13 +139,13 @@ void sercomSetupUART(const UART_Cfg_t *pCfg) {
   portPinMux(pCfg->port_grp, pCfg->pin_rx, pCfg->pmux);
 
   /* Configure clocks - runs from the OSC8M clock on gen 3 */
-  PM->APBCMASK.reg |= pCfg->apbc_mask;
-  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(pCfg->gclk_id) |
-                      GCLK_CLKCTRL_GEN(pCfg->gclk_gen) | GCLK_CLKCTRL_CLKEN;
+  MCLK->APBCMASK.reg |= pCfg->apbc_mask;
+  GCLK->PCHCTRL[pCfg->gclk_id].reg =
+      GCLK_PCHCTRL_GEN(pCfg->gclk_gen) | GCLK_PCHCTRL_CHEN;
 
   /* Configure the USART */
   pCfg->sercom->USART.CTRLA.reg = SERCOM_USART_CTRLA_DORD |
-                                  SERCOM_USART_CTRLA_MODE_USART_INT_CLK |
+                                  SERCOM_USART_CTRLA_MODE(1) |
                                   SERCOM_USART_CTRLA_RXPO(pCfg->pad_rx) |
                                   SERCOM_USART_CTRLA_TXPO(pCfg->pad_tx);
 
@@ -158,10 +175,10 @@ void sercomSetupSPI(Pin_t sel) {
   spiSelectPin.grp = sel.grp;
   spiSelectPin.pin = sel.pin;
 
-  /* Configure clocks - runs from the OSC8M clock on gen 3 */
-  PM->APBCMASK.reg |= SERCOM_SPI_APBCMASK;
-  GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(SERCOM_SPI_GCLK_ID) |
-                      GCLK_CLKCTRL_GEN(3u) | GCLK_CLKCTRL_CLKEN;
+  /* Configure clocks - runs from the OSC8M clock on gen 0 */
+  MCLK->APBCMASK.reg |= SERCOM_SPI_APBCMASK;
+  GCLK->PCHCTRL[SERCOM_SPI_GCLK_ID].reg =
+      GCLK_PCHCTRL_GEN_GCLK1 | GCLK_PCHCTRL_CHEN;
 
   /* Table 25-2 - driven @ F_REF = F_PERIPH. BAUD = F_REF / 2F_BAUD - 1
    * RFM69 maximum SCK is 10 MHz, so can go at maximum 4 MHz SCK easily.
@@ -171,7 +188,7 @@ void sercomSetupSPI(Pin_t sel) {
   /* SPI mode 0: CPOL == 0, CPHA == 0 */
   /* In v0.1 MOSI and !SS are swapped, fix by hand and revise for v0.2 */
   SERCOM_SPI->SPI.CTRLA.reg =
-      SERCOM_SPI_CTRLA_MODE_SPI_MASTER | SERCOM_SPI_CTRLA_DOPO(0x2);
+      SERCOM_SPI_CTRLA_MODE(3) | SERCOM_SPI_CTRLA_DOPO(0x2);
 
   /* Enable TX and RX interrupts (complete and empty), not routed to NVIC */
   SERCOM_SPI->SPI.INTENSET.reg |= SERCOM_SPI_INTENSET_RXC |
@@ -256,17 +273,24 @@ void uartInterruptClear(Sercom *sercom, uint32_t interrupt) {
  * =====================================
  */
 I2CM_Status_t i2cActivate(Sercom *sercom, uint8_t addr) {
-  unsigned int  t = timerMicros();
   I2CM_Status_t s = I2CM_SUCCESS;
 
+  NVIC_EnableIRQ(SERCOM2_0_IRQn);
   sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
 
   /* MB: master on bus, SB: slave on bus */
-  while (!(sercom->I2CM.INTFLAG.reg &
-           (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB))) {
-    if (timerMicrosDelta(t) > I2CM_ACTIVATE_TIMEOUT_US) {
-      return I2CM_TIMEOUT;
-    }
+  while ((!(sercom->I2CM.INTFLAG.reg &
+            (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB))) ||
+         i2cTimeout) {
+    __WFI();
+  }
+
+  if (!i2cTimeout) {
+    // timerFlush();
+    sercom->I2CM.INTFLAG.reg = sercom->I2CM.INTFLAG.reg;
+  } else {
+    i2cTimeout = false;
+    return I2CM_TIMEOUT;
   }
 
   /* Check for NoAck response from client (28.6.2.4.2) */
@@ -280,14 +304,16 @@ I2CM_Status_t i2cActivate(Sercom *sercom, uint8_t addr) {
 void i2cAck(Sercom *sercom, I2CM_Ack_t ack, I2CM_AckCmd_t cmd) {
   sercom->I2CM.CTRLB.reg =
       (ack << SERCOM_I2CM_CTRLB_ACKACT_Pos) | SERCOM_I2CM_CTRLB_CMD(cmd);
-  while (sercom->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP)
-    ;
+  while (sercom->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP) {
+    __WFI();
+  }
 }
 
 void i2cDataWrite(Sercom *sercom, uint8_t data) {
   sercom->I2CM.DATA.reg = data;
-  while (!(sercom->I2CM.INTFLAG.reg & SERCOM_I2CM_INTFLAG_MB))
-    ;
+  while (!(sercom->I2CM.INTFLAG.reg & SERCOM_I2CM_INTFLAG_MB)) {
+    __WFI();
+  }
 }
 
 uint8_t i2cDataRead(Sercom *sercom) {
@@ -296,6 +322,8 @@ uint8_t i2cDataRead(Sercom *sercom) {
     ;
   return sercom->I2CM.DATA.reg;
 }
+
+void i2cSetTimeout(void) { i2cTimeout = true; }
 
 /*
  * =====================================
