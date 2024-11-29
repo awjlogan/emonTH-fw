@@ -4,23 +4,25 @@
 #include "emonTH_build_info.h"
 
 static const char compiler[] = "gcc 12.2.1";
-static const char revision[] = "f27b6e8-dirty";
-static const char date[] = "11/20/2024 20:34 UTC";
-static const char machine[] = "awjlogan@goose-air.lan";
-static const char release[] = "f27b6e864570da72bd2046c557710de67ee6978e";
-static const char build_info[] = "f27b6e8-dirty (Default) on 11/20/2024 20:34 UTC with gcc 12.2.1 by awjlogan@goose-air.lan";
+static const char revision[] = "cd7162c-dirty";
+static const char date[]     = "11/29/2024 06:27 UTC";
+static const char machine[]  = "awjlogan@goose-air.lan";
+static const char release[]  = "cd7162cc9b8d52433d03e1270b541d2f06cc458f";
+static const char build_info[] =
+    "cd7162c-dirty (Default) on 11/29/2024 06:27 UTC with gcc 12.2.1 by "
+    "awjlogan@goose-air.lan";
 
 struct EmonTHBuildInfo emonTH_build_info(void) {
-    return (struct EmonTHBuildInfo){
-        .revision = revision,
-        .date = date,
-        .compiler = compiler,
-        .machine = machine,
-        .release = release,
-        .release_year = 0,
-        .release_month = 0,
-        .release_day = 0,
-    };
+  return (struct EmonTHBuildInfo){
+      .revision      = revision,
+      .date          = date,
+      .compiler      = compiler,
+      .machine       = machine,
+      .release       = release,
+      .release_year  = 0,
+      .release_month = 0,
+      .release_day   = 0,
+  };
 }
 
-const char* emonTH_build_info_string(void) { return build_info; }
+const char *emonTH_build_info_string(void) { return build_info; }

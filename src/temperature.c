@@ -6,11 +6,10 @@
 #include "periph_DS18B20.h"
 #include "temperature.h"
 
-static bool tempSampled      = false;
-static int  numSensors       = 0;
-static int  millisLastSample = 0;
+static bool tempSampled = false;
+static int  numSensors  = 0;
 
-unsigned int tempInitSensors(const TEMP_INTF_t intf, const void *pParams) {
+unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   EMONTH_ASSERT(pParams);
 
   if (TEMP_INTF_ONEWIRE == intf) {
@@ -20,7 +19,7 @@ unsigned int tempInitSensors(const TEMP_INTF_t intf, const void *pParams) {
   return numSensors;
 }
 
-TempRead_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev) {
+TempRead_t tempSampleRead(const TEMP_INTF_t intf, const uint8_t dev) {
   TempRead_t res = {TEMP_FAILED, INT16_MIN};
 
   if (!tempSampled) {
@@ -40,22 +39,16 @@ TempRead_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev) {
   return res;
 }
 
-TempStatus_t tempStartSample(const TEMP_INTF_t intf, const uint32_t dev) {
+TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
 
   if (0 == numSensors) {
     return TEMP_NO_SENSORS;
   }
 
-  if (timerMillisDelta(millisLastSample) < TEMP_CONVERSION_T) {
-    return TEMP_OVERRUN;
-  }
-
   if (TEMP_INTF_ONEWIRE == intf) {
     tempSampled = true;
     (void)dev;
-    millisLastSample = timerMillis();
-    int samp         = ds18b20StartSample();
-    if (0 == samp)
+    if (0 == ds18b20StartSample())
       return TEMP_OK;
   }
 

@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 typedef struct DS18B20_conf_ {
-  unsigned int grp;
   unsigned int pin;
   unsigned int t_wait_us;
 } DS18B20_conf_t;

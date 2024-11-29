@@ -1,10 +1,38 @@
-#include "emonTH_samd.h"
+#include "emonTH_saml.h"
 
 #include "board_def.h"
 #include "driver_EIC.h"
 #include "driver_PORT.h"
+#include "emonTH.h"
+
+static int  chToIndex(const int ch);
+static void intHandler(const int ch);
+static void intWake(void);
 
 static void (*eicCB[EIC_CH_NUM])(void);
+static bool pulseEn;
+
+static int chToIndex(const int ch) {
+  int index = 0;
+  switch (ch) {
+  case EIC_CH_RFM:
+    index = 0;
+    break;
+  case EIC_CH_HDC:
+    index = 1;
+    break;
+  case EIC_CH_OW:
+    index = 2;
+    break;
+  case EIC_CH_PULSE:
+    index = 3;
+    break;
+  case EIC_CH_WAKE:
+    index = 4;
+    break;
+  }
+  return index;
+}
 
 void eicLevelDisable(const int ch) {
   switch (ch) {
@@ -18,6 +46,8 @@ void eicLevelDisable(const int ch) {
     break;
   }
 }
+
+void eicCallbackSet(const int ch, void (*cb)()) { eicCB[chToIndex(ch)] = cb; }
 
 void eicLevelEnable(const int ch, void (*cb)()) {
   /* Only a single set of EIC inputs on SAML10 */
@@ -36,26 +66,44 @@ void eicLevelEnable(const int ch, void (*cb)()) {
 }
 
 void eicSetup(void) {
-  /* EIC APB clock is unmasked on reset (16.8.8).
-   * Require EIC GCLK for edge detection. (21.6.2.1)
-   * GCLK->CLKCTRL.reg =
-   *    GCLK_CLKCTRL_ID(EIC_GCLK_ID) | GCLK_CLKCTRL_GEN(3u) |
-   * GCLK_CLKCTRL_CLKEN;
+  /* EIC APB clock is unmasked on reset (19.8.7).
+   * If pulse counting is enabled, use asynchronous rising edge mode.
    */
+
+  /* Enable asynch rising edge interrupt on the wake up pin */
+  EIC->INTENSET.reg = EIC_INTENSET_EXTINT(EIC_CH_WAKE);
+  EIC->ASYNCH.reg |= EIC_ASYNCH_ASYNCH(EIC_CH_WAKE);
+  EIC->CONFIG[0].reg |= EIC_CONFIG_SENSE0_RISE;
+  eicCB[EIC_CH_WAKE] = &intWake;
+
   NVIC_EnableIRQ(EIC_0_IRQn);
 }
 
+void eicSetupClose(void) { MCLK->APBAMASK.reg &= ~MCLK_APBAMASK_EIC; }
+
+void eicSetupPulse(void) {
+  EIC->INTENSET.reg = EIC_INTENSET_EXTINT(EIC_CH_PULSE);
+  EIC->ASYNCH.reg |= EIC_ASYNCH_ASYNCH(EIC_CH_PULSE);
+  EIC->CONFIG[0].reg |= EIC_CONFIG_SENSE7_RISE;
+  pulseEn = true;
+}
+
+static void intHandler(const int ch) {
+  int chIndex = chToIndex(ch);
+  if (eicCB[chIndex]) {
+    eicCB[chIndex]();
+  }
+}
+
+static void intWake(void) { emonTHEventSet(EVT_WAKE_SAMPLE); }
+
 void irq_handler_eic(void) {
-  if (EIC->INTFLAG.reg & EIC_INTFLAG_EXTINT(0)) {
-    if (eicCB[0]) {
-      eicCB[0];
+  MCLK->APBAMASK.reg |= MCLK_APBAMASK_EIC;
+  for (int i = 0; i < 8; i++) {
+    if (EIC->INTFLAG.reg & EIC_INTFLAG_EXTINT(i)) {
+      EIC->INTFLAG.reg |= EIC_INTFLAG_EXTINT(i);
+      intHandler(i);
     }
-    EIC->INTFLAG.reg |= EIC_INTFLAG_EXTINT(0);
   }
-  if (EIC->INTFLAG.reg & EIC_INTFLAG_EXTINT(1)) {
-    if (eicCB[1]) {
-      eicCB[1]();
-    }
-    EIC->INTFLAG.reg |= EIC_INTFLAG_EXTINT(1);
-  }
+  MCLK->APBAMASK.reg &= ~MCLK_APBAMASK_EIC;
 }

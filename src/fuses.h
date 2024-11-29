@@ -6,14 +6,14 @@
 
 #pragma once
 
-/* Helpers for interacting with the SAMD21 hardware fuses */
+/* Helpers for interacting with the SAML21 hardware fuses */
 #include <stdint.h>
 
-#include "emonTH_samd.h"
+#include "emonTH_saml.h"
 
 /*
   Struct mapping for the User Row, since it's not included in the normal CMSIS
-  headers for the SAMD21. See datasheet section 10.3.1 for full details.
+  headers for the SAML21. See datasheet section 10.3.1 for full details.
 */
 // clang-format off
 typedef union {

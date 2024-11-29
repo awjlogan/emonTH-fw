@@ -3,8 +3,8 @@
 #include "driver_ADC.h"
 #include "driver_DMAC.h"
 #include "driver_PORT.h"
-#include "driver_SAMD.h"
-#include "emonTH_samd.h"
+#include "driver_SAML.h"
+#include "emonTH_saml.h"
 
 #include "emonTH.h"
 
@@ -42,7 +42,7 @@ int16_t adcGetResult(void) { return adcResultValid ? adcResult : INT16_MIN; }
 
 void adcSetup(void) {
 
-  portPinMux(GRP_BATT_SENSE, PIN_VBATT_DIV4, PORT_PMUX_PMUXE_Msk);
+  portPinMux(PIN_VBATT_DIV4, PORT_PMUX_PMUXE_Msk);
 
   /* APB bus clock is enabled by default (Table 15-1). Connect GCLK 1 @ 1 MHz */
   GCLK->PCHCTRL[ADC_GCLK_ID].reg = GCLK_PCHCTRL_GEN_GCLK1 | GCLK_PCHCTRL_CHEN;
@@ -54,8 +54,8 @@ void adcSetup(void) {
   while (ADC->CTRLA.reg & ADC_CTRLA_SWRST)
     ;
 
-  ADC->CALIB.reg = (samdCalibration(CAL_ADC_BIAS) << 8u) |
-                   samdCalibration(CAL_ADC_LINEARITY);
+  ADC->CALIB.reg = (samlCalibration(CAL_ADC_BIAS) << 8u) |
+                   samlCalibration(CAL_ADC_LINEARITY);
 
   /* Enable reference buffer and set to external VREF */
   ADC->REFCTRL.reg = ADC_REFCTRL_REFSEL_INTVCC0;
@@ -70,7 +70,7 @@ void adcSetup(void) {
   adcSync();
 
   NVIC_EnableIRQ(ADC_0_IRQn);
-  samdSetActivity(SLEEP_MODE_STANDBY, PERIPH_IDX_ADC);
+  samlSetActivity(SLEEP_MODE_STANDBY, PERIPH_IDX_ADC);
   adcState = ADC_STATE_ENABLE;
 }
 

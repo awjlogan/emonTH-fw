@@ -19,14 +19,15 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
  * Device configuration
  *********************************/
 
-#define NETWORK_GROUP 210u /* Must match emonBase group */
-#define NODE_ID       17u  /* Node ID for reports */
+#define NETWORK_GROUP_DEF 210u /* Must match emonBase group */
+#define NODE_ID_DEF       27u  /* Default node ID */
 
 typedef struct EmonTHCfg_ {
   uint8_t  RF_Freq;
   uint8_t  networkGroup;
   uint8_t  nodeID;
-  bool     rfEnabled;
+  bool     idFromNVM;
+  int8_t   txType;
   uint8_t  rfPower;
   bool     pulseEnabled;
   uint8_t  pulsePeriod;
@@ -34,32 +35,31 @@ typedef struct EmonTHCfg_ {
   uint64_t oneWireAddress[TEMP_MAX_ONEWIRE];
 } EmonTHCfg_t;
 
-_Static_assert(sizeof(EmonTHCfg_t) < 65, "EmonThCfg_t bigger than 64 bytes");
+_Static_assert(sizeof(EmonTHCfg_t) < 57, "EmonThCfg_t bigger than 56 bytes");
 
 /*********************************
  * Remaining
  *********************************/
 
-#define TX_BUFFER_W 512u
+#define TX_BUFFER_W 128u
 
-/* Configuration key - indicates that the configuration is the default or
- * has been retrieved from non-volatile storage */
-#define CONFIG_NVM_KEY 0xca55e77eul
-
-typedef struct Emon32Dataset_ {
-  uint32_t     msgNum;
-  uint32_t     pulseCnt[NUM_PULSECOUNT];
-  float        temp[TEMP_MAX_ONEWIRE];
-  unsigned int numTempSensors;
+typedef struct EmonTHDataset_ {
+  float    tempInternal;
+  int16_t  tempExternal[TEMP_MAX_ONEWIRE];
+  float    humidityInternal;
+  float    battery;
+  uint32_t pulseCnt;
 } EmonTHDataset_t;
 
 /* This struct must match the OEM definitions found at:
  * https://docs.openenergymonitor.org/electricity-monitoring/networking/sending-data-between-nodes-rfm.html
  */
 typedef struct __attribute__((__packed__)) PackedData_ {
-  uint32_t msg;
-  int16_t  T[TEMP_MAX_ONEWIRE];
-  uint32_t pulse[NUM_PULSECOUNT];
+  int16_t  tempInternal;
+  int16_t  tempExternal[TEMP_MAX_ONEWIRE];
+  int16_t  humidityInternal;
+  uint16_t battery;
+  uint32_t pulse;
 } PackedData_t;
 
 /* Maximum size of RFM69CW buffer is 61 bytes. Node, number, and CRC included.
@@ -70,26 +70,21 @@ _Static_assert((sizeof(PackedData_t) + 4) < 62, "PackedData_t > 62 bytes");
  * to provide a vector of set events as bits.
  */
 typedef enum EVTSRC_ {
-  EVT_DMA             = 0u,
-  EVT_TICK_1kHz       = 1u,
-  EVT_RTC_OVF         = 2u,
-  EVT_UART            = 3u,
-  EVT_ADC             = 4u,
-  EVT_DMAC_UART_CMPL  = 5u,
-  EVT_DMAC_SMP_CMPL   = 6u,
-  EVT_SAVE_RESET      = 7u,
-  EVT_DMAC_I2C_CMPL   = 8u,
-  EVT_TIMER_MC        = 9u,
-  EVT_EIC_PULSE       = 10u,
-  EVT_EEPROM_TMR      = 11u,
-  EVT_TEMP_SAMPLE     = 12u,
-  EVT_TEMP_READ       = 13u,
-  EVT_CONFIG_CHANGED  = 14u,
-  EVT_CONFIG_SAVED    = 15u,
-  EVT_SAFE_RESET_REQ  = 16u,
-  EVT_PROCESS_CMD     = 17u,
-  EVT_PROCESS_DATASET = 18u,
-  EVT_CLEAR_ACCUM     = 19u,
+  EVT_DMA            = 0u,
+  EVT_TICK_1kHz      = 1u,
+  EVT_WAKE_SAMPLE    = 2u,
+  EVT_UART           = 3u,
+  EVT_ADC            = 4u,
+  EVT_DMAC_UART_CMPL = 5u,
+  EVT_SAVE_RESET     = 7u,
+  EVT_TIMER_MC       = 9u,
+  EVT_EIC_PULSE      = 10u,
+  EVT_TH_SAMPLE_RD   = 12u,
+  EVT_SAMPLE_PROCESS = 13u,
+  EVT_ONEWIRE_SAMPLE = 14u,
+  EVT_ONEWIRE_READ   = 15u,
+  EVT_ENTER_CONFIG   = 19u,
+  EVT_SEND_DATA      = 20u
 } EVTSRC_t;
 
 /*! @brief Output a string to the debug destination. If the USB CDC is connected
@@ -108,3 +103,5 @@ void emonTHEventClr(const EVTSRC_t evt);
  *  @param [in] evt : Event source in enum
  */
 void emonTHEventSet(const EVTSRC_t evt);
+
+void emonTHInteractiveUartSet(void);

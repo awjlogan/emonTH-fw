@@ -6,11 +6,9 @@
  * not physical. Each collection of pins is terminated with a {0xFF, 0} pair.
  */
 
-const uint8_t pinsGPIO_Out[][2] = {{GRP_PINA, PIN_SPI_RFM_SS}, {0xFF, 0}};
+const uint8_t pinsGPIO_Out[] = {PIN_ONEWIRE_PWR, PIN_SPI_RFM_SS, 0xFF};
 
-const uint8_t pinsGPIO_In[][2] = {
-    {GRP_SLIDE_SW, PIN_SW_NODE0}, {GRP_SLIDE_SW, PIN_SW_NODE1},
-    {GRP_SLIDE_SW, PIN_SW_UART},  {GRP_PULSE, PIN_PULSE1},
-    {GRP_ONEWIRE, PIN_ONEWIRE},   {0xFF, 0}};
+const uint8_t pinsGPIO_In[] = {PIN_SW_NODE0, PIN_SW_NODE1, PIN_PULSE,
+                               PIN_ONEWIRE, 0xFF};
 
-const uint8_t pinsUnused[][2] = {{GRP_PINA, 0}, {GRP_PINA, 1}, {0xFF, 0}};
+const uint8_t pinsUnused[] = {0, 1, 0xFF};

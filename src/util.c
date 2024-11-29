@@ -137,7 +137,7 @@ unsigned int utilFtoa(char *pBuf, float val) {
   uint16_t decimals;
   int      units;
 
-  if (val < 0.0f) {
+  if (-1 == qfp_fcmp(val, 0.0f)) {
     isNegative = true;
     val        = qfp_fmul(val, -1.0f);
   }
@@ -167,45 +167,4 @@ unsigned int utilFtoa(char *pBuf, float val) {
   }
   utilStrReverse(pBase, charCnt);
   return charCnt;
-}
-
-ConvFloat_t utilAtof(char *pBuf) {
-  bool         isNegative = false;
-  unsigned int len        = 0;
-  unsigned int mulCnt     = 1u;
-  unsigned int fraction   = 0u;
-  ConvFloat_t  conv       = {false, 0.0f};
-
-  if ('-' == *pBuf) {
-    isNegative = true;
-    pBuf++;
-  }
-  len = utilStrlen(pBuf);
-  utilStrReverse(pBuf, len);
-
-  while (*pBuf) {
-    const char c = *pBuf++;
-    /* Allow period/comma delimit, divide down if found */
-    if (('.' == c) || (',' == c)) {
-      fraction = mulCnt;
-    } else if (isnumeric(c)) {
-      const float toAdd = qfp_uint2float((c - '0') * mulCnt);
-      conv.val          = qfp_fadd(conv.val, toAdd);
-      mulCnt *= 10;
-    } else {
-      /* Invalid character found */
-      return conv;
-    }
-  }
-
-  if (0 != fraction) {
-    conv.val = qfp_fdiv(conv.val, qfp_uint2float(fraction));
-  }
-
-  if (isNegative) {
-    conv.val = qfp_fmul(conv.val, -1.0f);
-  }
-
-  conv.valid = true;
-  return conv;
 }

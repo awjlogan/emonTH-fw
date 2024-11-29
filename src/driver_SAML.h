@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "board_def.h"
-#include "emonTH_samd.h"
+#include "emonTH_saml.h"
 
 typedef enum Calibration_ {
   CAL_ADC_LINEARITY,
@@ -28,18 +28,18 @@ typedef enum SleepMode_t {
  *  @param [in] cal : enumeration of the calibration value required
  *  @return : calibration value
  */
-uint32_t samdCalibration(const Calibration_t cal);
+uint32_t samlCalibration(const Calibration_t cal);
 
 /*! @brief Returns the minimum allowed sleep mode
  *  @return : the sleep mode required
  */
-SleepMode_t samdGetActivity(void);
+SleepMode_t samlGetActivity(void);
 
 /*! @brief Set the activity level for each peripheral
  *  @param [in] sm : the minimum level required
  *  @param [in] periphIdx : the peripheral index
  */
-void samdSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx);
+void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx);
 
 /*! @brief Sets the sleep mode. */
-void samdSleep(SleepMode_t sm);
+void samlSleep(SleepMode_t sm);

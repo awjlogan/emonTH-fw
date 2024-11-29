@@ -1,6 +1,8 @@
 #pragma once
 
-#include "emonTH_samd.h"
+#include <stdbool.h>
+
+#include "emonTH_saml.h"
 
 typedef struct DMACCfgCh {
   uint32_t ctrlb;
@@ -30,15 +32,15 @@ void dmacChannelEnable(unsigned int ch);
 
 /*! @brief Get channel transfer status
  *  @param [in] ch : channel number
- *  @return 1 if channel ch is busy. 0 otherwise
+ *  @return true if channel ch is busy, false otherwise
  */
-unsigned int dmacChannelBusy(unsigned int ch);
+bool dmacChannelBusy(unsigned int ch);
 
 /*! @brief Configure a DMA channel
  *  @param [in] ch : channel to configure
- *  @param [in] pCfg : pointer to configuration details
+ *  @param [in] ctrlb : DMAC CTRLB value
  */
-void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg);
+void dmacChannelConfigure(unsigned int ch, const uint32_t ctrlb);
 
 /*! @brief Resume a DMA channel
  *  @param [in] ch : channel to resume
@@ -68,6 +70,6 @@ void dmacClearChannelInterrupt(unsigned int ch);
 /*! @brief Calculate the CRC16 (CCITT - 0x1021)
  *  @param [in] pData : pointer to data
  *  @param [in] n : number of bytes in data
- *  @return CRC16 value
+ *  @return CRC16 CCITT value
  */
 uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n);

@@ -39,7 +39,7 @@
 .endif
 
 .syntax unified
-.cpu cortex-m0
+.cpu cortex-m23
 .thumb
 
 @ exported symbols

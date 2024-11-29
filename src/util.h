@@ -13,11 +13,6 @@ typedef struct ConvInt_ {
   int32_t val;
 } ConvInt_t;
 
-/*! @brief Convert null terminated string to float, returns the value.
- *  @param [in] pBuf : pointer to string buffer
- */
-ConvFloat_t utilAtof(char *pBuf);
-
 /*! @brief Convert null terminated string to integer, returns the value.
  *  @param [in] pBuf : pointer to string buffer
  *  @param [in] base : select base 10 or base 16 conversion

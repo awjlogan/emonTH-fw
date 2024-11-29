@@ -26,7 +26,7 @@ CFLAGS += -Wshadow -Wdouble-promotion -Wundef
 CFLAGS += -mcpu=cortex-m23 -mthumb
 CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 
-LDFLAGS += -mcpu=cortex-m23 -mthumb
+LDFLAGS += -mcpu=cortex-m23 -mthumb -nostartfiles
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -Wl,--print-memory-usage
 LDFLAGS += -Wl,--script=./linker/saml10e14.ld
@@ -94,6 +94,6 @@ size: $(BUILD)/$(BIN).elf
 clean:
 	@echo clean
 	@-rm -rf $(BUILD)
-	@-rm -f $(OUT)/emon32*
+	@-rm -f $(OUT)/emonTH*
 
 -include $(wildcard $(BUILD)/*.d)

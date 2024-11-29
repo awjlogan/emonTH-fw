@@ -1,21 +1,18 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "emonTH_samd.h"
+#include "emonTH_saml.h"
 
 #include "driver_ADC.h"
 #include "driver_CLK.h"
 #include "driver_EIC.h"
 #include "driver_PORT.h"
-#include "driver_RTC.h"
-#include "driver_SAMD.h"
+#include "driver_SAML.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
-#include "driver_WDT.h"
 
 #include "configuration.h"
 #include "dataPack.h"
-#include "eeprom.h"
 #include "emonTH.h"
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
@@ -35,7 +32,8 @@ typedef struct TransmitOpt_ {
  * Persistent state variables
  *************************************/
 
-static bool              uartEnabled = false;
+static volatile bool     interactiveUart    = false;
+static volatile bool     interactiveTimeout = false;
 static volatile uint32_t evtPend;
 AssertInfo_t             g_assert_info;
 
@@ -43,59 +41,25 @@ AssertInfo_t             g_assert_info;
  * Static function prototypes
  *************************************/
 
-static void      datasetAddPulse(EmonTHDataset_t *pDst);
-static RFMOpt_t *dataTxConfigure(const EmonTHConfig_t *pCfg);
-static bool      evtPending(EVTSRC_t evt);
-static void      pulseConfigure(const EmonTHConfig_t *pCfg);
-void             putchar_(char c);
-static void      putsDbgNonBlocking(const char *const s, uint16_t len);
-static void      readSlideSW(EmonTHConfig_t *pCfg);
-static uint32_t  tempSetup(void);
-static void      transmitData(const EmonTHDataset_t *pSrc,
-                              const TransmitOpt_t   *pOpt);
-static void      ucSetup(void);
+static bool     evtPending(EVTSRC_t evt);
+void            putchar_(char c);
+static void     putsDbgNonBlocking(const char *const s, uint16_t len);
+static void     readSlideSW(EmonTHConfigPacked_t *pCfg);
+static uint32_t tempSetup(void);
+static void     transmitData(const EmonTHDataset_t *pSrc,
+                             const TransmitOpt_t   *pOpt);
+static void     ucSetup(void);
+static void     interactiveLED(void);
+static void     interactiveWait(void);
+static void     tplDone(void);
 
 /*************************************
  * Functions
  *************************************/
 
-/*! @brief Add pulse counting information to the dataset to be sent
- *  @param [out] pDst : pointer to the data struct
- */
-static void datasetAddPulse(EmonTHDataset_t *pDst) {
-  EMONTH_ASSERT(pDst);
-
-  pDst->msgNum++;
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
-    pDst->pulseCnt[i] = pulseGetCount(i);
-  }
-}
-
-/*! @brief Configure the data transmission output.
- *  @param [in] pCfg : pointer to the configuration struct
- *  @return : pointer to an RFM packet if using RFM, 0 if not.
- */
-static RFMOpt_t *dataTxConfigure(const EmonTHConfig_t *pCfg) {
-  EMONTH_ASSERT(pCfg);
-
-  RFMOpt_t *rfmOpt = 0;
-  if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType) {
-    rfmOpt            = rfmGetHandle();
-    rfmOpt->node      = pCfg->baseCfg.nodeID;
-    rfmOpt->grp       = pCfg->baseCfg.dataGrp; /* Fixed for OpenEnergyMonitor */
-    rfmOpt->rf_pwr    = pCfg->dataTxCfg.rfmPwr;
-    rfmOpt->threshold = 0u;
-    rfmOpt->timeout   = 1000u;
-    rfmOpt->n         = 23u;
-
-    rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq);
-  }
-  return rfmOpt;
-}
-
 void dbgPuts(const char *s) {
   EMONTH_ASSERT(s);
-  uartPutsBlocking(SERCOM_UART_DBG, s);
+  uartPutsBlocking(s);
 }
 
 void emonTHEventClr(const EVTSRC_t evt) {
@@ -122,56 +86,29 @@ static bool evtPending(EVTSRC_t evt) {
   return (evtPend & (1u << evt)) ? true : false;
 }
 
-/*! @brief Configure any pulse counter interfaces
- *  @param [in] pCfg : pointer to the configuration struct
- */
-static void pulseConfigure(const EmonTHConfig_t *pCfg) {
-  EMONTH_ASSERT(pCfg);
-
-  uint8_t pinsPulse[][2] = {{GRP_PULSE, PIN_PULSE1}};
-
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
-    PulseCfg_t *pulseCfg = pulseGetCfg(i);
-
-    if (0 != pulseCfg) {
-      pulseCfg->edge    = (PulseEdge_t)pCfg->pulseCfg[i].edge;
-      pulseCfg->grp     = pinsPulse[i][0];
-      pulseCfg->pin     = pinsPulse[i][1];
-      pulseCfg->periods = pCfg->pulseCfg[i].period;
-      pulseCfg->active  = pCfg->pulseCfg[i].pulseActive;
-
-      pulseInit(i);
-    }
-  }
-}
-
 /*! @brief Allows the printf function to print to the debug console. If the USB
  *         CDC is connected, characters should be routed there.
  */
-void putchar_(char c) { uartPutcBlocking(SERCOM_UART_DBG, c); }
+void putchar_(char c) { uartPutcBlocking(c); }
 
 static void putsDbgNonBlocking(const char *const s, uint16_t len) {
-  uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
+  uartPutsNonBlocking(DMA_CHAN_UART, s, len);
 }
 
-static void readSlideSW(EmonTHConfig_t *pCfg) {
-  bool sw[3]    = {false};
-  int  swPin[3] = {PIN_SW_NODE0, PIN_SW_NODE1, PIN_SW_UART};
+static void readSlideSW(EmonTHConfigPacked_t *pCfg) {
+  uint8_t swVal    = 0;
+  uint8_t swPin[2] = {PIN_SW_NODE0, PIN_SW_NODE1};
 
   /* Match the pull up/down to match to eliminate current through pull */
-  for (int i = 0; i < 3; i++) {
-    sw[i] = portPinValue(GRP_SLIDE_SW, swPin[i]);
-    if (!sw[i]) {
-      portPinDrv(GRP_SLIDE_SW, swPin[i], PIN_DRV_CLR);
+  for (int i = 0; i < 2; i++) {
+    swVal |= (portPinValue(swPin[i]) << i);
+    if (swVal & (1 << i)) {
+      portPinDrv(swPin[i], PIN_DRV_CLR);
     }
   }
 
-  /* Disable UART */
-  if (!sw[2]) {
-    uartEnabled = false;
-    sercomDisable(SERCOM_UART_DBG);
-  } else {
-    uartEnabled = true;
+  if (!pCfg->baseCfg.nodeIDSaved) {
+    pCfg->baseCfg.nodeID = NODE_ID_DEF + swVal;
   }
 }
 
@@ -182,11 +119,10 @@ static uint32_t tempSetup(void) {
   unsigned int   numTempSensors = 0;
   DS18B20_conf_t dsCfg          = {0};
 
-  dsCfg.grp       = GRP_ONEWIRE;
   dsCfg.pin       = PIN_ONEWIRE;
   dsCfg.t_wait_us = 5;
 
-  numTempSensors = tempInitSensors(TEMP_INTF_ONEWIRE, &dsCfg);
+  numTempSensors = tempSensorsInit(TEMP_INTF_ONEWIRE, &dsCfg);
 
   return numTempSensors;
 }
@@ -199,43 +135,70 @@ static void transmitData(const EmonTHDataset_t *pSrc,
 
   if (pOpt->useRFM) {
     PackedData_t packedData = {0};
-    dataPackPacked(pSrc, &packedData, PACKED_LOWER);
+    dataPackPacked(pSrc, &packedData);
+    // REVISIT RFM send using latest LPL
+  }
 
-    /* Try to send in "clean" air. If failed, retry on next loop. Should not
-     * reach RFM_FAILED at all. */
-    RFMSend_t res = rfmSendReady(5u);
-    if (RFM_SUCCESS == res) {
-      rfmSend(&packedData);
-    }
-
-    if (pOpt->logSerial) {
-      putsDbgNonBlocking(txBuffer, pktLength);
-    }
-  } else {
+  if (pOpt->logSerial) {
     putsDbgNonBlocking(txBuffer, pktLength);
   }
 }
 
-/*! @brief Setup the microcontoller. This function must be called first. An
- *         implementation must provide all the functions that are called.
- *         These can be empty if they are not used.
- */
+/*! @brief Setup the microcontoller. This function must be called first. */
 static void ucSetup(void) {
   clkSetup();
   timerSetup();
   portSetup();
   dmacSetup();
   adcSetup();
-  // wdtSetup    (WDT_PER_4K);
+  sercomSetup();
+}
+
+static void interactiveLED(void) {
+  static int ccCount = 0;
+  if ((ccCount <= 32) && !(ccCount % 8)) {
+    portPinDrv(PIN_LED, PIN_DRV_TGL);
+  } else if ((ccCount <= 64) && !(ccCount % 4)) {
+    portPinDrv(PIN_LED, PIN_DRV_TGL);
+  } else if (!(ccCount % 2)) {
+    portPinDrv(PIN_LED, PIN_DRV_TGL);
+  }
+
+  if (80 == ccCount) {
+    interactiveTimeout = true;
+  } else {
+    timerDelaySleepAsync_us(UINT16_MAX, SLEEP_MODE_STANDBY, &interactiveLED);
+    ccCount++;
+  }
+}
+
+static void interactiveWait(void) {
+  portPinDrv(PIN_LED, PIN_DRV_SET);
+  timerDelaySleepAsync_us(UINT16_MAX, SLEEP_MODE_STANDBY, &interactiveLED);
+  while (!interactiveTimeout && !interactiveUart) {
+    __WFI();
+  }
+  portPinDrv(PIN_LED, PIN_DRV_CLR);
+  timerFlush();
+  if (interactiveUart) {
+    configEnter();
+  }
+}
+
+static void tplDone(void) {
+  portPinDrv(PIN_TPL_DONE, PIN_DRV_SET);
+  timerDelay_us(2u);
+  portPinDrv(PIN_TPL_DONE, PIN_DRV_CLR);
 }
 
 int main(void) {
 
-  EmonTHConfig_t *pConfig        = 0;
-  EmonTHDataset_t dataset        = {0};
-  unsigned int    numTempSensors = 0;
-  RFMOpt_t       *rfmOpt         = 0;
-  unsigned int    tempCount      = 0;
+  EmonTHConfigPacked_t *pConfig        = 0;
+  EmonTHDataset_t       dataset        = {0};
+  unsigned int          numTempSensors = 0;
+  TransmitOpt_t         txOpt          = {0};
+  HDCResultInt_t        hdcResultInt   = {0};
+  HDCResultF_t          hdcResultF     = {0};
 
   ucSetup();
 
@@ -245,28 +208,88 @@ int main(void) {
    */
   pConfig = configLoadFromNVM();
 
-  /* Read the slide switch values to determine status */
+  /* Set up the RFM module put to sleep immediately. The RFM module requires 10
+   * ms to wakup, sleep in standby. */
+  timerDelaySleep_ms(12, SLEEP_MODE_STANDBY, true);
+  rfmInit(pConfig->dataTxCfg.rfmFreq);
+
+  /* Read the slide switches and wait to enter configuration mode. */
   readSlideSW(pConfig);
-  sercomSetup(uartEnabled,
-              (DATATX_RFM69 == (TxType_t)pConfig->dataTxCfg.txType));
+  interactiveWait();
 
-  /* Set up data transmission interfaces and configuration */
-  rfmOpt = dataTxConfigure(pConfig);
+  if (pConfig->pulseCfg.active) {
+    pulseInit(pConfig->pulseCfg.timeMask);
+    timerPulseSetup(&pulseTimerCB);
+  }
+  eicSetupClose();
 
-  /* Set up pulse and temperature sensors, if present */
-  pulseConfigure(pConfig);
-  numTempSensors         = tempSetup();
-  dataset.numTempSensors = numTempSensors;
+  switch ((TxType_t)pConfig->dataTxCfg.txType) {
+  case DATATX_RFM69:
+    txOpt.useRFM = true;
+    break;
+  case DATATX_UART:
+    txOpt.logSerial = true;
+    break;
+  case DATATX_BOTH:
+    txOpt.useRFM    = true;
+    txOpt.logSerial = true;
+    break;
+  }
+  txOpt.json = pConfig->baseCfg.useJson;
 
+  if (pConfig->pulseCfg.active) {
+    numTempSensors = tempSetup();
+  }
+
+  tplDone();
   for (;;) {
 
-    /* Start ADC and trigger T/H sample */
-    if (evtPending(EVT_RTC_OVF)) {
+    if (evtPending(EVT_WAKE_SAMPLE)) {
       adcTriggerSample();
       hdc2010ConversionStart();
+      portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET);
+
+      emonTHEventClr(EVT_WAKE_SAMPLE);
     }
-    /* Read T/H sample */
-    /* Process data */
-    /* Send processed data */
+
+    if (evtPending(EVT_TH_SAMPLE_RD)) {
+      hdc2010SampleGet(&hdcResultInt);
+
+      if (pConfig->baseCfg.extTempEn && numTempSensors) {
+        emonTHEventSet(EVT_ONEWIRE_SAMPLE);
+      } else {
+        emonTHEventSet(EVT_SAMPLE_PROCESS);
+      }
+      emonTHEventClr(EVT_TH_SAMPLE_RD);
+    }
+
+    if (EVT_ONEWIRE_SAMPLE) {
+      // REVISIT Start low lower OneWire conversion
+
+      emonTHEventSet(EVT_ONEWIRE_READ);
+      emonTHEventClr(EVT_ONEWIRE_SAMPLE);
+    }
+
+    if (EVT_ONEWIRE_READ) {
+      // REVISIT Read low power OneWire read
+      portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR);
+
+      emonTHEventClr(EVT_ONEWIRE_READ);
+      emonTHEventSet(EVT_SAMPLE_PROCESS);
+    }
+
+    if (EVT_SAMPLE_PROCESS) {
+      hdc2010SampleItoF(&hdcResultInt, &hdcResultF);
+      transmitData(&dataset, &txOpt);
+      tplDone();
+
+      emonTHEventClr(EVT_SAMPLE_PROCESS);
+    }
+
+    __WFI();
   };
 }
+
+void emonTHInteractiveUartSet(void) { interactiveUart = true; }
+
+void emonTHInteractiveTimeout(void) { interactiveTimeout = true; }

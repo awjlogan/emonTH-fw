@@ -4,12 +4,12 @@
 #include "emonTH_assert.h"
 
 #include "driver_ADC.h"
+#include "driver_NVM.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
 
 #include "configuration.h"
-#include "eeprom.h"
 #include "emonTH.h"
 #include "emonTH_build_info.h"
 #include "util.h"
@@ -27,146 +27,87 @@ typedef enum {
   RCAUSE_POR   = 0x01
 } RCAUSE_t;
 
+typedef struct __attribute__((__packed__)) NVMHeader_ {
+  uint32_t watermark;
+  uint16_t crc16;
+  uint8_t  writeCount;
+  uint8_t  res0;
+} NVMHeader_t;
+
+/* Configuration key - indicates that the configuration is the default or
+ * has been retrieved NVM. */
+#define CONFIG_NVM_KEY 0xca55e77eul
+
 /*************************************
  * Prototypes
  *************************************/
 
 static void  configDefault(void);
-static void  configInitialiseNVM(void);
 static void  configurePulse(void);
-static bool  configureSerialLog(void);
+static bool  configProcessCmd(void);
+static void  configSaveToNVM(void);
 static char *getLastReset(void);
 static void  inBufferClear(int n);
 static void  printSettings(void);
 static void  putInt(const int i);
-static void  putFloat(float val, int flt_len);
-static char  waitForChar(void);
 
 /*************************************
  * Local variables
  *************************************/
 
-#define IN_BUFFER_W 64
-static EmonTHConfig_t config;
-static bool           configLoaded = false;
-static char           inBuffer[IN_BUFFER_W];
-static int            inBufferIdx   = 0;
-static bool           cmdPending    = false;
-static bool           resetReq      = false;
-static bool           unsavedChange = false;
+#define IN_BUFFER_W 16
+static EmonTHConfigPacked_t config;
+static bool                 inConfig = false;
+static char                 inBuffer[IN_BUFFER_W];
+static int                  inBufferIdx   = 0;
+static bool                 cmdPending    = false;
+static bool                 resetReq      = false;
+static bool                 unsavedChange = false;
 
 /*! @brief Set all configuration values to defaults */
 static void configDefault(void) {
-  config.key = CONFIG_NVM_KEY;
+  config.baseCfg.nodeID      = NODE_ID_DEF;       // Node ID
+  config.baseCfg.nodeIDSaved = false;             // Node ID from slide switches
+  config.baseCfg.dataGrp     = NETWORK_GROUP_DEF; // Group for OEM
+  config.baseCfg.useJson     = false;             // Not JSON format for serial
 
-  /* Single phase, 50 Hz, 240 VAC, 10 s report period */
-  config.baseCfg.nodeID      = NODE_ID; /* Node ID to transmit */
-  config.baseCfg.dataGrp     = 210u;
-  config.baseCfg.logToSerial = true;
-  config.baseCfg.useJson     = false;
-  config.dataTxCfg.txType    = (uint8_t)DATATX_UART;
-  config.dataTxCfg.rfmPwr    = 0x19;
-  config.dataTxCfg.rfmFreq   = 0;
+  config.dataTxCfg.txType  = (uint8_t)DATATX_RFM69; // RFM only
+  config.dataTxCfg.rfmPwr  = 0x19;                  // Maximum power
+  config.dataTxCfg.rfmFreq = 2;                     // 433 MHz
 
-  /* Pulse counters:
-   *   - Period: 100 ms
-   *   - Rising edge trigger
-   *   - All disabled
-   */
-  for (int i = 0u; i < NUM_PULSECOUNT; i++) {
-    config.pulseCfg[i].pulseActive = false;
-    config.pulseCfg[i].period      = 100u;
-    config.pulseCfg[i].edge        = 0u;
-  }
-
-  config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2u));
+  config.pulseCfg.active   = false; // Pulse channel inactive
+  config.pulseCfg.timeMask = 100u;  // 100 ms minimum between pulses
 }
-
-/*! @brief Write the configuration values to index 0, and zero the
- *         accumulator space to.
- */
-static void configInitialiseNVM(void) { configDefault(); }
 
 static void configurePulse(void) {
   /* String format in inBuffer:
-   *      [1] -> ch;
-   *      [3] -> active;
-   *      [5] -> edge (rising, falling, both)
-   *      [7] -> NULL: blank time
+   *      [1] -> active;
+   *      [3] -> NULL: blank time
    */
   ConvInt_t convI;
-  int       ch     = 0;
-  int       active = 0;
-  int       period = 0;
-  char      edge   = 0;
+  bool      active   = 0;
+  int       timeMask = 0;
 
   convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     return;
   }
-  ch = convI.val - 1;
-
-  if ((ch < 0) || (ch >= NUM_PULSECOUNT)) {
-    return;
-  }
+  active = (bool)convI.val;
 
   convI = utilAtoi(inBuffer + 3, ITOA_BASE10);
   if (!convI.valid) {
     return;
   }
-  active = (bool)convI.val;
-
-  convI = utilAtoi((inBuffer + 7), ITOA_BASE10);
-  if (!convI.valid) {
-    return;
-  }
-  period = convI.val;
-
-  edge = inBuffer[5];
-  if (!(('r' == edge) || ('f' == edge) || ('b' == edge))) {
-    return;
-  }
+  timeMask = convI.val;
 
   /* If inactive, clear active flag, no decode for the rest */
-  if (0 == active) {
-    config.pulseCfg[ch].pulseActive = false;
-    // printf_("> Pulse channel %d disabled.\r\n", (ch + 1u));
+  if (!active) {
+    config.pulseCfg.active = false;
     return;
   } else {
-    config.pulseCfg[ch].pulseActive = true;
-    // printf_("> Pulse channel %d: ", (ch + 1u));
-    switch (edge) {
-    case 'r':
-      dbgPuts("Rising, ");
-      config.pulseCfg[ch].edge = 0u;
-      break;
-    case 'f':
-      dbgPuts("Falling, ");
-      config.pulseCfg[ch].edge = 1u;
-      break;
-    case 'b':
-      dbgPuts("Both, ");
-      config.pulseCfg[ch].edge = 2u;
-      break;
-    }
-    config.pulseCfg[ch].period = period;
-    // printf_("%d ms\r\n", config.pulseCfg[ch].period);
+    config.pulseCfg.active   = true;
+    config.pulseCfg.timeMask = timeMask;
   }
-}
-
-static bool configureSerialLog(void) {
-  /* Log to serial output, default TRUE
-   * Format: c0 | c1
-   */
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-
-  if (convI.valid) {
-    config.baseCfg.logToSerial = (bool)convI.val;
-    // printf_("> Log to serial: %c\r\n", config.baseCfg.logToSerial ? 'Y' :
-    // 'N');
-    return true;
-  }
-  return false;
 }
 
 /*! @brief Get the last reset cause (16.8.14)
@@ -197,7 +138,7 @@ static char *getLastReset(void) {
   return "Unknown";
 }
 
-/*! @brief Fetch the SAMD's 128bit unique ID
+/*! @brief Fetch the SAML's 128bit unique ID
  *  @param [in] idx : index of 32bit word
  *  @return : 32bit word from index
  */
@@ -216,7 +157,8 @@ static void inBufferClear(int n) {
 static void printSettings(void) {
   dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
   dbgPuts("Data transmission:         ");
-  if (DATATX_RFM69 == (TxType_t)config.dataTxCfg.txType) {
+  TxType_t tx = (TxType_t)config.dataTxCfg.txType;
+  if ((DATATX_RFM69 == tx) || (DATATX_BOTH == tx)) {
     dbgPuts("RFM69, ");
     switch (config.dataTxCfg.rfmFreq) {
     case 0:
@@ -231,36 +173,21 @@ static void printSettings(void) {
     }
     dbgPuts(" MHz @ ");
     putInt(config.dataTxCfg.rfmPwr);
-  } else {
+    dbgPuts("\r\n");
+  } else if ((DATATX_UART == tx) || (DATATX_BOTH == tx)) {
     dbgPuts("Serial\r\n");
   }
+  dbgPuts("\r\n");
 
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
-    bool enabled = config.pulseCfg[i].pulseActive;
-    dbgPuts("Pulse channel ");
-    if (enabled) {
-      dbgPuts("  - Hysteresis (ms): ");
-      putInt(config.pulseCfg[i].period);
-      dbgPuts("\r\n");
-      dbgPuts("  - Edge:            ");
-      switch (config.pulseCfg[i].edge) {
-      case 0:
-        dbgPuts("Rising");
-        break;
-      case 1:
-        dbgPuts("Falling");
-        break;
-      case 2:
-        dbgPuts("Both");
-        break;
-      default:
-        dbgPuts("Unknown");
-      }
-    } else {
-      dbgPuts("disabled.");
-    }
-    dbgPuts("\r\n\r\n");
+  dbgPuts("Pulse channel ");
+  if (config.pulseCfg.active) {
+    dbgPuts("  - Hysteresis (ms): ");
+    putInt(config.pulseCfg.timeMask);
+    dbgPuts("\r\n");
+  } else {
+    dbgPuts("disabled.");
   }
+  dbgPuts("\r\n\r\n");
 
   if (unsavedChange) {
     dbgPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
@@ -273,55 +200,15 @@ static void putInt(const int i) {
   dbgPuts(strBuffer);
 }
 
-static void putFloat(float val, int flt_len) {
-  char strBuffer[16];
-  int  ftoalen = utilFtoa(strBuffer, val);
-
-  if (flt_len) {
-    int fillSpace = flt_len - ftoalen;
-
-    while (fillSpace--) {
-      dbgPuts(" ");
-    }
-  }
-
-  dbgPuts(strBuffer);
-}
-
-/*! @brief Blocking wait for a key from the serial link. If the USB CDC is
- *         connected the key will come from here.
- */
-static char waitForChar(void) {
-  /* Disable the NVIC for the interrupt if needed while waiting for the
-   * character otherwise it is handled by the configuration buffer.
-   */
-  char c;
-
-  int irqEnabled =
-      (NVIC->ISER[0] & (1 << ((uint32_t)(SERCOM_UART_INTERACTIVE_IRQn) & 0x1F)))
-          ? 1
-          : 0;
-  if (irqEnabled)
-    NVIC_DisableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
-
-  while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC))
-    ;
-  c = uartGetc(SERCOM_UART_DBG);
-
-  if (irqEnabled)
-    NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
-
-  return c;
-}
-
 void configCmdChar(const uint8_t c) {
   if (('\r' == c) || ('\n' == c)) {
-    if (!cmdPending) {
-      dbgPuts("\r\n");
-      cmdPending = true;
-      emonTHEventSet(EVT_PROCESS_CMD);
+    if (inConfig) {
+      if (!cmdPending) {
+        dbgPuts("\r\n");
+        cmdPending = true;
+      }
     }
-  } else if ('\b' == c) {
+  } else if (('\b' == c) && inConfig) {
     dbgPuts("\b \b");
     if (0 != inBufferIdx) {
       inBufferIdx--;
@@ -333,6 +220,20 @@ void configCmdChar(const uint8_t c) {
     inBufferClear(IN_BUFFER_W);
     dbgPuts("\r\n");
   }
+}
+
+void configEnter(void) {
+  bool configExit = false;
+  inConfig        = true;
+
+  portPinDrv(PIN_LED, PIN_DRV_SET);
+  while (!configExit) {
+    if (cmdPending) {
+      configExit = configProcessCmd();
+      __WFI();
+    }
+  }
+  portPinDrv(PIN_LED, PIN_DRV_CLR);
 }
 
 void configFirmwareBoardInfo(void) {
@@ -364,42 +265,81 @@ void configFirmwareBoardInfo(void) {
   dbgPuts("  - For Bear and Moose\r\n\r\n");
 }
 
-EmonTHConfig_t *configLoadFromNVM(void) {
-  if (!configLoaded) { /* READ FROM NVM*/
-    configLoaded = true;
+EmonTHConfigPacked_t *configLoadFromNVM(void) {
+  uint32_t     pageBuffer[FLASH_PAGE_SIZE / sizeof(uint32_t)];
+  NVMHeader_t *header   = (NVMHeader_t *)pageBuffer;
+  bool         keyFound = false;
+  bool         crc0Bad  = false;
+  bool         crc1Bad  = false;
+
+  EmonTHConfigPacked_t *pCfg =
+      (EmonTHConfigPacked_t *)(pageBuffer + sizeof(*header));
+  uint16_t crc16Calc = 0;
+
+  nvmDataFlashRead(0, pageBuffer);
+
+  keyFound = CONFIG_NVM_KEY == header->watermark;
+
+  crc16Calc = calcCRC16_ccitt(pCfg, sizeof(*pCfg));
+  if (header->crc16 != crc16Calc) {
+    crc0Bad = true;
+    nvmDataFlashRead(1, pageBuffer);
+    crc16Calc = calcCRC16_ccitt(pCfg, sizeof(*pCfg));
+    if (header->crc16 != crc16Calc) {
+      crc1Bad = true;
+    }
   }
+
+  /* If the watermark is not there, or both CRCs are bad then rewrite */
+  if (!keyFound || (crc0Bad && crc1Bad)) {
+    configDefault();
+    header->watermark  = CONFIG_NVM_KEY;
+    header->writeCount = 2;
+    header->crc16      = calcCRC16_ccitt(&config, sizeof(config));
+    memcpy(pageBuffer + sizeof(*header), &config, sizeof(config));
+
+    // Write out page buffer to page 0 and page 1 as backup
+    // Read back page 0 to continue check
+  }
+
   return &config;
 }
 
-void configProcessCmd(void) {
-  unsigned int arglen    = 0;
-  bool         termFound = false;
-  ConvInt_t    convI     = {false, 0};
+static bool configProcessCmd(void) {
+  bool         exitConfig = false;
+  unsigned int arglen     = 0;
+  bool         termFound  = false;
+  ConvInt_t    convI      = {false, 0};
 
   /* Help text - serves as documentation interally as well */
   const char helpText[] =
       "\r\n"
       "emonTH information and configuration commands\r\n\r\n"
       " - ?           : show this text again\r\n"
-      " - b<n>        : set RF band. n = 4 -> 433 MHz, 8 -> 868 MHz, 9 -> "
-      "915 MHz\r\n"
-      " - c<n>        : log to serial output. n = 0: OFF, n = 1: ON\r\n"
+      " - b<n>        : set RF band. n = 4: 433 MHz, 8: 868 MHz, 9: 915 MHz\r\n"
+      " - e<n>        : maximum number of external temperature sensors\r\n"
       " - g<n>        : set network group (default = 210)\r\n"
       " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
       " - l           : list settings\r\n"
-      " - m<w> <x> <y> <z>\r\n"
-      "   - Pulse counting.\r\n"
-      "     - w : pulse channel index\r\n"
+      " - m <x> <y>   : Pulse counting.\r\n"
       "     - x = 0: OFF, x = 1, ON.\r\n"
-      "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
-      "     - z : minimum period (ms). Ignored if x = 0\r\n"
+      "     - y : minimum period (ms). Ignored if x = 0\r\n"
       " - n<n>        : set node ID [1..60].\r\n"
+      " - o<n>        : node ID select. n = 0: slide switches, n = 1: saved\r\n"
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
       " - s           : save settings to NVM\r\n"
-      " - t<n>        : enable external temperature sensing. n = 0: OFF, n = "
+      " - t0 <n>      : enable external temperature sensing. n = 0: OFF, n = "
       "1: ON\r\n"
-      " - v           : firmware and board information\r\n";
+      " - t<x> <yy> <yy> <yy> <yy> <yy> <yy> <yy> <yy>\r\n"
+      "   : change an external sensor's position\r\n"
+      "     - x: position of sensor in the list (1-based)\r\n"
+      "     - yy : hexadecimal bytes, e.g. 28 81 43 31 07 00 00 D9\r\n"
+      " - v           : firmware and board information\r\n"
+      " - w<n>        : enable wireless and serial.\r\n"
+      "                   n = 1: wireless only, n = 2: serial only, n = 3: "
+      "both\r\n"
+      " - x           : exit, lock, and continue\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */
   while (!termFound && (arglen < IN_BUFFER_W)) {
@@ -411,7 +351,7 @@ void configProcessCmd(void) {
   }
 
   if (!termFound) {
-    return;
+    return false;
   }
 
   /* Decode on first character in the buffer */
@@ -419,12 +359,6 @@ void configProcessCmd(void) {
   case '?':
     /* Print help text */
     dbgPuts(helpText);
-    break;
-  case 'c':
-    if (configureSerialLog()) {
-      unsavedChange = true;
-      emonTHEventSet(EVT_CONFIG_CHANGED);
-    }
     break;
   case 'j':
     if (2u == arglen) {
@@ -438,7 +372,6 @@ void configProcessCmd(void) {
       // printf_("> Use JSON: %c\r\n", config.baseCfg.useJson ? 'Y' : 'N');
 
       unsavedChange = true;
-      emonTHEventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'l':
@@ -447,13 +380,11 @@ void configProcessCmd(void) {
   case 'm':
     configurePulse();
     unsavedChange = true;
-    emonTHEventSet(EVT_CONFIG_CHANGED);
     break;
   case 'p':
     /* Configure RF power */
     resetReq      = true;
     unsavedChange = true;
-    emonTHEventSet(EVT_CONFIG_CHANGED);
     break;
   case 'r':
     configDefault();
@@ -462,41 +393,38 @@ void configProcessCmd(void) {
 
     unsavedChange = true;
     resetReq      = true;
-    emonTHEventSet(EVT_CONFIG_CHANGED);
     break;
   case 's':
     /* Save to EEPROM config space after recalculating CRC and indicate if a
      * reset is required.
      */
-    config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2));
-
+    // REVISIT Save to EEPROM
     unsavedChange = false;
-    if (!resetReq) {
-      emonTHEventSet(EVT_CONFIG_SAVED);
-    } else {
-      emonTHEventSet(EVT_SAFE_RESET_REQ);
-    }
+    break;
+  case 'x':
+    exitConfig = true;
     break;
   }
 
   cmdPending = false;
   inBufferClear(arglen + 1);
+  return exitConfig;
 }
 
 /* =======================
  * UART Interrupt handler
  * ======================= */
 
-void SERCOM_UART_INTERACTIVE_HANDLER {
+void SERCOM_UART_HANDLER {
   /* Echo the received character to the TX channel, and send to the command
    * stream.
    */
-  if (uartGetcReady(SERCOM_UART_INTERACTIVE)) {
-    uint8_t rx_char = uartGetc(SERCOM_UART_INTERACTIVE);
+  if (uartGetcReady()) {
+    uint8_t rx_char = uartGetc();
     configCmdChar(rx_char);
 
     if (utilCharPrintable(rx_char) && !cmdPending) {
-      uartPutcBlocking(SERCOM_UART_INTERACTIVE, rx_char);
+      uartPutcBlocking(rx_char);
     }
   }
 }

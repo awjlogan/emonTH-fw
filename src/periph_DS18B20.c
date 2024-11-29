@@ -1,6 +1,6 @@
 #include <stdbool.h>
 
-#include "emonTH_samd.h"
+#include "emonTH_saml.h"
 
 #include "board_def.h"
 #include "driver_PORT.h"
@@ -86,12 +86,12 @@ static unsigned int oneWireReadBit(void) {
   unsigned int result = 0;
 
   __disable_irq();
-  portPinDir(cfg.grp, cfg.pin, PIN_DIR_OUT);
+  portPinDir(cfg.pin, PIN_DIR_OUT);
   timerDelay_us(cfg.t_wait_us);
-  portPinDir(cfg.grp, cfg.pin, PIN_DIR_IN);
+  portPinDir(cfg.pin, PIN_DIR_IN);
   /* Max 15 us for read slot; leave 3 us slack */
   timerDelay_us(12u - cfg.t_wait_us);
-  result = portPinValue(cfg.grp, cfg.pin);
+  result = portPinValue(cfg.pin);
   __enable_irq();
 
   /* Wait for the end of the read slot, t_RDV */
@@ -123,11 +123,11 @@ static bool oneWireReset(void) {
 
   bool presence = false;
 
-  portPinDir(cfg.grp, cfg.pin, PIN_DIR_OUT);
+  portPinDir(cfg.pin, PIN_DIR_OUT);
 
   timerDelaySleep_us(512u, SLEEP_MODE_STANDBY, false);
 
-  portPinDir(cfg.grp, cfg.pin, PIN_DIR_IN);
+  portPinDir(cfg.pin, PIN_DIR_IN);
   /* Wait 48+20 us (wake up) to ensure t_PDHIGH has elapsed, then wait the full
    * t_RSTH time +25 us slack to complete the reset sequence.
    */
@@ -238,13 +238,13 @@ static void oneWireWriteBit(unsigned int bit) {
    */
 
   __disable_irq();
-  portPinDir(cfg.grp, cfg.pin, PIN_DIR_OUT);
+  portPinDir(cfg.pin, PIN_DIR_OUT);
   timerDelay_us(cfg.t_wait_us);
   if (bit) {
-    portPinDir(cfg.grp, cfg.pin, PIN_DIR_IN);
+    portPinDir(cfg.pin, PIN_DIR_IN);
   }
   timerDelay_us(75u - cfg.t_wait_us);
-  portPinDir(cfg.grp, cfg.pin, PIN_DIR_IN);
+  portPinDir(cfg.pin, PIN_DIR_IN);
   __enable_irq();
   timerDelay_us(5u);
 }
@@ -266,13 +266,12 @@ unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
   unsigned int deviceCount  = 0;
   int          searchResult = 0;
 
-  cfg.grp       = pCfg->grp;
   cfg.pin       = pCfg->pin;
   /* If not overridden, default to 5 us pull low */
   cfg.t_wait_us = pCfg->t_wait_us ? pCfg->t_wait_us : 5u;
 
   /* Disable the pin's pull up, and search for devices */
-  portPinDrv(cfg.grp, cfg.pin, PIN_DRV_CLR);
+  portPinDrv(cfg.pin, PIN_DRV_CLR);
   searchResult = oneWireFirst();
 
   while ((0 != searchResult) && (deviceCount < TEMP_MAX_ONEWIRE)) {

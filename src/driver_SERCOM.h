@@ -5,7 +5,7 @@
 
 #include "driver_DMAC.h"
 #include "driver_PORT.h"
-#include "emonTH_samd.h"
+#include "emonTH_saml.h"
 
 typedef enum I2CM_Ack_ { I2CM_ACK = 0u, I2CM_NACK = 1u } I2CM_Ack_t;
 
@@ -59,11 +59,9 @@ typedef struct UART_Cfg_ {
  */
 void sercomDisable(Sercom *sercom);
 
-/*! @brief configure the serial communication modules. I2C is always enabled.
- *  @param [in] uartEn : flag for enabling the UART
- *  @param [in] spiEn : flag for enabling the SPI
+/*! @brief Configure the serial communication modules
  */
-void sercomSetup(const bool uartEn, const bool spiEn);
+void sercomSetup(void);
 
 /*! @brief Configure a SERCOM module for SPI */
 void sercomSetupSPI(const Pin_t sel);
@@ -102,6 +100,9 @@ uint8_t i2cDataRead(Sercom *sercom);
 /*! @brief Set timeout flag */
 void i2cSetTimeout(void);
 
+/*! @brief Enable smart mode (ACK on read) */
+void i2cEnableSmartMode(Sercom *sercom);
+
 /*! @brief Select an SPI peripheral
  *  @param [in] nSS : grp+pin of chip select line
  */
@@ -132,49 +133,44 @@ void uartConfigureDMA(void);
 
 /*! @brief Get a character from the USART data buffer. Only valid when the
  *         INTFLAG.RXC bit it set.
- *  @param [in] sercom : SERCOM instance
+ *  @return character in buffer
  */
-char uartGetc(Sercom *sercom);
+char uartGetc(void);
 
 /*! @brief Indicate if a byte is waiting in the USART data buffer.
  *  @return : true if waiting, false otherwise
  */
-bool uartGetcReady(const Sercom *sercom);
+bool uartGetcReady(void);
 
 /*! @brief Clear the interrupt status for the UART instance
- *  @param [in] sercom : SERCOM instance
  *  @param [in] interrupt : interrupt to clear
  */
-void uartInterruptClear(Sercom *sercom, uint32_t interrupt);
+void uartInterruptClear(uint32_t interrupt);
 
 /*! @brief Disable the an interrupt for the UART instance
- *  @param [in] sercom : SERCOM instance
  *  @param [in] interrupt : interrupt to disable
  */
-void uartInterruptDisable(Sercom *sercom, uint32_t interrupt);
+void uartInterruptDisable(uint32_t interrupt);
 
 /*! @brief Enable the an interrupt for the UART instance
- *  @param [in] sercom : SERCOM instance
  *  @param [in] interrupt : interrupt to enable
  */
-void uartInterruptEnable(Sercom *sercom, uint32_t interrupt);
+void uartInterruptEnable(uint32_t interrupt);
 
 /*! @brief Return the interrupt status for the UART instance
- *  @param [in] sercom : SERCOM instance
+ *  @return INTFLAG for UART§
  */
-uint32_t uartInterruptStatus(const Sercom *sercom);
+uint32_t uartInterruptStatus(void);
 
 /*! @brief Send a single character (blocking) on UART
- *  @param [in] sercom : pointer to the SERCOM instance
  *  @param [in] c : Single character
  */
-void uartPutcBlocking(Sercom *sercom, char c);
+void uartPutcBlocking(const char c);
 
 /*! @brief Send a string (blocking) on UART
- *  @param [in] sercom : pointer to the SERCOM instance
  *  @param [in] s : Pointer to null terminated string
  */
-void uartPutsBlocking(Sercom *sercom, const char *s);
+void uartPutsBlocking(const char *s);
 
 /*! @brief Send a string (non-blocking) on UART by DMA
  *  @param [in] dma_chan : DMA channel to send on

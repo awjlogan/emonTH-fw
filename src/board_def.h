@@ -1,6 +1,6 @@
 #pragma once
 
-/* SAMD uses Arm Cortex-M0+ or Cortex-M4 - can place fast functions into RAM
+/* SAML uses Arm Cortex-M0+ or Cortex-M4 - can place fast functions into RAM
  * to avoid the penalty of loading from flash with wait states.
  */
 #define RAMFUNC __attribute__((section(".ramfunc")))
@@ -28,43 +28,39 @@ typedef enum PeriphIndex_ {
 } PeriphIndex_t;
 
 /* Clock frequencies
- *  - Core is on OSC8M
- *  - Peripherals are on the OSC8M / 8 -> 1 MHz
+ *  - Core is on OSC16M
+ *  - Peripherals are on the OSC16M / 16 -> 1 MHz
  */
 #define F_CORE   8000000ul
 #define F_PERIPH 1000000ul
 
-/* Pulse count setup */
-#define NUM_PULSECOUNT 1
-
-/* Temperature sensors
- * This is the maximum number of OneWire DS18B20 sensors that can be used
- */
+/* Maximum number of OneWire DS18B20 sensors that can be used */
 #define TEMP_MAX_ONEWIRE 4
 
+#define RFM_TIMEOUT 30
+#define RFM_RETRIES 8
+
 /* Serial Communication Instances */
-#define SERCOM_SPI      SERCOM0
-#define SERCOM_I2CM     SERCOM2
-#define SERCOM_UART_DBG SERCOM1
+#define SERCOM_SPI  SERCOM0
+#define SERCOM_I2CM SERCOM2
+#define SERCOM_UART SERCOM1
 
 #define SERCOM_SPI_APBCMASK      MCLK_APBCMASK_SERCOM0
 #define SERCOM_I2CM_INT_APBCMASK MCLK_APBCMASK_SERCOM2
-#define SERCOM_UART_DBG_APBCMASK MCLK_APBCMASK_SERCOM1
+#define SERCOM_UART_APBCMASK     MCLK_APBCMASK_SERCOM1
 
 #define SERCOM_SPI_GCLK_ID      SERCOM0_GCLK_ID_CORE
 #define SERCOM_I2CM_INT_GCLK_ID SERCOM2_GCLK_ID_CORE
-#define SERCOM_UART_DBG_GCLK_ID SERCOM1_GCLK_ID_CORE
+#define SERCOM_UART_GCLK_ID     SERCOM1_GCLK_ID_CORE
 
-#define SERCOM_SPI_DMAC_ID_TX      SERCOM0_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_TX     SERCOM2_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_RX     SERCOM2_DMAC_ID_RX
-#define SERCOM_UART_DBG_DMAC_ID_TX SERCOM1_DMAC_ID_TX
+#define SERCOM_SPI_DMAC_ID_TX  SERCOM0_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_TX SERCOM2_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_RX SERCOM2_DMAC_ID_RX
+#define SERCOM_UART_DMAC_ID_TX SERCOM1_DMAC_ID_TX
 
-#define SERCOM_UART_INTERACTIVE_HANDLER irq_handler_sercom1()
-#define SERCOM_UART_INTERACTIVE         SERCOM1
-
-#define SERCOM_UART_DBG_NVIC_IRQn    SERCOM1_0_IRQn
-#define SERCOM_UART_INTERACTIVE_IRQn SERCOM1_0_IRQn
+#define SERCOM_UART_HANDLER   irq_handler_sercom1()
+#define SERCOM_UART_NVIC_IRQn SERCOM1_0_IRQn
+#define SERCOM_UART_IRQn      SERCOM1_0_IRQn
 
 /* Timer configuration */
 #define TIMER_DELAY          TC1
@@ -72,24 +68,35 @@ typedef enum PeriphIndex_ {
 #define TIMER_DELAY_GCLK_ID  TC1_GCLK_ID
 #define TIMER_DELAY_IRQn     TC1_IRQn
 
+#define TIMER_PULSE          TC2
+#define TIMER_PULSE_APBCMASK MCLK_APBCMASK_TC2
+#define TIMER_PULSE_GCLK_ID  TC2_GCLK_ID
+#define TIMER_PULSE_IRQn     TC2_IRQn
+
 /* Pin Configuration (nb. logical, not physical) */
 #define GRP_PINA 0u
 
+/* TPL5111 interface */
+#define GRP_TPL      GRP_PINA
+#define PIN_TPL_DRV  0u
+#define PIN_TPL_DONE 1u
+
 /* Level interrupt EIC channels */
-#define EIC_CH_NUM 3
-#define EIC_CH_RFM 0
-#define EIC_CH_HDC 1
-#define EIC_CH_OW  6
+#define EIC_CH_NUM   5
+#define EIC_CH_WAKE  0
+#define EIC_CH_RFM   4
+#define EIC_CH_HDC   1
+#define EIC_CH_OW    6
+#define EIC_CH_PULSE 7
 
 /* Slide switches */
 #define GRP_SLIDE_SW GRP_PINA
-#define PIN_SW_NODE0 4
-#define PIN_SW_NODE1 5
-#define PIN_SW_UART  6
+#define PIN_SW_NODE0 3
+#define PIN_SW_NODE1 4
 
 /* LED */
 #define GRP_LED GRP_PINA
-#define PIN_LED 17u
+#define PIN_LED 14u
 
 /* Battery sensing */
 #define GRP_BATT_SENSE GRP_PINA
@@ -98,21 +105,21 @@ typedef enum PeriphIndex_ {
 
 /* OneWire Interface */
 #define GRP_ONEWIRE     GRP_PINA
-#define PIN_ONEWIRE     8u
-#define PIN_ONEWIRE_PWR 9u
+#define PIN_ONEWIRE     9u
+#define PIN_ONEWIRE_PWR 10u
 
 /* Pulse interface */
-#define GRP_PULSE  GRP_PINA
-#define PIN_PULSE1 7u
+#define GRP_PULSE GRP_PINA
+#define PIN_PULSE 8u
 
 /* Debug UART related defines */
-#define GRP_SERCOM_UART_DBG0 GRP_PINA
-#define PIN_UART_DBG_RX0     25u
-#define PIN_UART_DBG_TX0     24u
-#define UART_DBG_PAD_RX      3u
-#define UART_DBG_PAD_TX      2u
-#define UART_DBG_BAUD        38400u
-#define PMUX_UART_DBG0       PORT_PMUX_PMUXE_C /* SERCOM */
+#define GRP_SERCOM_UART GRP_PINA
+#define PIN_UART_RX     25u
+#define PIN_UART_TX     24u
+#define UART_PAD_RX     3u
+#define UART_PAD_TX     2u
+#define UART_BAUD       115200u
+#define PMUX_UART       PORT_PMUX_PMUXE(2) /* SERCOM */
 
 /* SPI related defines */
 #define GRP_SERCOM_SPI GRP_PINA
@@ -126,11 +133,11 @@ typedef enum PeriphIndex_ {
 /* I2C related defines */
 #define HDC_ADDR        0x40 /* ADDR tied LOW */
 #define GRP_SERCOM_I2CM GRP_PINA
-#define PIN_I2CM_SDA    22u
-#define PIN_I2CM_SCL    23u
-#define PMUX_I2CM       PORT_PMUX_PMUXE(2) /* SERCOM (Alt) */
+#define PIN_I2CM_SDA    5u
+#define PIN_I2CM_SCL    6u
+#define PMUX_I2CM       PORT_PMUX_PMUXE(3) /* SERCOM (Alt) */
 
 /* DMA defines */
-#define NUM_CHAN_DMA      2u
-#define DMA_CHAN_I2CM     1u
-#define DMA_CHAN_UART_DBG 0u
+#define NUM_CHAN_DMA  2u
+#define DMA_CHAN_I2CM 1u
+#define DMA_CHAN_UART 0u

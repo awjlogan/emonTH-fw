@@ -1,6 +1,6 @@
 #include "driver_DMAC.h"
 #include "driver_ADC.h"
-#include "emonTH_samd.h"
+#include "emonTH_saml.h"
 
 #include "emonTH.h"
 
@@ -8,8 +8,6 @@ void irqHandlerADCCommon(void);
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
-
-static void (*cbBufferFill)(void);
 
 /* Useful ref: https://aykevl.nl/2019/09/samd21-dma */
 
@@ -30,8 +28,6 @@ void dmacSetup(void) {
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch) {
   return &dmacs[ch];
 }
-
-void dmacCallbackBufferFill(void (*cb)(void)) { cbBufferFill = cb; }
 
 void dmacChannelDisable(unsigned int ch) {
   DMAC->CHID.reg = ch;
@@ -58,9 +54,9 @@ void dmacClearChannelInterrupt(unsigned int ch) {
   DMAC->CHINTFLAG.reg |= DMAC_CHINTFLAG_TCMPL;
 }
 
-void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg) {
+void dmacChannelConfigure(unsigned int ch, const uint32_t ctrlb) {
   DMAC->CHID.reg    = ch;
-  DMAC->CHCTRLB.reg = pCfg->ctrlb;
+  DMAC->CHCTRLB.reg = ctrlb;
 }
 
 void dmacChannelResume(unsigned int ch) {
@@ -73,7 +69,7 @@ void dmacChannelSuspend(unsigned int ch) {
   DMAC->CHCTRLB.reg |= DMAC_CHCTRLB_CMD_SUSPEND;
 }
 
-unsigned int dmacChannelBusy(unsigned int ch) {
+bool dmacChannelBusy(unsigned int ch) {
   if (0 != (DMAC->BUSYCH.reg & (1u << ch))) {
     return 1u;
   } else {
@@ -81,22 +77,17 @@ unsigned int dmacChannelBusy(unsigned int ch) {
   }
 }
 
-void irqHandlerADCCommon(void) { (*cbBufferFill)(); }
-
 void irq_handler_dmac(void) {
   /* Check which channel has triggered the interrupt, set the event, and
    * clear the interrupt source
    */
-  DMAC->CHID.reg = DMA_CHAN_UART_DBG;
+  DMAC->CHID.reg = DMA_CHAN_UART;
   if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
-    emonTHEventSet(EVT_DMAC_UART_CMPL);
     DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
   }
 
   DMAC->CHID.reg = DMA_CHAN_I2CM;
   if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
-    /* DMA for this channel is used to write to I2C EEPROM */
-    emonTHEventSet(EVT_DMAC_I2C_CMPL);
     DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
   }
 }

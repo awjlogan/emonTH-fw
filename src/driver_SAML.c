@@ -1,9 +1,9 @@
-#include "driver_SAMD.h"
-#include "emonTH_samd.h"
+#include "driver_SAML.h"
+#include "emonTH_saml.h"
 
 static SleepMode_t actives[NUM_PERIPHERALS];
 
-uint32_t samdCalibration(const Calibration_t cal) {
+uint32_t samlCalibration(const Calibration_t cal) {
   uint32_t mask     = 0;
   uint32_t position = 0;
   uint64_t cal_row  = *(const volatile uint64_t *)(0x00806020);
@@ -42,7 +42,7 @@ uint32_t samdCalibration(const Calibration_t cal) {
   return (uint32_t)(cal_row >> position) & mask;
 }
 
-SleepMode_t samdGetActivity(void) {
+SleepMode_t samlGetActivity(void) {
   SleepMode_t sm = SLEEP_MODE_STANDBY;
   for (int i = 0; i < NUM_PERIPHERALS; i++) {
     if (actives[i] < sm) {
@@ -52,7 +52,7 @@ SleepMode_t samdGetActivity(void) {
   return sm;
 }
 
-void samdSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx) {
+void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx) {
   actives[periphIdx] = sm;
   SleepMode_t sm_set = SLEEP_MODE_STANDBY;
   for (int i = 0; i < NUM_PERIPHERALS; i++) {
@@ -71,7 +71,7 @@ void samdSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx) {
   }
 }
 
-void samdSleep(SleepMode_t sm) {
+void samlSleep(SleepMode_t sm) {
   if (SLEEP_MODE_STANDBY == sm) {
     SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
   } else if ((!(SLEEP_MODE_ACTIVE == sm))) {
