@@ -28,6 +28,16 @@ typedef struct TransmitOpt_ {
   bool logSerial;
 } TransmitOpt_t;
 
+typedef enum THState_ {
+  TH_STATE_IDLE,
+  TH_STATE_SAMPLE_INT,
+  TH_STATE_SAMPLE_INT_WAIT,
+  TH_STATE_SAMPLE_INT_RD,
+  TH_STATE_SAMPLE_EXT,
+  TH_STATE_SAMPLE_EXT_RD,
+  TH_STATE_PROCESS_SEND
+} THState_t;
+
 /*************************************
  * Persistent state variables
  *************************************/
@@ -57,7 +67,7 @@ static void     tplDone(void);
  * Functions
  *************************************/
 
-void dbgPuts(const char *s) {
+void uartPuts(const char *s) {
   EMONTH_ASSERT(s);
   uartPutsBlocking(s);
 }
@@ -78,12 +88,14 @@ void emonTHEventSet(const EVTSRC_t evt) {
   __enable_irq();
 }
 
-/*! @brief Check if an event source is active
+/*! @brief Check if an event source is active. Clear on read.
  *  @param [in] : event source to check
  *  @return : true if pending, false otherwise
  */
 static bool evtPending(EVTSRC_t evt) {
-  return (evtPend & (1u << evt)) ? true : false;
+  bool ret = (evtPend & (1u << evt)) ? true : false;
+  evtPend &= ~(1u << evt);
+  return ret;
 }
 
 /*! @brief Allows the printf function to print to the debug console. If the USB
@@ -193,11 +205,15 @@ static void tplDone(void) {
 
 int main(void) {
 
-  EmonTHConfigPacked_t *pConfig        = 0;
+  THState_t state     = TH_STATE_IDLE;
+  THState_t state_nxt = TH_STATE_IDLE;
+
+  int16_t               adcValue       = 0;
   EmonTHDataset_t       dataset        = {0};
+  EmonTHConfigPacked_t *pConfig        = 0;
   unsigned int          numTempSensors = 0;
   TransmitOpt_t         txOpt          = {0};
-  HDCResultInt_t        hdcResultInt   = {0};
+  HDCResultRaw_t        hdcResultRaw   = {0};
   HDCResultF_t          hdcResultF     = {0};
 
   ucSetup();
@@ -244,48 +260,34 @@ int main(void) {
   tplDone();
   for (;;) {
 
-    if (evtPending(EVT_WAKE_SAMPLE)) {
+    switch (state) {
+    case TH_STATE_IDLE:
+      state_nxt =
+          evtPending(EVT_WAKE_TIMER) ? TH_STATE_SAMPLE_INT : TH_STATE_IDLE;
+      break;
+    case TH_STATE_SAMPLE_INT:
       adcTriggerSample();
       hdc2010ConversionStart();
-      portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET);
-
-      emonTHEventClr(EVT_WAKE_SAMPLE);
+      state_nxt = ((INT16_MIN != adcGetResult()) && hdc2010ConversionStarted())
+                      ? TH_STATE_SAMPLE_INT_WAIT
+                      : TH_STATE_SAMPLE_INT;
+      break;
+    case TH_STATE_SAMPLE_INT_WAIT:
+      state_nxt = evtPending(EVT_WAKE_SAMPLE_INT) ? TH_STATE_SAMPLE_INT_RD
+                                                  : TH_STATE_SAMPLE_INT_WAIT;
+      break;
+    case TH_STATE_SAMPLE_INT_RD:
+      adcValue = adcGetResult();
+      hdc2010SampleGet(&hdcResultRaw);
+      state_nxt = numTempSensors ? TH_STATE_SAMPLE_EXT : TH_STATE_PROCESS_SEND;
+      break;
+    case TH_STATE_PROCESS_SEND:
+      // REVISIT go to PL2, process data, and send
+      state_nxt = txOpt.useRFM && evtPending(EVT_SEND_DATA_RFM)
+                      ? TH_STATE_IDLE
+                      : TH_STATE_PROCESS_SEND;
     }
-
-    if (evtPending(EVT_TH_SAMPLE_RD)) {
-      hdc2010SampleGet(&hdcResultInt);
-
-      if (pConfig->baseCfg.extTempEn && numTempSensors) {
-        emonTHEventSet(EVT_ONEWIRE_SAMPLE);
-      } else {
-        emonTHEventSet(EVT_SAMPLE_PROCESS);
-      }
-      emonTHEventClr(EVT_TH_SAMPLE_RD);
-    }
-
-    if (EVT_ONEWIRE_SAMPLE) {
-      // REVISIT Start low lower OneWire conversion
-
-      emonTHEventSet(EVT_ONEWIRE_READ);
-      emonTHEventClr(EVT_ONEWIRE_SAMPLE);
-    }
-
-    if (EVT_ONEWIRE_READ) {
-      // REVISIT Read low power OneWire read
-      portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR);
-
-      emonTHEventClr(EVT_ONEWIRE_READ);
-      emonTHEventSet(EVT_SAMPLE_PROCESS);
-    }
-
-    if (EVT_SAMPLE_PROCESS) {
-      hdc2010SampleItoF(&hdcResultInt, &hdcResultF);
-      transmitData(&dataset, &txOpt);
-      tplDone();
-
-      emonTHEventClr(EVT_SAMPLE_PROCESS);
-    }
-
+    state = state_nxt;
     __WFI();
   };
 }

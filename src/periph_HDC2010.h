@@ -7,7 +7,7 @@
 typedef struct __attribute__((__packed__)) HDCResultInt_ {
   int16_t temp;
   int16_t humidity;
-} HDCResultInt_t;
+} HDCResultRaw_t;
 
 typedef struct HDCResultF_ {
   float temp;
@@ -15,6 +15,7 @@ typedef struct HDCResultF_ {
 } HDCResultF_t;
 
 void hdc2010ConversionStart(void);
-void hdc2010SampleGet(HDCResultInt_t *pRes);
-void hdc2010SampleItoF(const HDCResultInt_t *pInt, HDCResultF_t *pF);
+bool hdc2010ConversionStarted(void);
+void hdc2010SampleGet(HDCResultRaw_t *pRes);
+void hdc2010SampleItoF(const HDCResultRaw_t *pInt, HDCResultF_t *pF);
 void hdc2010Setup(void);

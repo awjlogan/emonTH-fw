@@ -9,13 +9,6 @@ static const uint8_t HDC2010_TEMP_LSB        = 0x00u;
 static const uint8_t HDC2010_DRDYINT_CFG     = 0x0Eu;
 static const uint8_t HDC2010_MEASUREMENT_CFG = 0x0Fu;
 
-typedef enum HDCState_ {
-  HDC_STATE_SETUP,
-  HDC_STATE_TRIG,
-  HDC_STATE_SAMPLE,
-  HDC_STATE_READ
-} HDCState_t;
-
 /* Interrupt driven driver for HDC2010 temperature/humidity sensor
  *
  * Usage:
@@ -30,7 +23,8 @@ typedef enum HDCState_ {
  *       - Interrupt: EIC
  *       - Power: STANDBY
  */
-static HDCState_t hdcState = HDC_STATE_SETUP;
+
+static bool sampleStarted = false;
 
 static uint8_t hdc2010RegRead(const uint8_t reg);
 static void    hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n);
@@ -46,10 +40,17 @@ void hdc2010InterruptClear(void) {
 
 void hdc2010ConversionStart(void) {
   hdc2010RegWrite(HDC2010_MEASUREMENT_CFG, 0x01);
-
-  hdcState = HDC_STATE_SAMPLE;
   samlSetActivity(SLEEP_MODE_STANDBY, PERIPH_IDX_I2CM);
   eicLevelEnable(EIC_CH_HDC, hdc2010InterruptClear);
+  sampleStarted = true;
+}
+
+bool hdc2010ConversionStarted(void) {
+  bool ret = sampleStarted;
+  if (sampleStarted) {
+    sampleStarted = false;
+  }
+  return ret;
 }
 
 static uint8_t hdc2010RegRead(const uint8_t reg) {
@@ -91,11 +92,11 @@ static void hdc2010RegWrite(const uint8_t reg, const uint8_t data) {
   }
 }
 
-void hdc2010SampleGet(HDCResultInt_t *pRes) {
+void hdc2010SampleGet(HDCResultRaw_t *pRes) {
   hdc2010RegNRead(HDC2010_TEMP_LSB, pRes, sizeof(*pRes));
 }
 
-void hdc2010SampleItoF(const HDCResultInt_t *pInt, HDCResultF_t *pF) {
+void hdc2010SampleItoF(const HDCResultRaw_t *pInt, HDCResultF_t *pF) {
   /* Datasheet 7.6.2 */
   int inter = (int)pInt->temp * 165;
   pF->temp  = qfp_fsub(qfp_fdiv(qfp_int2float(inter), (float)(1 << 16)), 40.0f);

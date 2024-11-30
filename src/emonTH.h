@@ -70,28 +70,29 @@ _Static_assert((sizeof(PackedData_t) + 4) < 62, "PackedData_t > 62 bytes");
  * to provide a vector of set events as bits.
  */
 typedef enum EVTSRC_ {
-  EVT_DMA            = 0u,
-  EVT_TICK_1kHz      = 1u,
-  EVT_WAKE_SAMPLE    = 2u,
-  EVT_UART           = 3u,
-  EVT_ADC            = 4u,
-  EVT_DMAC_UART_CMPL = 5u,
-  EVT_SAVE_RESET     = 7u,
-  EVT_TIMER_MC       = 9u,
-  EVT_EIC_PULSE      = 10u,
-  EVT_TH_SAMPLE_RD   = 12u,
-  EVT_SAMPLE_PROCESS = 13u,
-  EVT_ONEWIRE_SAMPLE = 14u,
-  EVT_ONEWIRE_READ   = 15u,
-  EVT_ENTER_CONFIG   = 19u,
-  EVT_SEND_DATA      = 20u
+  EVT_DMA             = 0u,
+  EVT_TICK_1kHz       = 1u,
+  EVT_WAKE_SAMPLE_INT = 2u,
+  EVT_UART            = 3u,
+  EVT_ADC             = 4u,
+  EVT_DMAC_UART_CMPL  = 5u,
+  EVT_WAKE_TIMER      = 6u,
+  EVT_SAVE_RESET      = 7u,
+  EVT_TIMER_MC        = 9u,
+  EVT_EIC_PULSE       = 10u,
+  EVT_TH_SAMPLE_RD    = 12u,
+  EVT_SAMPLE_PROCESS  = 13u,
+  EVT_ONEWIRE_SAMPLE  = 14u,
+  EVT_ONEWIRE_READ    = 15u,
+  EVT_ENTER_CONFIG    = 19u,
+  EVT_SEND_DATA_RFM   = 20u,
+  EVT_SEND_DATA_UART  = 21u
 } EVTSRC_t;
 
-/*! @brief Output a string to the debug destination. If the USB CDC is connected
- *         this is the destination, otherwise through hardware UART.
+/*! @brief Blocking write of a string to UART.
  *  @param [in] s: pointer to null terminated string
  */
-void dbgPuts(const char *s);
+void uartPuts(const char *s);
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
  *  @param [in] Event source in enum

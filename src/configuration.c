@@ -155,61 +155,61 @@ static void inBufferClear(int n) {
 }
 
 static void printSettings(void) {
-  dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
-  dbgPuts("Data transmission:         ");
+  uartPuts("\r\n\r\n==== Settings ====\r\n\r\n");
+  uartPuts("Data transmission:         ");
   TxType_t tx = (TxType_t)config.dataTxCfg.txType;
   if ((DATATX_RFM69 == tx) || (DATATX_BOTH == tx)) {
-    dbgPuts("RFM69, ");
+    uartPuts("RFM69, ");
     switch (config.dataTxCfg.rfmFreq) {
     case 0:
-      dbgPuts("868");
+      uartPuts("868");
       break;
     case 1:
-      dbgPuts("915");
+      uartPuts("915");
       break;
     case 2:
-      dbgPuts("433");
+      uartPuts("433");
       break;
     }
-    dbgPuts(" MHz @ ");
+    uartPuts(" MHz @ ");
     putInt(config.dataTxCfg.rfmPwr);
-    dbgPuts("\r\n");
+    uartPuts("\r\n");
   } else if ((DATATX_UART == tx) || (DATATX_BOTH == tx)) {
-    dbgPuts("Serial\r\n");
+    uartPuts("Serial\r\n");
   }
-  dbgPuts("\r\n");
+  uartPuts("\r\n");
 
-  dbgPuts("Pulse channel ");
+  uartPuts("Pulse channel ");
   if (config.pulseCfg.active) {
-    dbgPuts("  - Hysteresis (ms): ");
+    uartPuts("  - Hysteresis (ms): ");
     putInt(config.pulseCfg.timeMask);
-    dbgPuts("\r\n");
+    uartPuts("\r\n");
   } else {
-    dbgPuts("disabled.");
+    uartPuts("disabled.");
   }
-  dbgPuts("\r\n\r\n");
+  uartPuts("\r\n\r\n");
 
   if (unsavedChange) {
-    dbgPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
+    uartPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
   }
 }
 
 static void putInt(const int i) {
   char strBuffer[8];
   (void)utilItoa(strBuffer, i, ITOA_BASE10);
-  dbgPuts(strBuffer);
+  uartPuts(strBuffer);
 }
 
 void configCmdChar(const uint8_t c) {
   if (('\r' == c) || ('\n' == c)) {
     if (inConfig) {
       if (!cmdPending) {
-        dbgPuts("\r\n");
+        uartPuts("\r\n");
         cmdPending = true;
       }
     }
   } else if (('\b' == c) && inConfig) {
-    dbgPuts("\b \b");
+    uartPuts("\b \b");
     if (0 != inBufferIdx) {
       inBufferIdx--;
       inBuffer[inBufferIdx] = 0;
@@ -218,7 +218,7 @@ void configCmdChar(const uint8_t c) {
     inBuffer[inBufferIdx++] = c;
   } else {
     inBufferClear(IN_BUFFER_W);
-    dbgPuts("\r\n");
+    uartPuts("\r\n");
   }
 }
 
@@ -237,32 +237,32 @@ void configEnter(void) {
 }
 
 void configFirmwareBoardInfo(void) {
-  dbgPuts("\033c==== emonTH ====\r\n\r\n");
+  uartPuts("\033c==== emonTH ====\r\n\r\n");
 
-  dbgPuts("> Board:\r\n");
-  dbgPuts("  - emonTH3\r\n");
-  dbgPuts("  - Serial:     ");
+  uartPuts("> Board:\r\n");
+  uartPuts("  - emonTH3\r\n");
+  uartPuts("  - Serial:     ");
   for (int i = 0; i < 4; i++) {
     putInt(getUniqueID(i));
   }
-  dbgPuts("  - Last reset: ");
-  dbgPuts(getLastReset());
-  dbgPuts("\r\n");
+  uartPuts("  - Last reset: ");
+  uartPuts(getLastReset());
+  uartPuts("\r\n");
 
-  dbgPuts("> Firmware:\r\n");
-  dbgPuts("  - Version: ");
+  uartPuts("> Firmware:\r\n");
+  uartPuts("  - Version: ");
   putInt(VERSION_FW_MAJ);
-  dbgPuts(".");
+  uartPuts(".");
   putInt(VERSION_FW_MIN);
-  dbgPuts(".");
+  uartPuts(".");
   putInt(VERSION_FW_REV);
-  dbgPuts("\r\n");
-  dbgPuts("  - Build:      ");
-  dbgPuts(emonTH_build_info_string());
-  dbgPuts("\r\n\r\n");
-  dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
-  dbgPuts("  - emonTH Copyright (C) 2024-25 Angus Logan\r\n");
-  dbgPuts("  - For Bear and Moose\r\n\r\n");
+  uartPuts("\r\n");
+  uartPuts("  - Build:      ");
+  uartPuts(emonTH_build_info_string());
+  uartPuts("\r\n\r\n");
+  uartPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
+  uartPuts("  - emonTH Copyright (C) 2024-25 Angus Logan\r\n");
+  uartPuts("  - For Bear and Moose\r\n\r\n");
 }
 
 EmonTHConfigPacked_t *configLoadFromNVM(void) {
@@ -358,7 +358,7 @@ static bool configProcessCmd(void) {
   switch (inBuffer[0]) {
   case '?':
     /* Print help text */
-    dbgPuts(helpText);
+    uartPuts(helpText);
     break;
   case 'j':
     if (2u == arglen) {
@@ -389,7 +389,7 @@ static bool configProcessCmd(void) {
   case 'r':
     configDefault();
 
-    dbgPuts("> Restored default values.\r\n");
+    uartPuts("> Restored default values.\r\n");
 
     unsavedChange = true;
     resetReq      = true;

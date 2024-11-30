@@ -95,7 +95,7 @@ static void intHandler(const int ch) {
   }
 }
 
-static void intWake(void) { emonTHEventSet(EVT_WAKE_SAMPLE); }
+static void intWake(void) { emonTHEventSet(EVT_WAKE_TIMER); }
 
 void irq_handler_eic(void) {
   MCLK->APBAMASK.reg |= MCLK_APBAMASK_EIC;
