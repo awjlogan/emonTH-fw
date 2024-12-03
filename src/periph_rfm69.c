@@ -36,16 +36,17 @@ static uint8_t   spiRx(void);
 static void      spiTx(const uint8_t b);
 static void      timeoutSet(void);
 
-static volatile bool timeoutFlag   = false;
-static uint16_t      address       = 0;
-static uint8_t       rxData[64]    = {0};
-static volatile bool rxRdy         = false;
-static const Pin_t   sel           = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
-static bool          initDone      = false;
-static uint8_t       rfmBuffer[64] = {0};
-static int_fast8_t   rfmMode       = 0;
-static RFMOpt_t      rfmOpt        = {0};
-static RFMRx_t       rfmRx         = {0};
+static uint16_t      address          = 0;
+static bool          initDone         = false;
+static uint8_t       rfmBuffer[64]    = {0};
+static int_fast8_t   rfmMode          = 0;
+static RFMOpt_t      rfmOpt           = {0};
+static RFMRx_t       rfmRx            = {0};
+static volatile bool rfmSendInterrupt = false;
+static uint8_t       rxData[64]       = {0};
+static volatile bool rxRdy            = false;
+static const Pin_t   sel              = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
+static volatile bool timeoutFlag      = false;
 
 static bool rfmAckRecv(uint16_t fromId) {
   if (rfmRxDone()) {
@@ -190,7 +191,7 @@ static RFMSend_t rfmSendWithRetry(uint8_t n) {
     // "send" in LPL
     rfmWriteReg(REG_PACKETCONFIG2, ((rfmReadReg(REG_PACKETCONFIG2) & 0xFB) |
                                     RFM_PACKET2_RXRESTART));
-    timerDelaySleepAsync_ms(RFM69_CSMA_LIMIT_MS, SLEEP_MODE_IDLE1, &timeoutSet);
+    timerDelaySleepAsync_ms(RFM69_CSMA_LIMIT_MS, SLEEP_MODE_IDLE, &timeoutSet);
 
     while (!rfmTxAvailable() && !timeoutFlag) {
       (void)rfmRxDone();
@@ -222,7 +223,7 @@ static RFMSend_t rfmSendWithRetry(uint8_t n) {
     rfmSetMode(RFM69_MODE_STANDBY);
 
     // end "sendframe"
-    timerDelaySleepAsync_ms(RFM_TIMEOUT, SLEEP_MODE_IDLE1, &timeoutSet);
+    timerDelaySleepAsync_ms(RFM_TIMEOUT, SLEEP_MODE_IDLE, &timeoutSet);
     while (!timeoutFlag) {
       if (rfmAckRecv(5)) {
         timerFlush();
@@ -234,6 +235,8 @@ static RFMSend_t rfmSendWithRetry(uint8_t n) {
   timerFlush();
   return RFM_TIMED_OUT;
 }
+
+bool rfmSendComplete(void) { return rfmSendComplete; }
 
 static void rfmSetMode(int_fast8_t mode) {
   if (rfmMode == mode) {
@@ -284,7 +287,7 @@ bool rfmInit(RFM_Freq_t freq) {
       {0xFF, 0}};
 
   /* Initialise RFM69 */
-  timerDelaySleepAsync_ms(25, SLEEP_MODE_IDLE1, &timeoutSet);
+  timerDelaySleepAsync_ms(25, SLEEP_MODE_IDLE, &timeoutSet);
   while ((0xAA != rfmReadReg(REG_SYNCVALUE1)) && !timeoutFlag) {
     rfmWriteReg(REG_SYNCVALUE1, 0xAAu);
   }

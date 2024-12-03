@@ -8,6 +8,13 @@ typedef struct DMACCfgCh {
   uint32_t ctrlb;
 } DMACCfgCh_t;
 
+/*! @brief Calculate the CRC16 (CCITT - 0x1021)
+ *  @param [in] pData : pointer to data
+ *  @param [in] n : number of bytes in data
+ *  @return CRC16 CCITT value
+ */
+uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n);
+
 /*! @brief Setup the DMAC peripheral */
 void dmacSetup(void);
 
@@ -67,9 +74,4 @@ void dmacDisableChannelInterrupt(unsigned int ch);
  */
 void dmacClearChannelInterrupt(unsigned int ch);
 
-/*! @brief Calculate the CRC16 (CCITT - 0x1021)
- *  @param [in] pData : pointer to data
- *  @param [in] n : number of bytes in data
- *  @return CRC16 CCITT value
- */
-uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n);
+bool uartDmaComplete(void);

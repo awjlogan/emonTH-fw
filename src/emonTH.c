@@ -34,8 +34,10 @@ typedef enum THState_ {
   TH_STATE_SAMPLE_INT_WAIT,
   TH_STATE_SAMPLE_INT_RD,
   TH_STATE_SAMPLE_EXT,
+  TH_STATE_SAMPLE_EXT_WAIT,
   TH_STATE_SAMPLE_EXT_RD,
-  TH_STATE_PROCESS_SEND
+  TH_STATE_PROCESS_SEND,
+  TH_STATE_CLEAN
 } THState_t;
 
 /*************************************
@@ -56,12 +58,12 @@ void            putchar_(char c);
 static void     putsDbgNonBlocking(const char *const s, uint16_t len);
 static void     readSlideSW(EmonTHConfigPacked_t *pCfg);
 static uint32_t tempSetup(void);
-static void     transmitData(const EmonTHDataset_t *pSrc,
-                             const TransmitOpt_t   *pOpt);
-static void     ucSetup(void);
-static void     interactiveLED(void);
-static void     interactiveWait(void);
-static void     tplDone(void);
+static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
+                         char *txBuffer);
+static void ucSetup(void);
+static void interactiveLED(void);
+static void interactiveWait(void);
+static void tplDone(void);
 
 /*************************************
  * Functions
@@ -128,22 +130,19 @@ static void readSlideSW(EmonTHConfigPacked_t *pCfg) {
  *  @return : number of temperature sensors found
  */
 static uint32_t tempSetup(void) {
-  unsigned int   numTempSensors = 0;
-  DS18B20_conf_t dsCfg          = {0};
+  unsigned int   tempExtNum = 0;
+  DS18B20_conf_t dsCfg      = {0};
 
   dsCfg.pin       = PIN_ONEWIRE;
   dsCfg.t_wait_us = 5;
 
-  numTempSensors = tempSensorsInit(TEMP_INTF_ONEWIRE, &dsCfg);
+  tempExtNum = tempSensorsInit(TEMP_INTF_ONEWIRE, &dsCfg);
 
-  return numTempSensors;
+  return tempExtNum;
 }
 
-static void transmitData(const EmonTHDataset_t *pSrc,
-                         const TransmitOpt_t   *pOpt) {
-  char txBuffer[TX_BUFFER_W] = {0};
-
-  int pktLength = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
+static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
+                         char *txBuffer) {
 
   if (pOpt->useRFM) {
     PackedData_t packedData = {0};
@@ -152,11 +151,12 @@ static void transmitData(const EmonTHDataset_t *pSrc,
   }
 
   if (pOpt->logSerial) {
+    int pktLength = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
     putsDbgNonBlocking(txBuffer, pktLength);
   }
 }
 
-/*! @brief Setup the microcontoller. This function must be called first. */
+/*! @brief Setup the microcontroller. This function must be called first. */
 static void ucSetup(void) {
   clkSetup();
   timerSetup();
@@ -208,13 +208,14 @@ int main(void) {
   THState_t state     = TH_STATE_IDLE;
   THState_t state_nxt = TH_STATE_IDLE;
 
-  int16_t               adcValue       = 0;
-  EmonTHDataset_t       dataset        = {0};
-  EmonTHConfigPacked_t *pConfig        = 0;
-  unsigned int          numTempSensors = 0;
-  TransmitOpt_t         txOpt          = {0};
-  HDCResultRaw_t        hdcResultRaw   = {0};
-  HDCResultF_t          hdcResultF     = {0};
+  EmonTHDataset_t       dataset               = {0};
+  HDCResultRaw_t        hdcResultRaw          = {0};
+  HDCResultF_t          hdcResultF            = {0};
+  unsigned int          tempExtNum            = 0;
+  bool                  tempExtSample         = false;
+  EmonTHConfigPacked_t *pConfig               = 0;
+  char                  txBuffer[TX_BUFFER_W] = {0};
+  TransmitOpt_t         txOpt                 = {0};
 
   ucSetup();
 
@@ -254,17 +255,31 @@ int main(void) {
   txOpt.json = pConfig->baseCfg.useJson;
 
   if (pConfig->pulseCfg.active) {
-    numTempSensors = tempSetup();
+    tempExtNum = tempSetup();
   }
 
   tplDone();
   for (;;) {
+    bool stateStep = false; /* Go straight to next state rather than WFI. */
 
     switch (state) {
     case TH_STATE_IDLE:
-      state_nxt =
-          evtPending(EVT_WAKE_TIMER) ? TH_STATE_SAMPLE_INT : TH_STATE_IDLE;
+      state_nxt = evtPending(EVT_WAKE_TIMER)
+                      ? ((pConfig->baseCfg.extTempEn && tempExtNum)
+                             ? TH_STATE_SAMPLE_EXT
+                             : TH_STATE_SAMPLE_INT)
+                      : TH_STATE_IDLE;
+      stateStep = true;
       break;
+
+    case TH_STATE_SAMPLE_EXT:
+      if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
+        tempExtSample = true;
+      }
+      state_nxt = TH_STATE_SAMPLE_INT;
+      stateStep = true;
+      break;
+
     case TH_STATE_SAMPLE_INT:
       adcTriggerSample();
       hdc2010ConversionStart();
@@ -272,23 +287,56 @@ int main(void) {
                       ? TH_STATE_SAMPLE_INT_WAIT
                       : TH_STATE_SAMPLE_INT;
       break;
+
     case TH_STATE_SAMPLE_INT_WAIT:
-      state_nxt = evtPending(EVT_WAKE_SAMPLE_INT) ? TH_STATE_SAMPLE_INT_RD
-                                                  : TH_STATE_SAMPLE_INT_WAIT;
+      if (evtPending(EVT_WAKE_SAMPLE_INT)) {
+        state_nxt = TH_STATE_SAMPLE_INT_RD;
+        stateStep = true;
+      } else {
+        state_nxt = TH_STATE_SAMPLE_INT_WAIT;
+      }
       break;
+
     case TH_STATE_SAMPLE_INT_RD:
-      adcValue = adcGetResult();
+      dataset.battery = adcGetResult() * 322;
       hdc2010SampleGet(&hdcResultRaw);
-      state_nxt = numTempSensors ? TH_STATE_SAMPLE_EXT : TH_STATE_PROCESS_SEND;
+      state_nxt =
+          tempExtSample ? TH_STATE_SAMPLE_EXT_WAIT : TH_STATE_PROCESS_SEND;
+      stateStep = true;
       break;
+
+    case TH_STATE_SAMPLE_EXT_WAIT:
+
+      // REVISIT need to wait in standby for the full 750 ms!
+      state_nxt = TH_STATE_SAMPLE_EXT_RD;
+      break;
+
+    case TH_STATE_SAMPLE_EXT_RD:
+
+      state_nxt = TH_STATE_PROCESS_SEND;
+      stateStep = true;
+      break;
+
     case TH_STATE_PROCESS_SEND:
-      // REVISIT go to PL2, process data, and send
-      state_nxt = txOpt.useRFM && evtPending(EVT_SEND_DATA_RFM)
-                      ? TH_STATE_IDLE
+      // REVISIT go to PL2(?), process data, and send
+      transmitData(&dataset, &txOpt, txBuffer);
+      state_nxt = (!txOpt.logSerial || uartDmaComplete()) &&
+                          (!txOpt.useRFM || rfmSendComplete())
+                      ? TH_STATE_CLEAN
                       : TH_STATE_PROCESS_SEND;
+      stateStep = (state_nxt == TH_STATE_CLEAN);
+      break;
+
+    case TH_STATE_CLEAN:
+      // REVISIT reset all values
+      state_nxt = TH_STATE_IDLE;
+      break;
     }
+
     state = state_nxt;
-    __WFI();
+    if (!stateStep) {
+      __WFI();
+    }
   };
 }
 

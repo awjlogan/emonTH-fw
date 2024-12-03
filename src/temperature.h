@@ -30,12 +30,11 @@ float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed);
  */
 unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
 
-/*! @brief Read an existing temperature sample
+/*! @brief Read temperature samples from all monitors
  *  @param [in] intf : interface type
- *  @param [in] dev : device index
- *  @return : TempRead struct
+ *  @param [out] pDst : pointer to array for output
  */
-TempRead_t tempSampleRead(const TEMP_INTF_t intf, const uint8_t dev);
+TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst);
 
 /*! @brief Start a temperature sample
     @param [in] intf : interface type

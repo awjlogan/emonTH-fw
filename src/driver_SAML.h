@@ -16,11 +16,10 @@ typedef enum Calibration_ {
 } Calibration_t;
 
 typedef enum SleepMode_t {
-  SLEEP_MODE_IDLE1   = PM_SLEEPCFG_SLEEPMODE_IDLE,    /* CPU clock gated */
-  SLEEP_MODE_IDLE2   = PM_SLEEPCFG_SLEEPMODE_STANDBY, /* IDLE0 + AHB gated */
-  SLEEP_MODE_IDLE3   = PM_SLEEPCFG_SLEEPMODE_OFF,     /* IDLE1 + APB gated */
-  SLEEP_MODE_STANDBY = 3, /* All off except OSCULP32K and RTC */
-  SLEEP_MODE_ACTIVE  = -1 /* No sleep mode selected */
+  SLEEP_MODE_IDLE    = PM_SLEEPCFG_SLEEPMODE_IDLE,    /* CPU clock gated */
+  SLEEP_MODE_STANDBY = PM_SLEEPCFG_SLEEPMODE_STANDBY, /* Only OSCULP32K */
+  SLEEP_MODE_ACTIVE  = -1, /* No sleep mode selected */
+  SLEEP_MODE_OFF     = PM_SLEEPCFG_SLEEPMODE_OFF
 } SleepMode_t;
 
 /*! @brief Return the calibration value from the NVM Calibration Row, described

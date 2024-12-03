@@ -46,6 +46,8 @@ bool rfmInit(RFM_Freq_t freq);
 /*! @brief The interrupt handler for RFM69 receive */
 void rfmInterrupt(void);
 
+bool rfmSendComplete(void);
+
 /*! @brief Send data through the RFM69
  *  @param [in] : number of bytes to be sent
  *  @return : result of the attempt to send

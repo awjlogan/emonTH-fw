@@ -68,6 +68,8 @@ void eicLevelEnable(const int ch, void (*cb)()) {
 void eicSetup(void) {
   /* EIC APB clock is unmasked on reset (19.8.7).
    * If pulse counting is enabled, use asynchronous rising edge mode.
+   * REVISIT : could use the ULP32K clock here, limited documentation on the
+   * asynch edge mode.
    */
 
   /* Enable asynch rising edge interrupt on the wake up pin */

@@ -8,6 +8,7 @@ void irqHandlerADCCommon(void);
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
+static volatile bool           uartDmaCmpl = false;
 
 /* Useful ref: https://aykevl.nl/2019/09/samd21-dma */
 
@@ -113,3 +114,5 @@ uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n) {
 
   return DMAC->CRCCHKSUM.reg;
 }
+
+bool uartDmaComplete(void) { return uartDmaCmpl; }

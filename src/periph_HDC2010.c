@@ -55,7 +55,7 @@ bool hdc2010ConversionStarted(void) {
 
 static uint8_t hdc2010RegRead(const uint8_t reg) {
   uint8_t result = 0;
-  samlSetActivity(SLEEP_MODE_IDLE1, PERIPH_IDX_I2CM);
+  samlSetActivity(SLEEP_MODE_IDLE, PERIPH_IDX_I2CM);
   if (I2CM_SUCCESS == i2cActivate(SERCOM_I2CM, (HDC_ADDR << 1))) {
     i2cDataWrite(SERCOM_I2CM, reg);
     i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
@@ -69,7 +69,7 @@ static uint8_t hdc2010RegRead(const uint8_t reg) {
 
 static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n) {
   uint8_t *buffer = (uint8_t *)pDst;
-  samlSetActivity(SLEEP_MODE_IDLE1, PERIPH_IDX_I2CM);
+  samlSetActivity(SLEEP_MODE_IDLE, PERIPH_IDX_I2CM);
   if (I2CM_SUCCESS == i2cActivate(SERCOM_I2CM, (HDC_ADDR << 1))) {
     i2cDataWrite(SERCOM_I2CM, ptrStart);
     i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
@@ -84,7 +84,7 @@ static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n) {
 }
 
 static void hdc2010RegWrite(const uint8_t reg, const uint8_t data) {
-  samlSetActivity(SLEEP_MODE_IDLE1, PERIPH_IDX_I2CM);
+  samlSetActivity(SLEEP_MODE_IDLE, PERIPH_IDX_I2CM);
   if (I2CM_SUCCESS == i2cActivate(SERCOM_I2CM, (HDC_ADDR << 1))) {
     i2cDataWrite(SERCOM_I2CM, reg);
     i2cDataWrite(SERCOM_I2CM, data);

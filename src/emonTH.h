@@ -47,7 +47,7 @@ typedef struct EmonTHDataset_ {
   float    tempInternal;
   int16_t  tempExternal[TEMP_MAX_ONEWIRE];
   float    humidityInternal;
-  float    battery;
+  int16_t  battery;
   uint32_t pulseCnt;
 } EmonTHDataset_t;
 
@@ -78,6 +78,7 @@ typedef enum EVTSRC_ {
   EVT_DMAC_UART_CMPL  = 5u,
   EVT_WAKE_TIMER      = 6u,
   EVT_SAVE_RESET      = 7u,
+  EVT_WAKE_SAMPLE_EXT = 8u,
   EVT_TIMER_MC        = 9u,
   EVT_EIC_PULSE       = 10u,
   EVT_TH_SAMPLE_RD    = 12u,

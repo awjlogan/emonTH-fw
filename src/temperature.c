@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "driver_PORT.h"
 #include "driver_TIME.h"
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
@@ -19,24 +20,43 @@ unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   return numSensors;
 }
 
-TempRead_t tempSampleRead(const TEMP_INTF_t intf, const uint8_t dev) {
-  TempRead_t res = {TEMP_FAILED, INT16_MIN};
+TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
 
   if (!tempSampled) {
-    res.status = TEMP_NO_SAMPLE;
-    return res;
+    return TEMP_NO_SAMPLE;
   }
   if (0 == numSensors) {
-    res.status = TEMP_NO_SENSORS;
-    return res;
+    return TEMP_NO_SENSORS;
   }
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    res.result = ds18b20ReadSample(dev);
-    res.status = TEMP_OK;
+    bool presence = true;
+    int  i        = 0;
+    while ((i < numSensors) && presence) {
+      int16_t dsbResult = ds18b20ReadSample(i);
+      /* No presence pulse detected, scrub and exit */
+      if (INT16_MIN == dsbResult) {
+        presence = false;
+      } else {
+        pDst[i] = dsbResult;
+      }
+      i++;
+    }
+
+    if (!presence) {
+      for (i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+        pDst[i] = INT16_MIN;
+      }
+      return TEMP_NO_SENSORS;
+    }
+
+    /* Fill any unused entries in the buffer */
+    for (i = numSensors; i < TEMP_MAX_ONEWIRE; i++) {
+      pDst[i] = INT16_MIN;
+    }
   }
 
-  return res;
+  return TEMP_OK;
 }
 
 TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
@@ -45,6 +65,10 @@ TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
     return TEMP_NO_SENSORS;
   }
 
+  /* Power the DS18B20s */
+  portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET);
+  timerDelaySleep_ms(1, SLEEP_MODE_STANDBY, false);
+
   if (TEMP_INTF_ONEWIRE == intf) {
     tempSampled = true;
     (void)dev;
@@ -52,6 +76,7 @@ TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
       return TEMP_OK;
   }
 
-  /* Default to failure */
+  /* If failed, then power down and continue */
+  portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR);
   return TEMP_FAILED;
 }

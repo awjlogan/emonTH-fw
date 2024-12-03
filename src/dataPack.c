@@ -171,7 +171,7 @@ int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
   }
 
   catId(&strn, -1, STR_BATT, json);
-  (void)strnFtoa(&strConv, pData->battery);
+  (void)strnItoa(&strConv, pData->battery);
   strn.n += strnCat(&strn, &strConv);
 
   catId(&strn, -1, STR_PULSE, json);
@@ -191,7 +191,7 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
 
   pPacked->tempInternal     = floatToIntScale(pData->tempInternal, 10.0f);
   pPacked->humidityInternal = floatToIntScale(pData->humidityInternal, 10.0f);
-  pPacked->battery          = floatToIntScale(pData->battery, 100.0f);
+  pPacked->battery          = pData->battery;
   pPacked->pulse            = pData->pulseCnt;
   for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
     pPacked->tempExternal[i] = pData->tempExternal[i];
