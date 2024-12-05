@@ -38,6 +38,9 @@ void dmacChannelDisable(unsigned int ch) {
 void dmacChannelEnable(unsigned int ch) {
   DMAC->CHID.reg = ch;
   DMAC->CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;
+  if (DMA_CHAN_UART == ch) {
+    uartDmaCmpl = false;
+  }
 }
 
 void dmacEnableChannelInterrupt(unsigned int ch) {
@@ -79,15 +82,13 @@ bool dmacChannelBusy(unsigned int ch) {
 }
 
 void irq_handler_dmac(void) {
-  /* Check which channel has triggered the interrupt, set the event, and
-   * clear the interrupt source
-   */
   DMAC->CHID.reg = DMA_CHAN_UART;
   if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
+    uartDmaCmpl         = true;
     DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
   }
 
-  DMAC->CHID.reg = DMA_CHAN_I2CM;
+  DMAC->CHID.reg = DMA_CHAN_SPI;
   if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
     DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
   }

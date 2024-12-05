@@ -37,8 +37,9 @@ static int     strnItoa(StrN_t *strD, const uint32_t v);
 static int     strnCat(StrN_t *strD, const StrN_t *strS);
 static int     strnLen(StrN_t *str);
 
-static char   tmpStr[CONV_STR_W] = {0};
-static StrN_t strConv; /* Fat string for conversions */
+static char         tmpStr[CONV_STR_W] = {0};
+static StrN_t       strConv; /* Fat string for conversions */
+static HDCResultF_t hdcResF = {0};
 
 /* Strings that are inserted in the transmitted message */
 const StrN_t baseStr[12] = {
@@ -138,6 +139,30 @@ static int strnLen(StrN_t *str) {
   return i;
 }
 
+void dataPackConvert(HDCResultRaw_t const *phdcRaw) {
+  const float tempFactor = 165.0f / (1 << 16);
+  const float humFactor  = 100.0f / (1 << 16);
+
+  /* 7.6.2 Temperature MSB */
+  hdcResF.temp = qfp_fmul(qfp_int2float(phdcRaw->temp), tempFactor);
+  hdcResF.temp = qfp_fsub(hdcResF.temp, 40.0f);
+
+  /* 7.6.4 Humidity MSB */
+  hdcResF.humidity = qfp_fmul(qfp_int2float(phdcRaw->humidity), humFactor);
+}
+
+void dataPackPacked(const EmonTHDataset_t *restrict pData,
+                    PackedData_t *restrict pPacked) {
+
+  pPacked->tempInternal     = floatToIntScale(hdcResF.temp, 10.0f);
+  pPacked->humidityInternal = floatToIntScale(hdcResF.humidity, 10.0f);
+  pPacked->battery          = pData->battery;
+  pPacked->pulse            = pData->pulseCnt;
+  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+    pPacked->tempExternal[i] = pData->tempExternal[i];
+  }
+}
+
 int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
                    int m, int opt) {
   EMONTH_ASSERT(pData);
@@ -154,11 +179,11 @@ int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
   }
 
   catId(&strn, -1, STR_TEMP, json);
-  (void)strnFtoa(&strConv, pData->tempInternal);
+  (void)strnFtoa(&strConv, hdcResF.temp);
   strn.n += strnCat(&strn, &strConv);
 
   catId(&strn, -1, STR_HUMID, json);
-  (void)strnFtoa(&strConv, pData->humidityInternal);
+  (void)strnFtoa(&strConv, hdcResF.humidity);
   strn.n += strnCat(&strn, &strConv);
 
   if (tempEx) {
@@ -184,16 +209,4 @@ int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
   }
   strn.n += strnCat(&strn, &baseStr[STR_CRLF]);
   return strn.n;
-}
-
-void dataPackPacked(const EmonTHDataset_t *restrict pData,
-                    PackedData_t *restrict pPacked) {
-
-  pPacked->tempInternal     = floatToIntScale(pData->tempInternal, 10.0f);
-  pPacked->humidityInternal = floatToIntScale(pData->humidityInternal, 10.0f);
-  pPacked->battery          = pData->battery;
-  pPacked->pulse            = pData->pulseCnt;
-  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-    pPacked->tempExternal[i] = pData->tempExternal[i];
-  }
 }

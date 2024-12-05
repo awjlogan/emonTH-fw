@@ -55,7 +55,6 @@ AssertInfo_t             g_assert_info;
 
 static bool     evtPending(EVTSRC_t evt);
 void            putchar_(char c);
-static void     putsDbgNonBlocking(const char *const s, uint16_t len);
 static void     readSlideSW(EmonTHConfigPacked_t *pCfg);
 static uint32_t tempSetup(void);
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
@@ -100,15 +99,6 @@ static bool evtPending(EVTSRC_t evt) {
   return ret;
 }
 
-/*! @brief Allows the printf function to print to the debug console. If the USB
- *         CDC is connected, characters should be routed there.
- */
-void putchar_(char c) { uartPutcBlocking(c); }
-
-static void putsDbgNonBlocking(const char *const s, uint16_t len) {
-  uartPutsNonBlocking(DMA_CHAN_UART, s, len);
-}
-
 static void readSlideSW(EmonTHConfigPacked_t *pCfg) {
   uint8_t swVal    = 0;
   uint8_t swPin[2] = {PIN_SW_NODE0, PIN_SW_NODE1};
@@ -144,6 +134,7 @@ static uint32_t tempSetup(void) {
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer) {
 
+  dataPackConvert(&pSrc->hdcResRaw);
   if (pOpt->useRFM) {
     PackedData_t packedData = {0};
     dataPackPacked(pSrc, &packedData);
@@ -152,7 +143,7 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
 
   if (pOpt->logSerial) {
     int pktLength = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
-    putsDbgNonBlocking(txBuffer, pktLength);
+    uartPutsNonBlocking(txBuffer, pktLength);
   }
 }
 
@@ -211,7 +202,6 @@ int main(void) {
   EmonTHDataset_t       dataset               = {0};
   HDCResultRaw_t        hdcResultRaw          = {0};
   unsigned int          tempExtNum            = 0;
-  bool                  tempExtSample         = false;
   EmonTHConfigPacked_t *pConfig               = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
   TransmitOpt_t         txOpt                 = {0};
@@ -264,29 +254,21 @@ int main(void) {
   for (;;) {
     bool stateStep = false; /* Go straight to next state rather than WFI. */
 
+    state_nxt = state;
     switch (state) {
-    case TH_STATE_IDLE:
-      state_nxt = evtPending(EVT_WAKE_TIMER)
-                      /* Trigger external sensors if enabled and present. */
-                      ? ((pConfig->baseCfg.extTempEn && tempExtNum)
-                             ? TH_STATE_SAMPLE_EXT
-                             : TH_STATE_SAMPLE_INT)
-                      : TH_STATE_IDLE;
-      stateStep = true;
-      break;
 
-    case TH_STATE_SAMPLE_EXT:
-      /* Trigger external sensors (recording response) and skip to internal
-       * sensor trigger */
-      if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
-        tempExtSample = true;
+    case TH_STATE_IDLE:
+      if (evtPending(EVT_WAKE_TIMER)) {
+        state_nxt = TH_STATE_SAMPLE_INT;
+        stateStep = true;
       }
-      state_nxt = TH_STATE_SAMPLE_INT;
-      stateStep = true;
       break;
 
     case TH_STATE_SAMPLE_INT:
       /* Trigger internal sensors, and wait in WFI (should be in STANDBY) */
+      if ((pConfig->baseCfg.extTempEn && tempExtNum)) {
+        tempPowerOn();
+      }
       adcTriggerSample();
       hdc2010ConversionStart();
       state_nxt = ((INT16_MIN != adcGetResult()) && hdc2010ConversionStarted())
@@ -298,31 +280,39 @@ int main(void) {
       if (evtPending(EVT_WAKE_SAMPLE_INT)) {
         state_nxt = TH_STATE_SAMPLE_INT_RD;
         stateStep = true;
-      } else {
-        state_nxt = TH_STATE_SAMPLE_INT_WAIT;
       }
       break;
 
     case TH_STATE_SAMPLE_INT_RD:
       dataset.battery = adcGetResult() * 322;
       hdc2010SampleGet(&hdcResultRaw);
-      state_nxt =
-          tempExtSample ? TH_STATE_SAMPLE_EXT_WAIT : TH_STATE_PROCESS_SEND;
+      state_nxt = (pConfig->baseCfg.extTempEn && tempExtNum)
+                      ? TH_STATE_SAMPLE_EXT
+                      : TH_STATE_PROCESS_SEND;
       stateStep = true;
+      break;
+
+    case TH_STATE_SAMPLE_EXT:
+      /* Trigger external sensors, skip if no response */
+      if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
+        state_nxt = TH_STATE_SAMPLE_EXT_WAIT;
+      } else {
+        tempPowerOff();
+        state_nxt = TH_STATE_PROCESS_SEND;
+        stateStep = true;
+      }
       break;
 
     case TH_STATE_SAMPLE_EXT_WAIT:
       if (tempSampleReady()) {
         state_nxt = TH_STATE_SAMPLE_EXT_RD;
         stateStep = true;
-      } else {
-        state_nxt = TH_STATE_SAMPLE_EXT_WAIT;
       }
       break;
 
     case TH_STATE_SAMPLE_EXT_RD:
-
       tempSampleRead(TEMP_INTF_ONEWIRE, dataset.tempExternal);
+      tempPowerOff();
       state_nxt = TH_STATE_PROCESS_SEND;
       stateStep = true;
       break;
@@ -338,8 +328,8 @@ int main(void) {
       break;
 
     case TH_STATE_CLEAN:
-      // REVISIT reset all values
       state_nxt = TH_STATE_IDLE;
+      tplDone();
       break;
     }
 

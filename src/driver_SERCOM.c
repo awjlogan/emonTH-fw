@@ -179,7 +179,7 @@ void uartPutsBlocking(const char *s) {
 void uartConfigureDMA(void) {
 
   volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_UART);
-  dmacDesc->BTCTRL.reg = DMAC_BTCTRL_VALID | DMAC_BTCTRL_BLOCKACT_NOACT |
+  dmacDesc->BTCTRL.reg = DMAC_BTCTRL_VALID | DMAC_BTCTRL_BLOCKACT_INT |
                          DMAC_BTCTRL_STEPSIZE_X1 | DMAC_BTCTRL_STEPSEL_SRC |
                          DMAC_BTCTRL_SRCINC | DMAC_BTCTRL_BEATSIZE_BYTE;
 
@@ -190,16 +190,17 @@ void uartConfigureDMA(void) {
                        (DMAC_CHCTRLB_LVL(1u) |
                         DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DMAC_ID_TX) |
                         DMAC_CHCTRLB_TRIGACT_BEAT));
+
+  dmacEnableChannelInterrupt(DMA_CHAN_UART);
 }
 
-void uartPutsNonBlocking(unsigned int dma_chan, const char *const s,
-                         uint16_t len) {
-  volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(dma_chan);
+void uartPutsNonBlocking(const char *const s, uint16_t len) {
+  volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_UART);
   /* Valid bit is cleared when a channel is complete */
   dmacDesc->BTCTRL.reg |= DMAC_BTCTRL_VALID;
   dmacDesc->BTCNT.reg   = len;
   dmacDesc->SRCADDR.reg = (uint32_t)s + len;
-  dmacChannelEnable(dma_chan);
+  dmacChannelEnable(DMA_CHAN_UART);
 }
 
 char uartGetc(void) {

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "board_def.h"
+#include "periph_HDC2010.h"
 
 _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 
@@ -44,11 +45,10 @@ _Static_assert(sizeof(EmonTHCfg_t) < 57, "EmonThCfg_t bigger than 56 bytes");
 #define TX_BUFFER_W 128u
 
 typedef struct EmonTHDataset_ {
-  float    tempInternal;
-  int16_t  tempExternal[TEMP_MAX_ONEWIRE];
-  float    humidityInternal;
-  int16_t  battery;
-  uint32_t pulseCnt;
+  HDCResultRaw_t hdcResRaw;
+  int16_t        tempExternal[TEMP_MAX_ONEWIRE];
+  int16_t        battery;
+  uint32_t       pulseCnt;
 } EmonTHDataset_t;
 
 /* This struct must match the OEM definitions found at:

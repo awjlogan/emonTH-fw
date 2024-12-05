@@ -173,9 +173,7 @@ void uartPutcBlocking(const char c);
 void uartPutsBlocking(const char *s);
 
 /*! @brief Send a string (non-blocking) on UART by DMA
- *  @param [in] dma_chan : DMA channel to send on
  *  @param [in] s : Pointer to the string
  *  @param [in] len : Length of the string (not including NULL)
  */
-void uartPutsNonBlocking(unsigned int dma_chan, const char *const s,
-                         uint16_t len);
+void uartPutsNonBlocking(const char *const s, uint16_t len);

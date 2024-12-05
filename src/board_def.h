@@ -139,5 +139,5 @@ typedef enum PeriphIndex_ {
 
 /* DMA defines */
 #define NUM_CHAN_DMA  2u
-#define DMA_CHAN_I2CM 1u
+#define DMA_CHAN_SPI  1u
 #define DMA_CHAN_UART 0u

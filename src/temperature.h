@@ -24,6 +24,12 @@ typedef struct TempRead_ {
  */
 float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed);
 
+/*! @brief Remove power from temperature sensors */
+void tempPowerOff(void);
+
+/*! @brief Apply power to temperature sensors */
+void tempPowerOn(void);
+
 /*! @brief Find and initialise sensors
  *  @param [in] intf : interface type
  *  @param [in] pParams : parameters for given interface type

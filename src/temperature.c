@@ -11,6 +11,12 @@ static volatile bool tempSampleReadyFlag = false;
 static bool          tempSampled         = false;
 static int           numSensors          = 0;
 
+/*! @brief Remove power from temperature sensors */
+void tempPowerOff(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR); }
+
+/*! @brief Apply power to temperature sensors */
+void tempPowerOn(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET); }
+
 unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   EMONTH_ASSERT(pParams);
 
@@ -72,10 +78,6 @@ TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
     return TEMP_NO_SENSORS;
   }
 
-  /* Power the DS18B20s */
-  portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET);
-  timerDelaySleep_ms(1, SLEEP_MODE_STANDBY, false);
-
   if (TEMP_INTF_ONEWIRE == intf) {
     tempSampled = true;
     (void)dev;
@@ -83,7 +85,5 @@ TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
       return TEMP_OK;
   }
 
-  /* If failed, then power down and continue */
-  portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR);
   return TEMP_FAILED;
 }

@@ -3,6 +3,20 @@
 #include <stdbool.h>
 
 #include "emonTH.h"
+#include "periph_HDC2010.h"
+
+/*! @brief Convert the raw HDC2010 data to floating point
+ *  @param [in] phdcInt : pointer to the raw HDC data.
+ */
+void dataPackConvert(HDCResultRaw_t const *phdcRaw);
+
+/*! @brief Pack the temperature (internal and external), humidity, battery level
+ * and pulse count into a packed structure for transmission over RFM link
+ *  @param [in] pData : pointer to the raw data
+ *  @param [out] pPacked : pointer to the destination packet
+ */
+void dataPackPacked(const EmonTHDataset_t *restrict pData,
+                    PackedData_t *restrict pPacked);
 
 /*! @brief Packs the data packet into serial format.
  *         Returns the number of characters that would have been packed,
@@ -17,11 +31,3 @@
  */
 int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
                    int m, int opt);
-
-/*! @brief Pack the temperature (internal and external), humidity, battery level
- * and pulse count into a packed structure for transmission over RFM link
- *  @param [in] pData : pointer to the raw data
- *  @param [out] pPacked : pointer to the destination packet
- */
-void dataPackPacked(const EmonTHDataset_t *restrict pData,
-                    PackedData_t *restrict pPacked);
