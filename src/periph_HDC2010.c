@@ -24,7 +24,7 @@ static const uint8_t HDC2010_MEASUREMENT_CFG = 0x0Fu;
  *       - Power: STANDBY
  */
 
-static bool sampleStarted = false;
+static volatile bool sampleStarted = false;
 
 static uint8_t hdc2010RegRead(const uint8_t reg);
 static void    hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n);
@@ -45,13 +45,7 @@ void hdc2010ConversionStart(void) {
   sampleStarted = true;
 }
 
-bool hdc2010ConversionStarted(void) {
-  bool ret = sampleStarted;
-  if (sampleStarted) {
-    sampleStarted = false;
-  }
-  return ret;
-}
+bool hdc2010ConversionStarted(void) { return sampleStarted; }
 
 static uint8_t hdc2010RegRead(const uint8_t reg) {
   uint8_t result = 0;
@@ -94,6 +88,7 @@ static void hdc2010RegWrite(const uint8_t reg, const uint8_t data) {
 
 void hdc2010SampleGet(HDCResultRaw_t *pRes) {
   hdc2010RegNRead(HDC2010_TEMP_LSB, pRes, sizeof(*pRes));
+  sampleStarted = false;
 }
 
 void hdc2010SampleItoF(const HDCResultRaw_t *pInt, HDCResultF_t *pF) {

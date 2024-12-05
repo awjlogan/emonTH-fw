@@ -22,29 +22,15 @@ static void (*tcPulseCB)(void);
 static volatile bool tcInUse   = false;
 static volatile bool tcEnabled = false;
 
-bool timerDelay_us(uint16_t delay) {
-  if (tcInUse) {
-    return false;
-  }
-
-  tcInUse = true;
-  if (!tcEnabled) {
-    timerEnable();
-  }
-
-  TIMER_DELAY->COUNT16.CC[0].reg = delay;
-  tcSync();
-  TIMER_DELAY->COUNT16.COUNT.reg = 0u;
-  tcSync();
-
-  /* Wait for timer to complete, then disable */
-  while (!(TIMER_DELAY->COUNT16.INTFLAG.reg & TC_INTFLAG_MC0))
-    ;
-  TIMER_DELAY->COUNT16.INTFLAG.reg |= TC_INTFLAG_MC0;
-
-  timerDisable();
-  tcInUse = false;
-  return true;
+/* REVISIT check correctness of this @ 8 MHz */
+void timerDelay_us(uint16_t delay) {
+  // clang-format off
+  __asm volatile (	"MOV R0,%[loops]\n\t"
+      "1: \n\t"
+			"SUB R0, #1\n\t"
+			"CMP R0, #0\n\t"
+			"BNE 1b \n\t" : : [loops] "r" (8*delay) : "memory");
+  // clang-format on
 }
 
 PrescaledTimer_t calcPrescalar(const uint32_t t_us) {
@@ -105,7 +91,8 @@ bool timerDelaySleep_us(const uint32_t t_us, const SleepMode_t sm,
   /* For short delays, the entry/exit delay is a significant fraction, so just
    * do blocking delay in this case. */
   if (t_us < 64) {
-    return timerDelay_us(t_us);
+    timerDelay_us(t_us);
+    return true;
   }
 
   /* Calculate prescalar (mod time), and set timer and interrupt */

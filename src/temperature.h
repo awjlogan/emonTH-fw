@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef enum TEMP_INTF_ { TEMP_INTF_ONEWIRE, TEMP_INTF_I2C } TEMP_INTF_t;
@@ -35,6 +36,14 @@ unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
  *  @param [out] pDst : pointer to array for output
  */
 TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst);
+
+/*! @brief Get the status of the sample ready.
+ *  @return true if the sample is ready
+ */
+bool tempSampleReady(void);
+
+/*! @brief Sets the status of the sample ready */
+void tempSampleReadySet(void);
 
 /*! @brief Start a temperature sample
     @param [in] intf : interface type

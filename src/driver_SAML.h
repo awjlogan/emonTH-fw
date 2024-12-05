@@ -16,9 +16,9 @@ typedef enum Calibration_ {
 } Calibration_t;
 
 typedef enum SleepMode_t {
+  SLEEP_MODE_ACTIVE  = 0,                             /* No sleep mode  */
   SLEEP_MODE_IDLE    = PM_SLEEPCFG_SLEEPMODE_IDLE,    /* CPU clock gated */
   SLEEP_MODE_STANDBY = PM_SLEEPCFG_SLEEPMODE_STANDBY, /* Only OSCULP32K */
-  SLEEP_MODE_ACTIVE  = -1, /* No sleep mode selected */
   SLEEP_MODE_OFF     = PM_SLEEPCFG_SLEEPMODE_OFF
 } SleepMode_t;
 
@@ -39,6 +39,3 @@ SleepMode_t samlGetActivity(void);
  *  @param [in] periphIdx : the peripheral index
  */
 void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx);
-
-/*! @brief Sets the sleep mode. */
-void samlSleep(SleepMode_t sm);

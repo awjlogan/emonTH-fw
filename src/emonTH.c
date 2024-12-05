@@ -210,7 +210,6 @@ int main(void) {
 
   EmonTHDataset_t       dataset               = {0};
   HDCResultRaw_t        hdcResultRaw          = {0};
-  HDCResultF_t          hdcResultF            = {0};
   unsigned int          tempExtNum            = 0;
   bool                  tempExtSample         = false;
   EmonTHConfigPacked_t *pConfig               = 0;
@@ -218,6 +217,9 @@ int main(void) {
   TransmitOpt_t         txOpt                 = {0};
 
   ucSetup();
+
+  /* The ADC's first sample is to be discarded. */
+  adcTriggerSample();
 
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then
@@ -265,6 +267,7 @@ int main(void) {
     switch (state) {
     case TH_STATE_IDLE:
       state_nxt = evtPending(EVT_WAKE_TIMER)
+                      /* Trigger external sensors if enabled and present. */
                       ? ((pConfig->baseCfg.extTempEn && tempExtNum)
                              ? TH_STATE_SAMPLE_EXT
                              : TH_STATE_SAMPLE_INT)
@@ -273,6 +276,8 @@ int main(void) {
       break;
 
     case TH_STATE_SAMPLE_EXT:
+      /* Trigger external sensors (recording response) and skip to internal
+       * sensor trigger */
       if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
         tempExtSample = true;
       }
@@ -281,6 +286,7 @@ int main(void) {
       break;
 
     case TH_STATE_SAMPLE_INT:
+      /* Trigger internal sensors, and wait in WFI (should be in STANDBY) */
       adcTriggerSample();
       hdc2010ConversionStart();
       state_nxt = ((INT16_MIN != adcGetResult()) && hdc2010ConversionStarted())
@@ -306,13 +312,17 @@ int main(void) {
       break;
 
     case TH_STATE_SAMPLE_EXT_WAIT:
-
-      // REVISIT need to wait in standby for the full 750 ms!
-      state_nxt = TH_STATE_SAMPLE_EXT_RD;
+      if (tempSampleReady()) {
+        state_nxt = TH_STATE_SAMPLE_EXT_RD;
+        stateStep = true;
+      } else {
+        state_nxt = TH_STATE_SAMPLE_EXT_WAIT;
+      }
       break;
 
     case TH_STATE_SAMPLE_EXT_RD:
 
+      tempSampleRead(TEMP_INTF_ONEWIRE, dataset.tempExternal);
       state_nxt = TH_STATE_PROCESS_SEND;
       stateStep = true;
       break;

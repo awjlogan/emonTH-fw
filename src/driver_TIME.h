@@ -5,11 +5,11 @@
 
 #include "driver_SAML.h"
 
-/*! @brief  Blocking delay. Use with caution
+/*! @brief  Blocking delay, only used for short delays where enabling and
+ *          configuring the timer has excessive overhead.
  *  @param [in] delay : period in us
- *  @return true if successful, false otherwise.
  */
-bool timerDelay_us(uint16_t delay);
+void timerDelay_us(uint16_t delay);
 
 /*! @brief Blocking delay in sleep mode
  *  @param [in] t_ms : delay in milliseconds

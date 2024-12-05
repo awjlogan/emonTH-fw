@@ -7,8 +7,9 @@
 #include "periph_DS18B20.h"
 #include "temperature.h"
 
-static bool tempSampled = false;
-static int  numSensors  = 0;
+static volatile bool tempSampleReadyFlag = false;
+static bool          tempSampled         = false;
+static int           numSensors          = 0;
 
 unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   EMONTH_ASSERT(pParams);
@@ -20,7 +21,13 @@ unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   return numSensors;
 }
 
+bool tempSampleReady(void) { return tempSampleReadyFlag; }
+
+void tempSampleReadySet(void) { tempSampleReadyFlag = true; }
+
 TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
+
+  tempSampleReadyFlag = false;
 
   if (!tempSampled) {
     return TEMP_NO_SAMPLE;
@@ -34,7 +41,6 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
     int  i        = 0;
     while ((i < numSensors) && presence) {
       int16_t dsbResult = ds18b20ReadSample(i);
-      /* No presence pulse detected, scrub and exit */
       if (INT16_MIN == dsbResult) {
         presence = false;
       } else {
@@ -43,6 +49,7 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
       i++;
     }
 
+    /* No presence pulse detected, scrub and exit */
     if (!presence) {
       for (i = 0; i < TEMP_MAX_ONEWIRE; i++) {
         pDst[i] = INT16_MIN;
