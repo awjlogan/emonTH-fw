@@ -17,5 +17,4 @@ typedef struct HDCResultF_ {
 void hdc2010ConversionStart(void);
 bool hdc2010ConversionStarted(void);
 void hdc2010SampleGet(HDCResultRaw_t *pRes);
-void hdc2010SampleItoF(const HDCResultRaw_t *pInt, HDCResultF_t *pF);
 void hdc2010Setup(void);

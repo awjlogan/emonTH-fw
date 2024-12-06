@@ -8,6 +8,17 @@
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
 
+typedef struct __attribute__((__packed__)) Scratch_ {
+  int16_t temp;
+  uint8_t th;
+  uint8_t tl;
+  uint8_t cfg;
+  uint8_t res_FF;
+  uint8_t res_X;
+  uint8_t res_10;
+  uint8_t crc;
+} Scratch_t;
+
 /* Driver for DS18B20 OneWire temperature sensor
  * https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf
  *
@@ -301,23 +312,63 @@ int ds18b20StartSample(void) {
   return 0;
 }
 
-int16_t ds18b20ReadSample(const unsigned int dev) {
-  const uint8_t   cmdMatchROM    = 0x55;
-  const uint8_t   cmdReadScratch = 0xBE;
-  const uint64_t *addrDev        = address + addressRemap[dev];
-  int             tempData       = 0;
+DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
+  const uint8_t CMD_MATCH_ROM    = 0x55;
+  const uint8_t CMD_SCRATCH_READ = 0xBE;
+  const int16_t DS_T85DEG        = 1360;
+  const int16_t DS_TNEG55DEG     = -880;
+  const int16_t DS_T125DEG       = 2000;
+
+  const uint64_t *addrDev = address + addressRemap[dev];
+  Scratch_t       scratch = {0};
+  const uint8_t   *si      = (uint8_t *)&scratch;
+  uint8_t         crcDS   = 0;
+  DS18B20_Res_t   tempRes = {0};
+
+  /* 304ºC indicates a bad temperature reading. */
+  tempRes.status = TEMP_OK;
+  tempRes.temp   = 30400;
 
   /* Check for presence pulse before continuing */
   if (!oneWireReset()) {
-    return INT16_MIN;
+    tempRes.status = TEMP_NO_SENSORS;
+    return tempRes;
   }
 
-  oneWireWriteBytes(&cmdMatchROM, 1);
+  oneWireWriteBytes(&CMD_MATCH_ROM, 1);
   oneWireWriteBytes(addrDev, 8);
-  oneWireWriteBytes(&cmdReadScratch, 1);
-  /* REVISIT : can read all 9 bytes to get the CRC as well */
-  oneWireReadBytes(&tempData, 2);
+  oneWireWriteBytes(&CMD_SCRATCH_READ, 1);
+  oneWireReadBytes(&scratch, sizeof(scratch));
 
-  /* Second byte is the MSB, shift to top 8 */
-  return (int16_t)tempData;
+  /* Check CRC for received data */
+  for (unsigned int i = 0; i < (sizeof(scratch) - 1); i++) {
+    calcCRC8(crcDS, si[i]);
+  }
+
+  if (crcDS != scratch.crc) {
+    tempRes.status = TEMP_BAD_CRC;
+    return tempRes;
+  }
+
+  /* The DS18B20's configuration register must not be zero (Figure 10) */
+  if (!scratch.cfg) {
+    tempRes.status = TEMP_BAD_SENSOR;
+    return tempRes;
+  }
+
+  /* Check for spurious 85ºC reading. This could be caused by e.g. a power
+   * glitch after the sample was requested. */
+  if ((0x0C == scratch.res_X) && (DS_T85DEG == tempRes.temp)) {
+    tempRes.status = TEMP_BAD_SENSOR;
+    return tempRes;
+  }
+
+  /* Ensure in range: 125ºC >= T >= -55ºC */
+  if ((DS_TNEG55DEG > tempRes.temp) || (DS_T125DEG < tempRes.temp)) {
+    tempRes.status = TEMP_OUT_OF_RANGE;
+    return tempRes;
+  }
+
+  tempRes.temp = scratch.temp;
+  return tempRes;
 }

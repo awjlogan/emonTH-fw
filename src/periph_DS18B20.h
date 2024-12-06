@@ -2,10 +2,17 @@
 
 #include <stdint.h>
 
+#include "temperature.h"
+
 typedef struct DS18B20_conf_ {
   unsigned int pin;
   unsigned int t_wait_us;
 } DS18B20_conf_t;
+
+typedef struct DS18B20_Res_ {
+  TempStatus_t status;
+  int16_t      temp;
+} DS18B20_Res_t;
 
 /*! @brief Configure the OneWire port
  *  @param [in] pCfg: pointer to the configuration struct
@@ -22,4 +29,4 @@ int ds18b20StartSample(void);
  *  @return : INT16_MIN for failure (no presence response), otherwise sensor
  * data
  */
-int16_t ds18b20ReadSample(const unsigned int dev);
+DS18B20_Res_t ds18b20ReadSample(const unsigned int dev);

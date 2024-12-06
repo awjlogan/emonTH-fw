@@ -46,11 +46,11 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
     bool presence = true;
     int  i        = 0;
     while ((i < numSensors) && presence) {
-      int16_t dsbResult = ds18b20ReadSample(i);
-      if (INT16_MIN == dsbResult) {
+      DS18B20_Res_t dsbResult = ds18b20ReadSample(i);
+      if (TEMP_NO_SENSORS == dsbResult.status) {
         presence = false;
       } else {
-        pDst[i] = dsbResult;
+        pDst[i] = dsbResult.temp;
       }
       i++;
     }

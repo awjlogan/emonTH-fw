@@ -91,16 +91,6 @@ void hdc2010SampleGet(HDCResultRaw_t *pRes) {
   sampleStarted = false;
 }
 
-void hdc2010SampleItoF(const HDCResultRaw_t *pInt, HDCResultF_t *pF) {
-  /* Datasheet 7.6.2 */
-  int inter = (int)pInt->temp * 165;
-  pF->temp  = qfp_fsub(qfp_fdiv(qfp_int2float(inter), (float)(1 << 16)), 40.0f);
-
-  /* Datasheet 7.6.4 */
-  inter        = (int)pInt->humidity * 100;
-  pF->humidity = qfp_fdiv(qfp_int2float(inter), (float)(1 << 16));
-}
-
 static void hdc2010SampleRead(void) { /* Trigger the I2C read using DMA */ }
 
 void hdc2010Setup(void) {
