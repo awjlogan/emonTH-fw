@@ -15,12 +15,11 @@ typedef enum DataTx_ {
 } TxType_t;
 
 typedef struct __attribute__((__packed__)) BaseCfg_ {
-  uint8_t nodeID;      /* ID for report*/
-  bool    nodeIDSaved; /* Use the saved ID, rather than the switch value */
-  uint8_t dataGrp;     /* Transmission group - default 210 */
-  bool    useJson;     /* JSON format for serial output */
-  bool    extTempEn;   /* External temperature sensor enabled */
-  uint8_t res0[3];
+  uint8_t nodeID;    /* ID for report*/
+  uint8_t dataGrp;   /* Transmission group - default 210 */
+  bool    useJson;   /* JSON format for serial output */
+  bool    extTempEn; /* External temperature sensor enabled */
+  uint8_t res0[4];
 } BaseCfg_t;
 
 typedef struct __attribute__((__packed__)) DataTxCfg_ {

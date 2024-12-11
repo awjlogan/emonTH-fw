@@ -33,7 +33,7 @@ static void    hdc2010SampleRead(void);
 
 void hdc2010InterruptClear(void) {
   /* Clear the level interrupt */
-  eicLevelDisable(EIC_CH_HDC);
+  eicChannelDisable(EIC_CH_HDC);
   (void)hdc2010RegRead(HDC2010_DRDYINT_CFG);
   hdc2010SampleRead();
 }
@@ -41,7 +41,8 @@ void hdc2010InterruptClear(void) {
 void hdc2010ConversionStart(void) {
   hdc2010RegWrite(HDC2010_MEASUREMENT_CFG, 0x01);
   samlSetActivity(SLEEP_MODE_STANDBY, PERIPH_IDX_I2CM);
-  eicLevelEnable(EIC_CH_HDC, hdc2010InterruptClear);
+  eicChannelEnable(EIC_CH_HDC, EIC_CONFIG_SENSE1_RISE_Val,
+                   hdc2010InterruptClear);
   sampleStarted = true;
 }
 
@@ -75,6 +76,7 @@ static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n) {
     }
     i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
   }
+  samlSetActivity(SLEEP_MODE_STANDBY, PERIPH_IDX_I2CM);
 }
 
 static void hdc2010RegWrite(const uint8_t reg, const uint8_t data) {

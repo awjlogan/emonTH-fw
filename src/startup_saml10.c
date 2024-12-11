@@ -186,6 +186,9 @@ void irq_handler_reset(void) {
 
   SCB->VTOR = (uint32_t)vectors;
 
+  /* Always in PL0, disable PL mechanism to save power (22.8.2) */
+  PM->PLCFG.reg = PM_PLCFG_PLDIS;
+
   main();
 
   while (1)

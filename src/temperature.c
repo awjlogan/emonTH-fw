@@ -18,10 +18,10 @@ void tempPowerOff(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR); }
 void tempPowerOn(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET); }
 
 unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
-  EMONTH_ASSERT(pParams);
+  (void)pParams;
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    numSensors = ds18b20InitSensors((DS18B20_conf_t *)pParams);
+    numSensors = ds18b20InitSensors();
   }
 
   return numSensors;
@@ -81,8 +81,10 @@ TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
   if (TEMP_INTF_ONEWIRE == intf) {
     tempSampled = true;
     (void)dev;
-    if (0 == ds18b20StartSample())
+    if (TEMP_OK == ds18b20StartSample()) {
+      timerDelaySleepAsync_ms(800, SLEEP_MODE_STANDBY, &tempSampleReadySet);
       return TEMP_OK;
+    }
   }
 
   return TEMP_FAILED;

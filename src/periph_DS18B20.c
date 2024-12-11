@@ -26,9 +26,6 @@ typedef struct __attribute__((__packed__)) Scratch_ {
  * https://www.analog.com/en/app-notes/1wire-search-algorithm.html
  */
 
-/* OneWire pins and configuration */
-static DS18B20_conf_t cfg;
-
 /* Device address table */
 static uint64_t     address[TEMP_MAX_ONEWIRE];
 static unsigned int addressRemap[TEMP_MAX_ONEWIRE];
@@ -97,12 +94,12 @@ static unsigned int oneWireReadBit(void) {
   unsigned int result = 0;
 
   __disable_irq();
-  portPinDir(cfg.pin, PIN_DIR_OUT);
-  timerDelay_us(cfg.t_wait_us);
-  portPinDir(cfg.pin, PIN_DIR_IN);
+  portPinDir(PIN_ONEWIRE, PIN_DIR_OUT);
+  timerDelay_us(5);
+  portPinDir(PIN_ONEWIRE, PIN_DIR_IN);
   /* Max 15 us for read slot; leave 3 us slack */
-  timerDelay_us(12u - cfg.t_wait_us);
-  result = portPinValue(cfg.pin);
+  timerDelay_us(12u - 5);
+  result = portPinValue(PIN_ONEWIRE);
   __enable_irq();
 
   /* Wait for the end of the read slot, t_RDV */
@@ -134,11 +131,11 @@ static bool oneWireReset(void) {
 
   bool presence = false;
 
-  portPinDir(cfg.pin, PIN_DIR_OUT);
+  portPinDir(PIN_ONEWIRE, PIN_DIR_OUT);
 
   timerDelaySleep_us(512u, SLEEP_MODE_STANDBY, false);
 
-  portPinDir(cfg.pin, PIN_DIR_IN);
+  portPinDir(PIN_ONEWIRE, PIN_DIR_IN);
   /* Wait 48+20 us (wake up) to ensure t_PDHIGH has elapsed, then wait the full
    * t_RSTH time +25 us slack to complete the reset sequence.
    */
@@ -249,13 +246,13 @@ static void oneWireWriteBit(unsigned int bit) {
    */
 
   __disable_irq();
-  portPinDir(cfg.pin, PIN_DIR_OUT);
-  timerDelay_us(cfg.t_wait_us);
+  portPinDir(PIN_ONEWIRE, PIN_DIR_OUT);
+  timerDelay_us(5);
   if (bit) {
-    portPinDir(cfg.pin, PIN_DIR_IN);
+    portPinDir(PIN_ONEWIRE, PIN_DIR_IN);
   }
-  timerDelay_us(75u - cfg.t_wait_us);
-  portPinDir(cfg.pin, PIN_DIR_IN);
+  timerDelay_us(75u - 5);
+  portPinDir(PIN_ONEWIRE, PIN_DIR_IN);
   __enable_irq();
   timerDelay_us(5u);
 }
@@ -271,21 +268,16 @@ static void oneWireWriteBytes(const void *pSrc, const uint8_t n) {
   }
 }
 
-unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
-  EMONTH_ASSERT(pCfg);
+unsigned int ds18b20InitSensors(void) {
 
   unsigned int deviceCount  = 0;
   int          searchResult = 0;
 
-  cfg.pin       = pCfg->pin;
-  /* If not overridden, default to 5 us pull low */
-  cfg.t_wait_us = pCfg->t_wait_us ? pCfg->t_wait_us : 5u;
-
   /* Disable the pin's pull up, and search for devices */
-  portPinDrv(cfg.pin, PIN_DRV_CLR);
+  portPinDrv(PIN_ONEWIRE, PIN_DRV_CLR);
   searchResult = oneWireFirst();
 
-  while ((0 != searchResult) && (deviceCount < TEMP_MAX_ONEWIRE)) {
+  while (searchResult && (deviceCount < TEMP_MAX_ONEWIRE)) {
     address[deviceCount] = ROM_NO;
     deviceCount++;
 
@@ -300,16 +292,16 @@ unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
   return deviceCount;
 }
 
-int ds18b20StartSample(void) {
+TempStatus_t ds18b20StartSample(void) {
   const uint8_t cmds[2] = {0xCC, 0x44};
 
   /* Check for presence pulse before continuing */
   if (!oneWireReset()) {
-    return -1;
+    return TEMP_NO_SENSORS;
   }
 
   oneWireWriteBytes(cmds, 2u);
-  return 0;
+  return TEMP_OK;
 }
 
 DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
@@ -321,7 +313,7 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
 
   const uint64_t *addrDev = address + addressRemap[dev];
   Scratch_t       scratch = {0};
-  const uint8_t   *si      = (uint8_t *)&scratch;
+  const uint8_t  *si      = (uint8_t *)&scratch;
   uint8_t         crcDS   = 0;
   DS18B20_Res_t   tempRes = {0};
 

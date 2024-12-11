@@ -34,31 +34,35 @@ static int chToIndex(const int ch) {
   return index;
 }
 
-void eicLevelDisable(const int ch) {
+void eicCallbackSet(const int ch, void (*cb)()) { eicCB[chToIndex(ch)] = cb; }
+
+void eicChannelDisable(const int ch) {
   switch (ch) {
   case EIC_CH_RFM:
     EIC->INTENCLR.reg &= EIC_INTENCLR_EXTINT(0);
+    EIC->CONFIG[0].bit.SENSE0 = EIC_CONFIG_SENSE0_NONE_Val;
     break;
   case EIC_CH_HDC:
     EIC->INTENCLR.reg &= EIC_INTENCLR_EXTINT(1);
+    EIC->CONFIG[0].bit.SENSE1 = EIC_CONFIG_SENSE1_NONE_Val;
     break;
   case EIC_CH_OW:
     break;
   }
 }
 
-void eicCallbackSet(const int ch, void (*cb)()) { eicCB[chToIndex(ch)] = cb; }
-
-void eicLevelEnable(const int ch, void (*cb)()) {
+void eicChannelEnable(const int ch, const int sense, void (*cb)()) {
   /* Only a single set of EIC inputs on SAML10 */
   switch (ch) {
   case EIC_CH_RFM:
     EIC->INTENSET.reg |= EIC_INTENSET_EXTINT(0);
-    eicCB[0] = cb;
+    EIC->CONFIG[0].bit.SENSE0 = sense;
+    eicCB[0]                  = cb;
     break;
   case EIC_CH_HDC:
     EIC->INTENSET.reg |= EIC_INTENSET_EXTINT(1);
-    eicCB[1] = cb;
+    EIC->CONFIG[0].bit.SENSE1 = sense;
+    eicCB[1]                  = cb;
     break;
   case EIC_CH_OW:
     break;

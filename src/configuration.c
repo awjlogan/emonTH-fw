@@ -56,20 +56,20 @@ static void  putInt(const int i);
  *************************************/
 
 #define IN_BUFFER_W 16
-static EmonTHConfigPacked_t config;
-static bool                 inConfig = false;
 static char                 inBuffer[IN_BUFFER_W];
-static int                  inBufferIdx   = 0;
-static bool                 cmdPending    = false;
-static bool                 resetReq      = false;
-static bool                 unsavedChange = false;
+static int                  inBufferIdx                 = 0;
+static bool                 inConfig                    = false;
+static bool                 cmdPending                  = false;
+static EmonTHConfigPacked_t config                      = {0};
+uint8_t                     pageBuffer[FLASH_PAGE_SIZE] = {0};
+static bool                 resetReq                    = false;
+static bool                 unsavedChange               = false;
 
 /*! @brief Set all configuration values to defaults */
 static void configDefault(void) {
-  config.baseCfg.nodeID      = NODE_ID_DEF;       // Node ID
-  config.baseCfg.nodeIDSaved = false;             // Node ID from slide switches
-  config.baseCfg.dataGrp     = NETWORK_GROUP_DEF; // Group for OEM
-  config.baseCfg.useJson     = false;             // Not JSON format for serial
+  config.baseCfg.nodeID  = NODE_ID_DEF;       // Node ID
+  config.baseCfg.dataGrp = NETWORK_GROUP_DEF; // Group for OEM
+  config.baseCfg.useJson = false;             // Not JSON format for serial
 
   config.dataTxCfg.txType  = (uint8_t)DATATX_RFM69; // RFM only
   config.dataTxCfg.rfmPwr  = 0x19;                  // Maximum power
@@ -233,6 +233,9 @@ void configEnter(void) {
       __WFI();
     }
   }
+  if (resetReq) {
+    NVIC_SystemReset();
+  }
   portPinDrv(PIN_LED, PIN_DRV_CLR);
 }
 
@@ -266,7 +269,6 @@ void configFirmwareBoardInfo(void) {
 }
 
 EmonTHConfigPacked_t *configLoadFromNVM(void) {
-  uint32_t     pageBuffer[FLASH_PAGE_SIZE / sizeof(uint32_t)];
   NVMHeader_t *header   = (NVMHeader_t *)pageBuffer;
   bool         keyFound = false;
   bool         crc0Bad  = false;
@@ -276,14 +278,14 @@ EmonTHConfigPacked_t *configLoadFromNVM(void) {
       (EmonTHConfigPacked_t *)(pageBuffer + sizeof(*header));
   uint16_t crc16Calc = 0;
 
-  nvmDataFlashRead(0, pageBuffer);
+  nvmDataFlashRead(0, (uint32_t *)pageBuffer);
 
-  keyFound = CONFIG_NVM_KEY == header->watermark;
+  keyFound = (CONFIG_NVM_KEY == header->watermark);
 
   crc16Calc = calcCRC16_ccitt(pCfg, sizeof(*pCfg));
   if (header->crc16 != crc16Calc) {
     crc0Bad = true;
-    nvmDataFlashRead(1, pageBuffer);
+    nvmDataFlashRead(1, (uint32_t *)pageBuffer);
     crc16Calc = calcCRC16_ccitt(pCfg, sizeof(*pCfg));
     if (header->crc16 != crc16Calc) {
       crc1Bad = true;
@@ -299,6 +301,9 @@ EmonTHConfigPacked_t *configLoadFromNVM(void) {
     memcpy(pageBuffer + sizeof(*header), &config, sizeof(config));
 
     // Write out page buffer to page 0 and page 1 as backup
+    nvmDataFlashWrite(0, (uint32_t *)pageBuffer);
+    nvmDataFlashWrite(1, (uint32_t *)pageBuffer);
+
     // Read back page 0 to continue check
   }
 
@@ -368,10 +373,7 @@ static bool configProcessCmd(void) {
       }
 
       config.baseCfg.useJson = (bool)convI.val;
-
-      // printf_("> Use JSON: %c\r\n", config.baseCfg.useJson ? 'Y' : 'N');
-
-      unsavedChange = true;
+      unsavedChange          = true;
     }
     break;
   case 'l':
@@ -388,17 +390,14 @@ static bool configProcessCmd(void) {
     break;
   case 'r':
     configDefault();
-
     uartPuts("> Restored default values.\r\n");
 
     unsavedChange = true;
     resetReq      = true;
     break;
   case 's':
-    /* Save to EEPROM config space after recalculating CRC and indicate if a
-     * reset is required.
-     */
-    // REVISIT Save to EEPROM
+    /* Save to EEPROM config space after recalculating CRC */
+    configSaveToNVM();
     unsavedChange = false;
     break;
   case 'x':
@@ -409,6 +408,18 @@ static bool configProcessCmd(void) {
   cmdPending = false;
   inBufferClear(arglen + 1);
   return exitConfig;
+}
+
+void configSaveToNVM(void) {
+  NVMHeader_t *header = (NVMHeader_t *)pageBuffer;
+
+  header->crc16     = calcCRC16_ccitt(&config, sizeof(EmonTHConfigPacked_t));
+  header->watermark = CONFIG_NVM_KEY;
+  header->writeCount += 2;
+
+  memcpy(pageBuffer + sizeof(*header), &config, sizeof(config));
+  nvmDataFlashWrite(0, (uint32_t *)pageBuffer);
+  nvmDataFlashWrite(1, (uint32_t *)pageBuffer);
 }
 
 /* =======================

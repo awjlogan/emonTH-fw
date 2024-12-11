@@ -46,6 +46,7 @@ static volatile bool rfmSendInterrupt = false;
 static uint8_t       rxData[64]       = {0};
 static volatile bool rxRdy            = false;
 static const Pin_t   sel              = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
+static bool          sendComplete     = false;
 static volatile bool timeoutFlag      = false;
 
 static bool rfmAckRecv(uint16_t fromId) {
@@ -186,6 +187,7 @@ static bool rfmRxDone(void) {
 }
 
 static RFMSend_t rfmSendWithRetry(uint8_t n) {
+  sendComplete = false;
 
   for (int r = 0; r < RFM_RETRIES; r++) {
     // "send" in LPL
@@ -217,9 +219,12 @@ static RFMSend_t rfmSendWithRetry(uint8_t n) {
     spiSendBuffer(SERCOM_SPI, rfmBuffer, n);
     spiDeSelect(sel);
 
+    eicChannelEnable(EIC_CH_RFM, EIC_CONFIG_SENSE0_RISE_Val, 0);
     rfmSetMode(RFM69_MODE_TX);
-    while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT))
-      ;
+    while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT)) {
+      __WFI();
+    };
+    eicChannelDisable(EIC_CH_RFM);
     rfmSetMode(RFM69_MODE_STANDBY);
 
     // end "sendframe"
@@ -227,16 +232,18 @@ static RFMSend_t rfmSendWithRetry(uint8_t n) {
     while (!timeoutFlag) {
       if (rfmAckRecv(5)) {
         timerFlush();
+        sendComplete = true;
         return RFM_SUCCESS;
       }
     }
     timeoutFlag = false;
   }
   timerFlush();
+  sendComplete = true;
   return RFM_TIMED_OUT;
 }
 
-bool rfmSendComplete(void) { return rfmSendComplete; }
+bool rfmSendComplete(void) { return sendComplete; }
 
 static void rfmSetMode(int_fast8_t mode) {
   if (rfmMode == mode) {

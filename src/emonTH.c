@@ -23,9 +23,10 @@
 #include "util.h"
 
 typedef struct TransmitOpt_ {
-  bool json;
-  bool useRFM;
-  bool logSerial;
+  bool    json;
+  bool    useRFM;
+  bool    logSerial;
+  uint8_t nodeID;
 } TransmitOpt_t;
 
 typedef enum THState_ {
@@ -53,10 +54,10 @@ AssertInfo_t             g_assert_info;
  * Static function prototypes
  *************************************/
 
-static bool     evtPending(EVTSRC_t evt);
-void            putchar_(char c);
-static void     readSlideSW(EmonTHConfigPacked_t *pCfg);
-static uint32_t tempSetup(void);
+static bool         evtPending(EVTSRC_t evt);
+void                putchar_(char c);
+static uint_fast8_t readSlideSW(void);
+static uint32_t     tempSetup(void);
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer);
 static void ucSetup(void);
@@ -99,9 +100,9 @@ static bool evtPending(EVTSRC_t evt) {
   return ret;
 }
 
-static void readSlideSW(EmonTHConfigPacked_t *pCfg) {
-  uint8_t swVal    = 0;
-  uint8_t swPin[2] = {PIN_SW_NODE0, PIN_SW_NODE1};
+static uint_fast8_t readSlideSW(void) {
+  uint_fast8_t swVal    = 0;
+  uint8_t      swPin[2] = {PIN_SW_NODE0, PIN_SW_NODE1};
 
   /* Match the pull up/down to match to eliminate current through pull */
   for (int i = 0; i < 2; i++) {
@@ -110,23 +111,16 @@ static void readSlideSW(EmonTHConfigPacked_t *pCfg) {
       portPinDrv(swPin[i], PIN_DRV_CLR);
     }
   }
-
-  if (!pCfg->baseCfg.nodeIDSaved) {
-    pCfg->baseCfg.nodeID = NODE_ID_DEF + swVal;
-  }
+  return swVal;
 }
 
 /*! @brief Initialises the temperature sensors
  *  @return : number of temperature sensors found
  */
 static uint32_t tempSetup(void) {
-  unsigned int   tempExtNum = 0;
-  DS18B20_conf_t dsCfg      = {0};
+  unsigned int tempExtNum = 0;
 
-  dsCfg.pin       = PIN_ONEWIRE;
-  dsCfg.t_wait_us = 5;
-
-  tempExtNum = tempSensorsInit(TEMP_INTF_ONEWIRE, &dsCfg);
+  tempExtNum = tempSensorsInit(TEMP_INTF_ONEWIRE, 0);
 
   return tempExtNum;
 }
@@ -135,15 +129,15 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer) {
 
   dataPackConvert(&pSrc->hdcResRaw);
-  if (pOpt->useRFM) {
-    PackedData_t packedData = {0};
-    dataPackPacked(pSrc, &packedData);
-    // REVISIT RFM send using latest LPL
-  }
-
   if (pOpt->logSerial) {
     int pktLength = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
     uartPutsNonBlocking(txBuffer, pktLength);
+  }
+
+  if (pOpt->useRFM) {
+    dataPackPacked(pSrc, (PackedData_t *)rfmGetBuffer());
+    rfmSetAddress(pOpt->nodeID);
+    rfmSendBuffer(sizeof(PackedData_t));
   }
 }
 
@@ -203,6 +197,7 @@ int main(void) {
   HDCResultRaw_t        hdcResultRaw          = {0};
   unsigned int          tempExtNum            = 0;
   EmonTHConfigPacked_t *pConfig               = 0;
+  uint_fast8_t          swVal                 = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
   TransmitOpt_t         txOpt                 = {0};
 
@@ -220,10 +215,12 @@ int main(void) {
   /* Set up the RFM module put to sleep immediately. The RFM module requires 10
    * ms to wakup, sleep in standby. */
   timerDelaySleep_ms(12, SLEEP_MODE_STANDBY, true);
-  rfmInit(pConfig->dataTxCfg.rfmFreq);
+  if (rfmInit(pConfig->dataTxCfg.rfmFreq)) {
+    rfmSetAESKey("89txbe4p8aik5kt3"); /* Default OEM AES key */
+  };
 
   /* Read the slide switches and wait to enter configuration mode. */
-  readSlideSW(pConfig);
+  swVal = readSlideSW();
   interactiveWait();
 
   if (pConfig->pulseCfg.active) {
@@ -235,6 +232,7 @@ int main(void) {
   switch ((TxType_t)pConfig->dataTxCfg.txType) {
   case DATATX_RFM69:
     txOpt.useRFM = true;
+    txOpt.nodeID = pConfig->baseCfg.nodeID + swVal;
     break;
   case DATATX_UART:
     txOpt.logSerial = true;
@@ -242,6 +240,7 @@ int main(void) {
   case DATATX_BOTH:
     txOpt.useRFM    = true;
     txOpt.logSerial = true;
+    txOpt.nodeID    = pConfig->baseCfg.nodeID + swVal;
     break;
   }
   txOpt.json = pConfig->baseCfg.useJson;
@@ -284,7 +283,7 @@ int main(void) {
       break;
 
     case TH_STATE_SAMPLE_INT_RD:
-      dataset.battery = adcGetResult() * 322;
+      dataset.battery = adcGetResult() * 322; /* Battery voltage x1000 */
       hdc2010SampleGet(&hdcResultRaw);
       state_nxt = (pConfig->baseCfg.extTempEn && tempExtNum)
                       ? TH_STATE_SAMPLE_EXT
