@@ -45,7 +45,7 @@ static RFMRx_t       rfmRx            = {0};
 static volatile bool rfmSendInterrupt = false;
 static uint8_t       rxData[64]       = {0};
 static volatile bool rxRdy            = false;
-static const Pin_t   sel              = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
+static const Pin_t   sel              = {PIN_SPI_RFM_SS};
 static bool          sendComplete     = false;
 static volatile bool timeoutFlag      = false;
 
@@ -252,7 +252,7 @@ static void rfmSetMode(int_fast8_t mode) {
 
   rfmWriteReg(REG_OPMODE, ((rfmReadReg(REG_OPMODE) & 0xE3) | mode));
   while ((RFM69_MODE_SLEEP == rfmMode) &&
-         ((rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY) == 0))
+         (0 == (rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY)))
     ;
   rfmMode = mode;
 }

@@ -27,7 +27,7 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
  *  @param [out] pDst : pointer to the destination buffer
  *  @param [in] m : width of the destination buffer
  *  @param [in] opt : [0]: json false -> K:V; true -> JSON, [1]: tempEx
- *  @return : the number of the characters that would be packed
+ *  @return the number of the characters that would be packed
  */
 int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
                    int m, int opt);

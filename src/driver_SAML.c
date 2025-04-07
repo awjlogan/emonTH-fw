@@ -4,42 +4,25 @@
 static SleepMode_t actives[NUM_PERIPHERALS] = {0};
 
 uint32_t samlCalibration(const Calibration_t cal) {
-  uint32_t mask     = 0;
   uint32_t position = 0;
-  uint64_t cal_row  = *(const volatile uint64_t *)(0x00806020);
+  uint16_t calRow   = *(const volatile uint16_t *)((0x00806020));
 
   switch (cal) {
-  case CAL_ADC_LINEARITY:
-    mask     = 0xFFu;
-    position = 27u;
+  case CAL_ADC_BIASREFBUF:
+    position = 0u;
     break;
-  case CAL_ADC_BIAS:
-    mask     = 0x7u;
-    position = 35u;
+  case CAL_ADC_BIASCOMP:
+    position = 3u;
     break;
-  case CAL_OSC32K:
-    mask     = 0x7Fu;
-    position = 38u;
+  case CAL_DFLLULP_PL0:
+    position = 6u;
     break;
-  case CAL_USB_TRANSN:
-    mask     = 0x1Fu;
-    position = 45u;
-    break;
-  case CAL_USB_TRANSP:
-    mask     = 0x1Fu;
-    position = 50u;
-    break;
-  case CAL_USB_TRIM:
-    mask     = 0x7u;
-    position = 55u;
-    break;
-  case CAL_DFLL48M_COARSE:
-    mask     = 0x3Fu;
-    position = 58u;
+  case CAL_DFLLULP_PL1:
+    position = 9u;
     break;
   }
 
-  return (uint32_t)(cal_row >> position) & mask;
+  return (uint32_t)(calRow >> position) & 0x7u;
 }
 
 SleepMode_t samlGetActivity(void) {
@@ -77,3 +60,7 @@ void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx) {
     sm_current       = sm_set;
   }
 }
+
+void samlSleepStandby(void) { SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk; }
+
+void samlSleepIdle(void) { SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk; }

@@ -29,25 +29,23 @@ CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 LDFLAGS += -mcpu=cortex-m23 -mthumb -nostartfiles
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -Wl,--print-memory-usage
-LDFLAGS += -Wl,--script=./linker/saml10e14.ld
+LDFLAGS += -Wl,--script=./linker/saml10e15.ld
 
 INCLUDES += \
   -I./include/saml10 \
   -I./third_party/RFM69 \
-  -I./third_party/qfplib \
   -I./src/
 
 SRCS += $(wildcard ./src/*.c)
 
 DEFINES += \
-  -D__SAML10E14A__ \
+  -D__SAML10E15A__ \
   -DDONT_USE_CMSIS_INIT \
   -D__ARM_FEATURE_DSP=0
 
 CFLAGS += $(INCLUDES) $(DEFINES)
 
 OBJS = $(addprefix $(BUILD)/, $(notdir %/$(subst .c,.o, $(SRCS))))
-OBJS += $(BUILD)/qfplib.o
 
 # Always update the build information. This forces this to run every time. Exit
 # if this fails - likely to be a path of Python version issue.
@@ -74,10 +72,6 @@ $(BUILD)/$(BIN).bin: $(BUILD)/$(BIN).elf
 	@echo OBJCOPY $@
 	@$(OBJCOPY) -O binary $^ $@
 	@cp $@ $(OUT)/$(VERSION_INFO).bin
-
-$(BUILD)/qfplib.o:
-	@echo AS $@
-	@$(CC) $(CFLAGS) third_party/qfplib/qfplib.s -c -o $@
 
 %.o:
 	@echo CC $@

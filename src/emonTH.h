@@ -8,13 +8,15 @@
 
 _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 
+#define WAKE_PERIOD_DEF 10u
+
 /*********************************
  * Firmware version
  *********************************/
 
 #define VERSION_FW_MAJ 0u
-#define VERSION_FW_MIN 0u
-#define VERSION_FW_REV 1u
+#define VERSION_FW_MIN 1u
+#define VERSION_FW_REV 0u
 
 /*********************************
  * Device configuration
@@ -90,11 +92,6 @@ typedef enum EVTSRC_ {
   EVT_SEND_DATA_UART  = 21u
 } EVTSRC_t;
 
-/*! @brief Blocking write of a string to UART.
- *  @param [in] s: pointer to null terminated string
- */
-void uartPuts(const char *s);
-
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
  *  @param [in] Event source in enum
  */
@@ -107,3 +104,8 @@ void emonTHEventClr(const EVTSRC_t evt);
 void emonTHEventSet(const EVTSRC_t evt);
 
 void emonTHInteractiveUartSet(void);
+
+/*! @brief Blocking write of a string to UART.
+ *  @param [in] s: pointer to null terminated string
+ */
+void uartPuts(const char *s);

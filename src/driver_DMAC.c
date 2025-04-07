@@ -13,7 +13,7 @@ static volatile bool           uartDmaCmpl = false;
 /* Useful ref: https://aykevl.nl/2019/09/samd21-dma */
 
 void dmacSetup(void) {
-  /* Clocking - AHB and APB are both enabled at reset (16.8.8, 16.8.10) */
+  /* Clocking - AHB enabled at reset (19.8.6 AHB Mask) */
   DMAC->BASEADDR.reg = (uint32_t)dmacs;
   DMAC->WRBADDR.reg  = (uint32_t)dmacs_wb;
   DMAC->CTRL.reg     = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xFu);

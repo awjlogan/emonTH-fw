@@ -32,12 +32,12 @@ static unsigned int addressRemap[TEMP_MAX_ONEWIRE];
 
 /* OneWire functions & state variables */
 static uint8_t      calcCRC8(const uint8_t crc, const uint8_t value);
-static int          oneWireFirst(void);
-static int          oneWireNext(void);
+static bool         oneWireFirst(void);
+static bool         oneWireNext(void);
 static unsigned int oneWireReadBit(void);
 static void         oneWireReadBytes(void *pDst, const uint8_t n);
 static bool         oneWireReset(void);
-static int          oneWireSearch(void);
+static bool         oneWireSearch(void);
 static void         oneWireWriteBit(unsigned int bit);
 static void         oneWireWriteBytes(const void *pSrc, const uint8_t n);
 
@@ -45,7 +45,7 @@ uint64_t ROM_NO;
 uint8_t  crc8;
 int      lastDiscrepancy;
 int      lastFamilyDiscrepancy;
-int      lastDeviceFlag;
+bool     lastDeviceFlag;
 
 static uint8_t calcCRC8(const uint8_t crc, const uint8_t value) {
   const uint8_t dscrc_table[] = {
@@ -72,23 +72,23 @@ static uint8_t calcCRC8(const uint8_t crc, const uint8_t value) {
 }
 
 /*! @brief: Find the first device on the 1-Wire bus
- *  @return : 1: device found, ROM number in ROM_NO buffer
- *            0: no devices present
+ *  @return true: device found, ROM number in ROM_NO buffer
+ *          false: no devices present
  */
-static int oneWireFirst(void) {
+static bool oneWireFirst(void) {
   /* Reset the search state */
   lastDiscrepancy       = 0;
-  lastDeviceFlag        = 0;
+  lastDeviceFlag        = false;
   lastFamilyDiscrepancy = 0;
 
   return oneWireSearch();
 }
 
 /*! @brief: Find the next device on the 1-Wire bus
- *  @return : 1: device found, ROM number in ROM_NO buffer
- *            0: device not found, end of search
+ *  @return true: device found, ROM number in ROM_NO buffer
+ *          false: device not found, end of search
  */
-static int oneWireNext(void) { return oneWireSearch(); }
+static bool oneWireNext(void) { return oneWireSearch(); }
 
 static unsigned int oneWireReadBit(void) {
   unsigned int result = 0;
@@ -133,28 +133,28 @@ static bool oneWireReset(void) {
 
   portPinDir(PIN_ONEWIRE, PIN_DIR_OUT);
 
-  timerDelaySleep_us(512u, SLEEP_MODE_STANDBY, false);
+  timerDelaySleep_us(512u);
 
   portPinDir(PIN_ONEWIRE, PIN_DIR_IN);
   /* Wait 48+20 us (wake up) to ensure t_PDHIGH has elapsed, then wait the full
    * t_RSTH time +25 us slack to complete the reset sequence.
    */
-  timerDelaySleep_us(48, SLEEP_MODE_STANDBY, false);
+  timerDelaySleep_us(48);
 
   /* Enable the interrupt for the OneWire pin and go back to sleep */
-  timerDelaySleep_us(440u, SLEEP_MODE_STANDBY, true);
+  timerDelaySleep_us(440u);
 
   return presence;
 }
 
-static int oneWireSearch(void) {
+static bool oneWireSearch(void) {
   /* Initialise for search */
   const uint8_t cmdSearchRom    = 0xF0u;
   int           searchDirection = 0;
   int           idBitNumber     = 1;
   int           lastZero        = 0;
   uint8_t       romByteMask     = 1;
-  int           searchResult    = 0;
+  bool          searchResult    = false;
   int           idBit           = 0;
   int           cmpidBit        = 0;
   uint8_t      *romBuffer       = (uint8_t *)&ROM_NO;
@@ -165,7 +165,7 @@ static int oneWireSearch(void) {
     if (!oneWireReset()) {
       /* Reset the search */
       lastDiscrepancy       = 0;
-      lastDeviceFlag        = 0;
+      lastDeviceFlag        = false;
       lastFamilyDiscrepancy = 0;
       return 0;
     }
@@ -227,11 +227,11 @@ static int oneWireSearch(void) {
   /* If the search was successful... */
   if (!((65 > idBitNumber) || (0 != crc8))) {
     lastDiscrepancy = lastZero;
-    searchResult    = 1;
+    searchResult    = true;
 
     /* Check for last device */
     if (0 == lastDiscrepancy) {
-      lastDeviceFlag = 1;
+      lastDeviceFlag = true;
     }
   }
 

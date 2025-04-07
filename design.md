@@ -1,5 +1,8 @@
 # emonTH design notes
 
+- [ ] 1 MHz peripheral clock is slightly wrong, revisit for UART
+- [ ] fdf
+
 ## Clocks
 
 NB: PCHCTRL must be sync'd by polling for correct operation (18.6.6)

@@ -3,8 +3,6 @@
 
 #include "util.h"
 
-#include "qfplib.h"
-
 static bool isnumeric(const char c);
 
 static bool isnumeric(const char c) {
@@ -137,12 +135,12 @@ unsigned int utilFtoa(char *pBuf, float val) {
   uint16_t decimals;
   int      units;
 
-  if (-1 == qfp_fcmp(val, 0.0f)) {
+  if (val < 0.0f) {
     isNegative = true;
-    val        = qfp_fmul(val, -1.0f);
+    val        = val * -1.0f;
   }
-  decimals = qfp_float2int(qfp_fmul(val, 100.0f)) % 100;
-  units    = qfp_float2int(val);
+  decimals = (int)(val * 100.0f) % 100;
+  units    = (int)val;
 
   charCnt += 3u;
   *pBuf++  = (decimals % 10) + '0';

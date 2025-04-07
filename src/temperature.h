@@ -23,7 +23,7 @@ typedef struct TempRead_ {
 
 /*! @brief Return the temperature as a float
  *  @param [in] tFixed : fixed point temperature
- *  @return : the temperature as a float
+ *  @return the temperature as a float
  */
 float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed);
 
@@ -36,7 +36,7 @@ void tempPowerOn(void);
 /*! @brief Find and initialise sensors
  *  @param [in] intf : interface type
  *  @param [in] pParams : parameters for given interface type
- *  @return : number of sensors found
+ *  @return number of sensors found
  */
 unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
 

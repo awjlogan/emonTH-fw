@@ -73,35 +73,31 @@ void sercomSetupUART(const UART_Cfg_t *pCfg);
 
 /*! @brief Set I2C address. If dma is 1, then a packet of len bytes is sent
  *         or received.
- *  @param [in] sercom : SERCOM instance
  *  @param [in] addr : address and RW bit
  */
-I2CM_Status_t i2cActivate(Sercom *sercom, uint8_t addr);
+I2CM_Status_t i2cActivate(uint8_t addr);
 
 /*! @brief Requester acknowledge command
- *  @param [in] sercom : SERCOM instance
  *  @param [in] ack : 0: ACK, 1: NACK
  *  @param [in] cmd : command
  */
-void i2cAck(Sercom *sercom, I2CM_Ack_t ack, I2CM_AckCmd_t cmd);
+void i2cAck(I2CM_Ack_t ack, I2CM_AckCmd_t cmd);
 
 /*! @brief Write to completer
- *  @param [in] sercom : SERCOM instance
  *  @param [in] data : data byte
  */
-void i2cDataWrite(Sercom *sercom, uint8_t data);
+void i2cDataWrite(uint8_t data);
 
 /*! @brief Read byte from I2C completer
- *  @param [in] : sercom : SERCOM instance
- *  @return : read data
+ *  @return read data
  */
-uint8_t i2cDataRead(Sercom *sercom);
+uint8_t i2cDataRead(void);
 
 /*! @brief Set timeout flag */
 void i2cSetTimeout(void);
 
 /*! @brief Enable smart mode (ACK on read) */
-void i2cEnableSmartMode(Sercom *sercom);
+void i2cEnableSmartMode(void);
 
 /*! @brief Select an SPI peripheral
  *  @param [in] nSS : grp+pin of chip select line
@@ -123,13 +119,16 @@ void spiSendBuffer(Sercom *sercom, const void *pSrc, int n);
 /*! @brief Send a byte on the configured SPI channel
  *  @param [in] sercom : pointer to the SERCOM instance
  *  @param [in] b : byte to send
- *  @return : data in the SPI buffer
+ *  @return data in the SPI buffer
  */
 uint8_t spiSendByte(Sercom *sercom, const uint8_t b);
 
 /*! @brief Configure the DMA for non-blocking transactions
  */
 void uartConfigureDMA(void);
+
+/*! @brief Ensure all characters have been transmitted through the UART. */
+void uartFlush(void);
 
 /*! @brief Get a character from the USART data buffer. Only valid when the
  *         INTFLAG.RXC bit it set.
@@ -138,7 +137,7 @@ void uartConfigureDMA(void);
 char uartGetc(void);
 
 /*! @brief Indicate if a byte is waiting in the USART data buffer.
- *  @return : true if waiting, false otherwise
+ *  @return true if waiting, false otherwise
  */
 bool uartGetcReady(void);
 
@@ -177,3 +176,9 @@ void uartPutsBlocking(const char *s);
  *  @param [in] len : Length of the string (not including NULL)
  */
 void uartPutsNonBlocking(const char *const s, uint16_t len);
+
+/*! @brief Disable the UART's Rx channel and interrupt */
+void uartRxDisable(void);
+
+void setupUart(void);
+void setupI2C(void);

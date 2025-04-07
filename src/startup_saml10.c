@@ -189,6 +189,10 @@ void irq_handler_reset(void) {
   /* Always in PL0, disable PL mechanism to save power (22.8.2) */
   PM->PLCFG.reg = PM_PLCFG_PLDIS;
 
+  /* Limit to 4 KB SRAM usage, to reduce power. The linker is set up for only 4
+   * KB usage, so there will be an error raised if this is exceeded. */
+  PM->PWCFG.reg = PM_PWCFG_RAMPSWC_4KB;
+
   main();
 
   while (1)

@@ -39,7 +39,7 @@ RFMOpt_t *rfmGetHandle(void);
 
 /*! @brief Initialise the RFM69 module
  *  @param [in] freq : RFM operating frequency
- *  @return : true if successful, false otherwise
+ *  @return true if successful, false otherwise
  */
 bool rfmInit(RFM_Freq_t freq);
 
@@ -50,7 +50,7 @@ bool rfmSendComplete(void);
 
 /*! @brief Send data through the RFM69
  *  @param [in] : number of bytes to be sent
- *  @return : result of the attempt to send
+ *  @return result of the attempt to send
  */
 RFMSend_t rfmSendBuffer(const int_fast8_t n);
 

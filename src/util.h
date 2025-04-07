@@ -4,10 +4,12 @@
 #include <stdint.h>
 
 typedef enum ITOA_BASE_ { ITOA_BASE10, ITOA_BASE16 } ITOA_BASE_t;
+
 typedef struct ConvFloat_ {
   bool  valid;
   float val;
 } ConvFloat_t;
+
 typedef struct ConvInt_ {
   bool    valid;
   int32_t val;

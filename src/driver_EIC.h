@@ -23,8 +23,10 @@ void eicChannelEnable(const int ch, const int sense, void (*cb)());
 /*! @brief Setup the External Interrupt Controller */
 void eicSetup(void);
 
-/*! @brief Close the EIC controller configuration, runs async until required */
-void eicSetupClose(void);
+/*! @brief Setup a pin for EIC function
+ *  @param [in] pin : (logical) pin to configure
+ */
+void eicPinSetup(const int pin);
 
 /*! @brief Setup the External Interrupt Controller for the pulse controller  */
 void eicSetupPulse(void);

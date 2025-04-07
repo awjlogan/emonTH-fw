@@ -7,6 +7,7 @@
 #include "driver_CLK.h"
 #include "driver_EIC.h"
 #include "driver_PORT.h"
+#include "driver_RTC.h"
 #include "driver_SAML.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
@@ -54,16 +55,18 @@ AssertInfo_t             g_assert_info;
  * Static function prototypes
  *************************************/
 
+static void         errorFatal(void);
 static bool         evtPending(EVTSRC_t evt);
-void                putchar_(char c);
+static void         gpioClr(const int gpio);
+static void         gpioSet(const int gpio);
 static uint_fast8_t readSlideSW(void);
+static void         regEnable(bool dly);
+static void         regDisable(void);
 static uint32_t     tempSetup(void);
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer);
 static void ucSetup(void);
-static void interactiveLED(void);
 static void interactiveWait(void);
-static void tplDone(void);
 
 /*************************************
  * Functions
@@ -90,14 +93,31 @@ void emonTHEventSet(const EVTSRC_t evt) {
   __enable_irq();
 }
 
+static void errorFatal(void) {
+  while (1)
+    ;
+}
+
 /*! @brief Check if an event source is active. Clear on read.
  *  @param [in] : event source to check
- *  @return : true if pending, false otherwise
+ *  @return true if pending, false otherwise
  */
 static bool evtPending(EVTSRC_t evt) {
   bool ret = (evtPend & (1u << evt)) ? true : false;
   evtPend &= ~(1u << evt);
   return ret;
+}
+
+static void gpioClr(const int gpio) {
+  const int pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
+  // Revisit : use the GPIO pins, won't work in v0.2 board
+  portPinDrv(pin, PIN_EXT_EN);
+}
+
+static void gpioSet(const int gpio) {
+  const int pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
+  // Revisit : use the GPIO pins, won't work in v0.2 board
+  portPinDrv(PIN_EXT_EN, PIN_DRV_SET);
 }
 
 static uint_fast8_t readSlideSW(void) {
@@ -106,32 +126,41 @@ static uint_fast8_t readSlideSW(void) {
 
   /* Match the pull up/down to match to eliminate current through pull */
   for (int i = 0; i < 2; i++) {
-    swVal |= (portPinValue(swPin[i]) << i);
-    if (swVal & (1 << i)) {
+    unsigned int pinVal = portPinValue(swPin[i]);
+    swVal |= pinVal << i;
+    if (0 == pinVal) {
       portPinDrv(swPin[i], PIN_DRV_CLR);
     }
   }
   return swVal;
 }
 
+/*! @brief Disable the external boost regulator */
+static void regDisable(void) { portPinDrv(PIN_REG_EN, PIN_DRV_CLR); }
+
+/*! @brief Enable the external boost regulator
+ *  @param [in] dly : apply 128 us delay to allow 3V3 to settle (Figure 27)
+ */
+static void regEnable(bool dly) {
+  portPinDrv(PIN_REG_EN, PIN_DRV_SET);
+  if (dly) {
+    timerDelay_us(128);
+  }
+}
+
 /*! @brief Initialises the temperature sensors
- *  @return : number of temperature sensors found
+ *  @return number of temperature sensors found
  */
 static uint32_t tempSetup(void) {
-  unsigned int tempExtNum = 0;
-
-  tempExtNum = tempSensorsInit(TEMP_INTF_ONEWIRE, 0);
-
-  return tempExtNum;
+  return tempSensorsInit(TEMP_INTF_ONEWIRE, 0);
 }
 
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer) {
 
-  dataPackConvert(&pSrc->hdcResRaw);
   if (pOpt->logSerial) {
-    int pktLength = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
-    uartPutsNonBlocking(txBuffer, pktLength);
+    (void)dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
+    uartPuts(txBuffer);
   }
 
   if (pOpt->useRFM) {
@@ -144,48 +173,42 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
 /*! @brief Setup the microcontroller. This function must be called first. */
 static void ucSetup(void) {
   clkSetup();
-  timerSetup();
   portSetup();
-  dmacSetup();
-  adcSetup();
   sercomSetup();
-}
-
-static void interactiveLED(void) {
-  static int ccCount = 0;
-  if ((ccCount <= 32) && !(ccCount % 8)) {
-    portPinDrv(PIN_LED, PIN_DRV_TGL);
-  } else if ((ccCount <= 64) && !(ccCount % 4)) {
-    portPinDrv(PIN_LED, PIN_DRV_TGL);
-  } else if (!(ccCount % 2)) {
-    portPinDrv(PIN_LED, PIN_DRV_TGL);
-  }
-
-  if (80 == ccCount) {
-    interactiveTimeout = true;
-  } else {
-    timerDelaySleepAsync_us(UINT16_MAX, SLEEP_MODE_STANDBY, &interactiveLED);
-    ccCount++;
-  }
+  rtcSetup();
+  adcSetup();
+  timerSetup();
+  eicSetup();
+  // dmacSetup();
 }
 
 static void interactiveWait(void) {
-  portPinDrv(PIN_LED, PIN_DRV_SET);
-  timerDelaySleepAsync_us(UINT16_MAX, SLEEP_MODE_STANDBY, &interactiveLED);
-  while (!interactiveTimeout && !interactiveUart) {
-    __WFI();
+  /* Wait for 5 s with LED flashing @ 2 Hz. Enter configuration mode by pressing
+   * any key. */
+  int  count     = 0;
+  int  remain    = 5;
+  char strbuf[4] = {0};
+
+  uartPuts("> Press any key within 5 seconds to enter "
+           "configuration.\r\n");
+  while ((count < 20) && !interactiveUart) {
+    timerDelaySleep_ms(250);
+    portPinDrv(PIN_LED, PIN_DRV_TGL);
+    if (!(count % 4)) {
+      utilItoa(strbuf, remain--, ITOA_BASE10);
+      uartPuts(strbuf);
+    } else {
+      uartPuts(".");
+    }
+    count++;
   }
-  portPinDrv(PIN_LED, PIN_DRV_CLR);
-  timerFlush();
+
   if (interactiveUart) {
     configEnter();
+  } else {
+    uartPuts("0\r\n");
   }
-}
-
-static void tplDone(void) {
-  portPinDrv(PIN_TPL_DONE, PIN_DRV_SET);
-  timerDelay_us(2u);
-  portPinDrv(PIN_TPL_DONE, PIN_DRV_CLR);
+  portPinDrv(PIN_LED, PIN_DRV_SET);
 }
 
 int main(void) {
@@ -202,9 +225,12 @@ int main(void) {
   TransmitOpt_t         txOpt                 = {0};
 
   ucSetup();
+  regEnable(true);
+  portPinDrv(PIN_LED, PIN_DRV_SET);
 
-  /* The ADC's first sample is to be discarded. */
-  adcTriggerSample();
+  configFirmwareBoardInfo();
+  int  wakeCount    = 0;
+  char strBuffer[8] = {0};
 
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then
@@ -212,27 +238,121 @@ int main(void) {
    */
   pConfig = configLoadFromNVM();
 
-  /* Set up the RFM module put to sleep immediately. The RFM module requires 10
-   * ms to wakup, sleep in standby. */
-  timerDelaySleep_ms(12, SLEEP_MODE_STANDBY, true);
+  /* Set up the RFM module and put to sleep immediately. The RFM module requires
+   * 10 ms to wakup, sleep in standby. */
+  uartPuts("> Setting up RFM69... ");
+  timerDelaySleep_ms(12);
   if (rfmInit(pConfig->dataTxCfg.rfmFreq)) {
     rfmSetAESKey("89txbe4p8aik5kt3"); /* Default OEM AES key */
-  };
+    uartPuts("Done!\r\n");
+  } else {
+    uartPuts("Failed :(\r\n");
+  }
 
-  /* Read the slide switches and wait to enter configuration mode. */
-  swVal = readSlideSW();
   interactiveWait();
 
+  uartPuts("> Node ID: ");
+  swVal = readSlideSW();
+  utilItoa(strBuffer, (swVal + pConfig->baseCfg.nodeID), ITOA_BASE10);
+  uartPuts(strBuffer);
+  uartPuts("\r\n");
+
+  uartPuts("> Sample time: ");
+  utilItoa(strBuffer, pConfig->baseCfg.reportTime, ITOA_BASE10);
+  uartPuts(strBuffer);
+  uartPuts("\r\n");
+
+  uartRxDisable();
+
+  rtcEnable(pConfig->baseCfg.reportTime);
+
+  adcSampleTrigger();
+  timerDelaySleep_ms(5);
+  setupI2C();
+  hdc2010Setup();
+
+  while (1) {
+    if (evtPending(EVT_WAKE_TIMER)) {
+      gpioSet(0);
+      regEnable(true);
+      samlSleepIdle();
+
+      emonTHEventClr(EVT_WAKE_TIMER);
+
+      hdc2010ConversionStart();
+      timerDelaySleep_ms(5);
+      hdc2010SampleGet(&hdcResultRaw);
+      timerDelaySleep_ms(5);
+
+      setupUart();
+      uartRxDisable();
+
+      utilItoa(strBuffer, wakeCount++, ITOA_BASE10);
+      uartPuts(strBuffer);
+      uartPuts(" : RTC wakeup\r\n");
+
+      adcSampleTrigger();
+      while (!adcSampleReady()) {
+        __WFI();
+      }
+
+      unsigned int vbatt_uv = adcGetResult() * 3226;
+      uartPuts("battery: ");
+      utilItoa(strBuffer, vbatt_uv / 1000000, ITOA_BASE10);
+      uartPuts(strBuffer);
+      uartPuts("V");
+      utilItoa(strBuffer, (vbatt_uv % 1000000) / 1000, ITOA_BASE10);
+      uartPuts(strBuffer);
+      uartPuts("\r\n");
+
+      int tmp = ((hdcResultRaw.temp * 1650) / (1 << 16)) - 400;
+      uartPuts("Temp: ");
+      utilItoa(strBuffer, tmp / 10, ITOA_BASE10);
+      uartPuts(strBuffer);
+      uartPuts(".");
+      utilItoa(strBuffer, tmp % 10, ITOA_BASE10);
+      uartPuts(strBuffer);
+      uartPuts("°C\r\n");
+      unsigned int utmp =
+          ((unsigned int)hdcResultRaw.humidity & 0xFFFF) * 1000 / (1 << 16);
+      uartPuts("Humidity: ");
+      utilItoa(strBuffer, utmp / 10, ITOA_BASE10);
+      uartPuts(strBuffer);
+      uartPuts(".");
+      utilItoa(strBuffer, utmp % 10, ITOA_BASE10);
+      uartPuts(strBuffer);
+      uartPuts("%\r\n");
+
+      timerDelaySleep_ms(5);
+      setupI2C();
+
+      samlSleepStandby();
+      regDisable();
+      gpioClr(0);
+    }
+
+    __WFI();
+  };
+
+  interactiveWait();
+
+  /* Configure the pulse input if in use. */
   if (pConfig->pulseCfg.active) {
     pulseInit(pConfig->pulseCfg.timeMask);
     timerPulseSetup(&pulseTimerCB);
   }
-  eicSetupClose();
+
+  /* Find any external temperature sensors.  */
+  if (pConfig->baseCfg.extTempEn) {
+    tempExtNum = tempSetup();
+  }
+
+  txOpt.nodeID = pConfig->baseCfg.nodeID + swVal;
+  txOpt.json   = pConfig->baseCfg.useJson;
 
   switch ((TxType_t)pConfig->dataTxCfg.txType) {
   case DATATX_RFM69:
     txOpt.useRFM = true;
-    txOpt.nodeID = pConfig->baseCfg.nodeID + swVal;
     break;
   case DATATX_UART:
     txOpt.logSerial = true;
@@ -240,16 +360,16 @@ int main(void) {
   case DATATX_BOTH:
     txOpt.useRFM    = true;
     txOpt.logSerial = true;
-    txOpt.nodeID    = pConfig->baseCfg.nodeID + swVal;
     break;
   }
-  txOpt.json = pConfig->baseCfg.useJson;
 
-  if (pConfig->pulseCfg.active) {
-    tempExtNum = tempSetup();
+  /* This enables the RTC for wake up and take first sample. */
+  if (!hdc2010Setup()) {
+    errorFatal();
   }
+  rtcEnable(pConfig->baseCfg.reportTime);
+  emonTHEventSet(EVT_WAKE_TIMER);
 
-  tplDone();
   for (;;) {
     bool stateStep = false; /* Go straight to next state rather than WFI. */
 
@@ -258,6 +378,9 @@ int main(void) {
 
     case TH_STATE_IDLE:
       if (evtPending(EVT_WAKE_TIMER)) {
+        emonTHEventClr(EVT_WAKE_TIMER);
+        regEnable(true);
+        gpioSet(0);
         state_nxt = TH_STATE_SAMPLE_INT;
         stateStep = true;
       }
@@ -265,18 +388,17 @@ int main(void) {
 
     case TH_STATE_SAMPLE_INT:
       /* Trigger internal sensors, and wait in WFI (should be in STANDBY) */
-      if ((pConfig->baseCfg.extTempEn && tempExtNum)) {
+      if (tempExtNum) {
         tempPowerOn();
       }
-      adcTriggerSample();
+      adcSampleTrigger();
       hdc2010ConversionStart();
-      state_nxt = ((INT16_MIN != adcGetResult()) && hdc2010ConversionStarted())
-                      ? TH_STATE_SAMPLE_INT_WAIT
-                      : TH_STATE_SAMPLE_INT;
+      state_nxt = TH_STATE_SAMPLE_INT_WAIT;
       break;
 
     case TH_STATE_SAMPLE_INT_WAIT:
       if (evtPending(EVT_WAKE_SAMPLE_INT)) {
+        emonTHEventClr(EVT_WAKE_SAMPLE_INT);
         state_nxt = TH_STATE_SAMPLE_INT_RD;
         stateStep = true;
       }
@@ -285,9 +407,7 @@ int main(void) {
     case TH_STATE_SAMPLE_INT_RD:
       dataset.battery = adcGetResult() * 322; /* Battery voltage x1000 */
       hdc2010SampleGet(&hdcResultRaw);
-      state_nxt = (pConfig->baseCfg.extTempEn && tempExtNum)
-                      ? TH_STATE_SAMPLE_EXT
-                      : TH_STATE_PROCESS_SEND;
+      state_nxt = tempExtNum ? TH_STATE_SAMPLE_EXT : TH_STATE_PROCESS_SEND;
       stateStep = true;
       break;
 
@@ -317,7 +437,6 @@ int main(void) {
       break;
 
     case TH_STATE_PROCESS_SEND:
-      // REVISIT go to PL2(?), process data, and send
       transmitData(&dataset, &txOpt, txBuffer);
       state_nxt = (!txOpt.logSerial || uartDmaComplete()) &&
                           (!txOpt.useRFM || rfmSendComplete())
@@ -328,7 +447,8 @@ int main(void) {
 
     case TH_STATE_CLEAN:
       state_nxt = TH_STATE_IDLE;
-      tplDone();
+      gpioClr(0);
+      regDisable();
       break;
     }
 

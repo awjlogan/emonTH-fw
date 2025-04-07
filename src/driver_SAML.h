@@ -6,13 +6,10 @@
 #include "emonTH_saml.h"
 
 typedef enum Calibration_ {
-  CAL_ADC_LINEARITY,
-  CAL_ADC_BIAS,
-  CAL_OSC32K,
-  CAL_USB_TRANSN,
-  CAL_USB_TRANSP,
-  CAL_USB_TRIM,
-  CAL_DFLL48M_COARSE
+  CAL_ADC_BIASREFBUF,
+  CAL_ADC_BIASCOMP,
+  CAL_DFLLULP_PL0,
+  CAL_DFLLULP_PL1,
 } Calibration_t;
 
 typedef enum SleepMode_t {
@@ -25,12 +22,12 @@ typedef enum SleepMode_t {
 /*! @brief Return the calibration value from the NVM Calibration Row, described
  *         in Table 9-4
  *  @param [in] cal : enumeration of the calibration value required
- *  @return : calibration value
+ *  @return calibration value
  */
 uint32_t samlCalibration(const Calibration_t cal);
 
 /*! @brief Returns the minimum allowed sleep mode
- *  @return : the sleep mode required
+ *  @return the sleep mode required
  */
 SleepMode_t samlGetActivity(void);
 
@@ -39,3 +36,6 @@ SleepMode_t samlGetActivity(void);
  *  @param [in] periphIdx : the peripheral index
  */
 void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx);
+
+void samlSleepStandby(void);
+void samlSleepIdle(void);

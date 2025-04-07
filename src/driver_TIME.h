@@ -13,12 +13,9 @@ void timerDelay_us(uint16_t delay);
 
 /*! @brief Blocking delay in sleep mode
  *  @param [in] t_ms : delay in milliseconds
- *  @param [in] sm: sleep mode
- *  @param [in] disable : disable at the end if true
  *  @return true if successful, false otherwise.
  */
-bool timerDelaySleep_ms(const uint16_t t_ms, const SleepMode_t sm,
-                        const bool disable);
+bool timerDelaySleep_ms(const uint16_t t_ms);
 
 /*! @brief Async delay in sleep mode with optional call back
  *  @param [in] t_ms : delay in milliseconds
@@ -31,12 +28,9 @@ bool timerDelaySleepAsync_ms(const uint16_t t_ms, const SleepMode_t sm,
 
 /*! @brief Blocking delay in sleep mode
  *  @param [in] t_us : delay in microseconds
- *  @param [in] sm: sleep mode
- *  @param [in] disable : disable at the end if true
  *  @return true if successful, false otherwise.
  */
-bool timerDelaySleep_us(const uint32_t t_us, const SleepMode_t sm,
-                        const bool disable);
+bool timerDelaySleep_us(const uint32_t t_us);
 
 /*! @brief Async delay in sleep mode with optional call back
  *  @param [in] t_us : delay in microseconds

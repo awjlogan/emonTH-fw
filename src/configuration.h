@@ -9,17 +9,18 @@
  * EEPROM as a contiguous set.
  */
 typedef enum DataTx_ {
-  DATATX_RFM69 = 0,
-  DATATX_UART  = 1,
-  DATATX_BOTH  = 2
+  DATATX_RFM69 = 1,
+  DATATX_UART  = 2,
+  DATATX_BOTH  = 3
 } TxType_t;
 
 typedef struct __attribute__((__packed__)) BaseCfg_ {
-  uint8_t nodeID;    /* ID for report*/
-  uint8_t dataGrp;   /* Transmission group - default 210 */
-  bool    useJson;   /* JSON format for serial output */
-  bool    extTempEn; /* External temperature sensor enabled */
-  uint8_t res0[4];
+  uint8_t  nodeID;     /* ID for report*/
+  uint8_t  dataGrp;    /* Transmission group - default 210 */
+  bool     useJson;    /* JSON format for serial output */
+  bool     extTempEn;  /* External temperature sensor enabled */
+  uint16_t reportTime; /* Time between reports (s) */
+  uint8_t  res0[2];
 } BaseCfg_t;
 
 typedef struct __attribute__((__packed__)) DataTxCfg_ {

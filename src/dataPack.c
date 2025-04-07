@@ -6,13 +6,11 @@
 #include "emonTH_assert.h"
 #include "util.h"
 
-#include "qfplib.h"
-
 #define CONV_STR_W 16
 #define STR_TEMPEX 0
 #define STR_BATT   1
 #define STR_HUMID  2
-#define STR_E      3
+#define STR_PERIOD 3
 #define STR_PULSE  4
 #define STR_TEMP   5
 #define STR_COLON  6
@@ -29,22 +27,20 @@ typedef struct StrN {
   int   m;   /* Buffer length */
 } StrN_t;
 
-static void    catId(StrN_t *strD, int id, int field, bool json);
-static int16_t floatToIntScale(float v, float s);
-static void    initFields(StrN_t *pD, char *pS, const int m);
-static int     strnFtoa(StrN_t *strD, const float v);
-static int     strnItoa(StrN_t *strD, const uint32_t v);
-static int     strnCat(StrN_t *strD, const StrN_t *strS);
-static int     strnLen(StrN_t *str);
+static void catId(StrN_t *strD, int id, int field, bool json);
+static void initFields(StrN_t *pD, char *pS, const int m);
+static int  strnFtoa(StrN_t *strD, const float v);
+static int  strnItoa(StrN_t *strD, const uint32_t v);
+static int  strnCat(StrN_t *strD, const StrN_t *strS);
+static int  strnLen(StrN_t *str);
 
-static char         tmpStr[CONV_STR_W] = {0};
-static StrN_t       strConv; /* Fat string for conversions */
-static HDCResultF_t hdcResF = {0};
+static char   tmpStr[CONV_STR_W] = {0};
+static StrN_t strConv; /* Fat string for conversions */
 
 /* Strings that are inserted in the transmitted message */
-const StrN_t baseStr[12] = {
+const StrN_t baseStr[] = {
     {.str = "tempex", .n = 6, .m = 7},   {.str = "batt", .n = 4, .m = 5},
-    {.str = "humidity", .n = 8, .m = 9}, {.str = "E", .n = 1, .m = 2},
+    {.str = "humidity", .n = 8, .m = 9}, {.str = ".", .n = 1, .m = 2},
     {.str = "pulse", .n = 5, .m = 6},    {.str = "temp", .n = 4, .m = 5},
     {.str = ":", .n = 1, .m = 2},        {.str = "\r\n", .n = 2, .m = 3},
     {.str = "\"", .n = 1, .m = 2},       {.str = "{", .n = 1, .m = 2},
@@ -70,10 +66,6 @@ static void catId(StrN_t *strD, int id, int field, bool json) {
     strD->n += strnCat(strD, &baseStr[STR_DQUOTE]);
   }
   strD->n += strnCat(strD, &baseStr[STR_COLON]);
-}
-
-static int16_t floatToIntScale(float v, float s) {
-  return qfp_float2int(qfp_fmul(v, s));
 }
 
 static void initFields(StrN_t *pD, char *pS, const int m) {
@@ -139,23 +131,12 @@ static int strnLen(StrN_t *str) {
   return i;
 }
 
-void dataPackConvert(HDCResultRaw_t const *phdcRaw) {
-  const float tempFactor = 165.0f / (1 << 16);
-  const float humFactor  = 100.0f / (1 << 16);
-
-  /* 7.6.2 Temperature MSB */
-  hdcResF.temp = qfp_fmul(qfp_int2float(phdcRaw->temp), tempFactor);
-  hdcResF.temp = qfp_fsub(hdcResF.temp, 40.0f);
-
-  /* 7.6.4 Humidity MSB */
-  hdcResF.humidity = qfp_fmul(qfp_int2float(phdcRaw->humidity), humFactor);
-}
-
 void dataPackPacked(const EmonTHDataset_t *restrict pData,
                     PackedData_t *restrict pPacked) {
 
-  pPacked->tempInternal     = floatToIntScale(hdcResF.temp, 10.0f);
-  pPacked->humidityInternal = floatToIntScale(hdcResF.humidity, 10.0f);
+  /* T/H 10x value, e.g. 261 = 26.1ºC */
+  pPacked->tempInternal     = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
+  pPacked->humidityInternal = pData->hdcResRaw.humidity * 1000 / (1 << 16);
   pPacked->battery          = pData->battery;
   pPacked->pulse            = pData->pulseCnt;
   for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
@@ -179,18 +160,22 @@ int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
   }
 
   catId(&strn, -1, STR_TEMP, json);
-  (void)strnFtoa(&strConv, hdcResF.temp);
+  (void)strnItoa(&strConv, pData->hdcResRaw.temp / 10);
   strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
+  (void)strnItoa(&strConv, pData->hdcResRaw.temp % 10);
 
   catId(&strn, -1, STR_HUMID, json);
-  (void)strnFtoa(&strConv, hdcResF.humidity);
+  (void)strnItoa(&strConv, pData->hdcResRaw.humidity / 10);
   strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
+  (void)strnItoa(&strConv, pData->hdcResRaw.humidity % 10);
 
   if (tempEx) {
     for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
       catId(&strn, i, STR_TEMPEX, json);
       // REVISIT conversion here is wrong, need to take the raw fixed point.
-      (void)strnFtoa(&strConv, qfp_int2float(pData->tempExternal[i] / 100));
+      (void)strnFtoa(&strConv, (float)(pData->tempExternal[i] / 100));
       strn.n += strnCat(&strn, &strConv);
     }
   }

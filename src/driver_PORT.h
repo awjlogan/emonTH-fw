@@ -4,7 +4,6 @@
 
 /* Types */
 typedef struct Pin_ {
-  uint16_t grp;
   uint16_t pin;
 } Pin_t;
 
