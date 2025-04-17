@@ -2,6 +2,13 @@
 
 #include <stdbool.h>
 
+typedef struct EIC_Cfg_ {
+  int ch;
+  int sense;
+  int pin;
+  void (*cb)();
+} EIC_Cfg_t;
+
 /*! @brief Set the callback function for an EIC channel
  *  @param [in] ch : EIC channel
  *  @param [in] cb : callback function pointer
@@ -14,11 +21,9 @@ void eicCallbackSet(const int ch, void (*cb)());
 void eicChannelDisable(const int ch);
 
 /*! @brief Enable EIC level line with optional callback
- *  @param [in] ch : EIC channel to enable
- *  @param [in] sense : edge/level to detect
- *  @param [in] cb : call back function
+ *  @param [in] eiccfg : EIC channel configuration
  */
-void eicChannelEnable(const int ch, const int sense, void (*cb)());
+void eicChannelEnable(const EIC_Cfg_t eiccfg);
 
 /*! @brief Setup the External Interrupt Controller */
 void eicSetup(void);

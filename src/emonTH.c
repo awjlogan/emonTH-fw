@@ -111,7 +111,7 @@ static bool evtPending(EVTSRC_t evt) {
 static void gpioClr(const int gpio) {
   const int pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
   // Revisit : use the GPIO pins, won't work in v0.2 board
-  portPinDrv(pin, PIN_EXT_EN);
+  portPinDrv(PIN_EXT_EN, PIN_DRV_CLR);
 }
 
 static void gpioSet(const int gpio) {
@@ -249,7 +249,7 @@ int main(void) {
     uartPuts("Failed :(\r\n");
   }
 
-  interactiveWait();
+  // interactiveWait();
 
   uartPuts("> Node ID: ");
   swVal = readSlideSW();
@@ -267,10 +267,13 @@ int main(void) {
   rtcEnable(pConfig->baseCfg.reportTime);
 
   adcSampleTrigger();
-  timerDelaySleep_ms(5);
+  while (!adcSampleReady()) {
+    __WFI();
+  }
   setupI2C();
   hdc2010Setup();
 
+  portPinDrv(PIN_LED, PIN_DRV_CLR);
   while (1) {
     if (evtPending(EVT_WAKE_TIMER)) {
       gpioSet(0);
@@ -280,9 +283,11 @@ int main(void) {
       emonTHEventClr(EVT_WAKE_TIMER);
 
       hdc2010ConversionStart();
-      timerDelaySleep_ms(5);
+      while (!hdc2010SampleReady()) {
+        __WFI();
+      }
       hdc2010SampleGet(&hdcResultRaw);
-      timerDelaySleep_ms(5);
+      timerDelaySleep_ms(1);
 
       setupUart();
       uartRxDisable();

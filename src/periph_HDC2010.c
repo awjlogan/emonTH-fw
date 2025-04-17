@@ -15,10 +15,9 @@ static const uint8_t HDC2010_MEASUREMENT_CFG = 0x0Fu;
 static volatile bool sampleStarted = false;
 static volatile bool sampleReady   = false;
 
-static void    hdc2010Interrupt(void);
-static uint8_t hdc2010RegRead(const uint8_t reg);
-static void    hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n);
-static bool    hdc2010RegWrite(const uint8_t reg, const uint8_t data);
+static void hdc2010Interrupt(void);
+static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n);
+static bool hdc2010RegWrite(const uint8_t reg, const uint8_t data);
 
 void hdc2010ConversionStart(void) {
   hdc2010RegWrite(HDC2010_MEASUREMENT_CFG, 0x01);
@@ -29,22 +28,6 @@ void hdc2010ConversionStart(void) {
 bool hdc2010ConversionStarted(void) { return sampleStarted; }
 
 static void hdc2010Interrupt(void) { sampleReady = true; }
-
-static uint8_t hdc2010RegRead(const uint8_t reg) {
-  uint8_t result = 0;
-  // samlSetActivity(SLEEP_MODE_IDLE, PERIPH_IDX_I2CM);
-  if (I2CM_SUCCESS == i2cActivate((HDC_ADDR << 1))) {
-    i2cDataWrite(reg);
-    i2cAck(I2CM_ACK, I2CM_ACK_CMD_STOP);
-  }
-  timerDelay_us(1000);
-  if (I2CM_SUCCESS == (i2cActivate(((HDC_ADDR << 1) + 1)))) {
-    result = i2cDataRead();
-    i2cAck(I2CM_NACK, I2CM_ACK_CMD_STOP);
-  }
-  timerDelay_us(1000);
-  return result;
-}
 
 static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n) {
   uint8_t *buffer = (uint8_t *)pDst;
@@ -83,7 +66,10 @@ void hdc2010SampleGet(HDCResultRaw_t *pRes) {
 bool hdc2010SampleReady(void) { return sampleReady; }
 
 bool hdc2010Setup(void) {
-  eicCallbackSet(EIC_CH_HDC, &hdc2010Interrupt);
+  eicChannelEnable((EIC_Cfg_t){.cb    = &hdc2010Interrupt,
+                               .ch    = EIC_CH_HDC,
+                               .pin   = PIN_HDC_DRDY,
+                               .sense = EIC_SENSE_HDC});
 
   if (!hdc2010RegWrite(HDC2010_INT_CFG, (1 << 7))) {
     return false;
