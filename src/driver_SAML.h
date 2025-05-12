@@ -37,5 +37,14 @@ SleepMode_t samlGetActivity(void);
  */
 void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx);
 
-void samlSleepStandby(void);
+/*! @brief Configure sleep controller */
+void samlSleepConfigure();
+
+/*! @brief Enter sleep state with data flush */
+void samlSleepEnter(void);
+
+/*! @brief Configure shallow sleep state */
 void samlSleepIdle(void);
+
+/*! @brief Configure deep sleep state */
+void samlSleepStandby(void);

@@ -223,6 +223,7 @@ int main(void) {
   uint_fast8_t          swVal                 = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
   TransmitOpt_t         txOpt                 = {0};
+  RFMOpt_t              rfmOpt                = {0};
 
   ucSetup();
   regEnable(true);
@@ -238,24 +239,27 @@ int main(void) {
    */
   pConfig = configLoadFromNVM();
 
-  /* Set up the RFM module and put to sleep immediately. The RFM module requires
-   * 10 ms to wakup, sleep in standby. */
-  uartPuts("> Setting up RFM69... ");
-  timerDelaySleep_ms(12);
-  if (rfmInit(pConfig->dataTxCfg.rfmFreq)) {
-    rfmSetAESKey("89txbe4p8aik5kt3"); /* Default OEM AES key */
-    uartPuts("Done!\r\n");
-  } else {
-    uartPuts("Failed :(\r\n");
-  }
-
-  // interactiveWait();
+  interactiveWait();
 
   uartPuts("> Node ID: ");
   swVal = readSlideSW();
   utilItoa(strBuffer, (swVal + pConfig->baseCfg.nodeID), ITOA_BASE10);
   uartPuts(strBuffer);
   uartPuts("\r\n");
+
+  uartPuts("> Setting up RFM69... ");
+  rfmOpt.freq    = pConfig->dataTxCfg.rfmFreq;
+  rfmOpt.group   = NETWORK_GROUP_DEF;
+  rfmOpt.nodeID  = (swVal + pConfig->baseCfg.nodeID);
+  rfmOpt.paLevel = pConfig->dataTxCfg.rfmPwr;
+
+  if (rfmInit(&rfmOpt)) {
+    rfmSetAESKey(RFM_AES_DEF);
+    rfmSetAddress(rfmOpt.nodeID);
+    uartPuts("Done!\r\n");
+  } else {
+    uartPuts("Failed :(\r\n");
+  }
 
   uartPuts("> Sample time: ");
   utilItoa(strBuffer, pConfig->baseCfg.reportTime, ITOA_BASE10);
@@ -268,7 +272,7 @@ int main(void) {
 
   adcSampleTrigger();
   while (!adcSampleReady()) {
-    __WFI();
+    samlSleepEnter();
   }
   setupI2C();
   hdc2010Setup();
@@ -276,17 +280,19 @@ int main(void) {
   portPinDrv(PIN_LED, PIN_DRV_CLR);
   while (1) {
     if (evtPending(EVT_WAKE_TIMER)) {
+      samlSleepIdle();
       gpioSet(0);
       regEnable(true);
-      samlSleepIdle();
 
       emonTHEventClr(EVT_WAKE_TIMER);
 
+      gpioClr(0);
       hdc2010ConversionStart();
       while (!hdc2010SampleReady()) {
-        __WFI();
+        samlSleepEnter();
       }
       hdc2010SampleGet(&hdcResultRaw);
+      gpioSet(0);
       timerDelaySleep_ms(1);
 
       setupUart();
@@ -298,7 +304,7 @@ int main(void) {
 
       adcSampleTrigger();
       while (!adcSampleReady()) {
-        __WFI();
+        samlSleepEnter();
       }
 
       unsigned int vbatt_uv = adcGetResult() * 3226;
@@ -328,6 +334,11 @@ int main(void) {
       uartPuts(strBuffer);
       uartPuts("%\r\n");
 
+      dataset.battery   = vbatt_uv / 10;
+      dataset.hdcResRaw = hdcResultRaw;
+      dataPackPacked(&dataset, (PackedData_t *)rfmGetBuffer());
+      rfmSendBuffer(sizeof(PackedData_t));
+
       timerDelaySleep_ms(5);
       setupI2C();
 
@@ -336,7 +347,7 @@ int main(void) {
       gpioClr(0);
     }
 
-    __WFI();
+    samlSleepEnter();
   };
 
   interactiveWait();
@@ -459,7 +470,7 @@ int main(void) {
 
     state = state_nxt;
     if (!stateStep) {
-      __WFI();
+      samlSleepEnter();
     }
   };
 }

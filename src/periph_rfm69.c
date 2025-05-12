@@ -6,6 +6,7 @@
 #include "driver_EIC.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
+#include "emonTH.h"
 #include "emonTH_saml.h"
 #include "periph_rfm69.h"
 
@@ -21,13 +22,12 @@ typedef struct RFMRx_ {
   bool     ackReq;
 } RFMRx_t;
 
-static bool      rfmAckRecv(uint16_t fromId);
 static void      rfmPacketHandler(void);
 static uint8_t   rfmReadReg(const unsigned int addr);
 static int16_t   rfmReadRSSI(void);
 static void      rfmRxBegin(void);
 static bool      rfmRxDone(void);
-static RFMSend_t rfmSendWithRetry(uint8_t n);
+static RFMSend_t rfmSendNoRetry(uint8_t n);
 static void      rfmSetMode(int_fast8_t mode);
 static void      rfmSleep(void);
 static bool      rfmTxAvailable(void);
@@ -40,7 +40,6 @@ static uint16_t      address          = 0;
 static bool          initDone         = false;
 static uint8_t       rfmBuffer[64]    = {0};
 static int_fast8_t   rfmMode          = 0;
-static RFMOpt_t      rfmOpt           = {0};
 static RFMRx_t       rfmRx            = {0};
 static volatile bool rfmSendInterrupt = false;
 static uint8_t       rxData[64]       = {0};
@@ -48,13 +47,6 @@ static volatile bool rxRdy            = false;
 static const Pin_t   sel              = {PIN_SPI_RFM_SS};
 static bool          sendComplete     = false;
 static volatile bool timeoutFlag      = false;
-
-static bool rfmAckRecv(uint16_t fromId) {
-  if (rfmRxDone()) {
-    return (fromId == rfmRx.senderID) && rfmRx.ackRecv;
-  }
-  return false;
-}
 
 static void rfmPacketHandler(void) {
   if ((RFM69_MODE_RX == rfmMode) &&
@@ -76,8 +68,9 @@ static void rfmPacketHandler(void) {
     rfmRx.targetID |= (ctl & 0x0C) << 6;
     rfmRx.senderID |= (ctl & 0x03) << 8;
 
-    if ((address == rfmRx.targetID) ||
-        (RFM69_BROADCAST_ADDR == rfmRx.targetID) || (rfmRx.payloadLen < 3)) {
+    if (!(address == rfmRx.targetID ||
+          RFM69_BROADCAST_ADDR == rfmRx.targetID) ||
+        (rfmRx.payloadLen < 3)) {
       rfmRx.payloadLen = 0;
       spiDeSelect(sel);
       rfmRxBegin();
@@ -127,9 +120,9 @@ static void rfmWriteReg(const unsigned int addr, const uint8_t data) {
   spiDeSelect(sel);
 }
 
-static uint8_t spiRx(void) { return spiSendByte(SERCOM_SPI, 0x00); }
+static uint8_t spiRx(void) { return spiSendByte(0x00); }
 
-static void spiTx(const uint8_t b) { (void)spiSendByte(SERCOM_SPI, b); }
+static void spiTx(const uint8_t b) { (void)spiSendByte(b); }
 
 static void timeoutSet(void) { timeoutFlag = true; }
 
@@ -142,7 +135,7 @@ void rfmSetAESKey(const char *aes) {
   if (key) {
     spiSelect(sel);
     spiTx(REG_AESKEY1 | 0x80);
-    spiSendBuffer(SERCOM_SPI, aes, 16);
+    spiSendBuffer(aes, 16);
     spiDeSelect(sel);
   }
 
@@ -186,61 +179,45 @@ static bool rfmRxDone(void) {
   return false;
 }
 
-static RFMSend_t rfmSendWithRetry(uint8_t n) {
+static RFMSend_t rfmSendNoRetry(uint8_t n) {
   sendComplete = false;
 
-  for (int r = 0; r < RFM_RETRIES; r++) {
-    // "send" in LPL
-    rfmWriteReg(REG_PACKETCONFIG2, ((rfmReadReg(REG_PACKETCONFIG2) & 0xFB) |
-                                    RFM_PACKET2_RXRESTART));
-    timerDelaySleepAsync_ms(RFM69_CSMA_LIMIT_MS, SLEEP_MODE_IDLE, &timeoutSet);
+  // "send" in LPL
+  rfmWriteReg(REG_PACKETCONFIG2,
+              ((rfmReadReg(REG_PACKETCONFIG2) & 0xFB) | RFM_PACKET2_RXRESTART));
+  timerDelaySleepAsync_ms(RFM69_CSMA_LIMIT_MS, SLEEP_MODE_IDLE, &timeoutSet);
 
-    while (!rfmTxAvailable() && !timeoutFlag) {
-      (void)rfmRxDone();
-    }
-
-    timerFlush();
-    if (timeoutFlag) {
-      timeoutFlag = false;
-      continue;
-    }
-
-    // end "send" in LPL
-    // "sendframe"
-    rfmSetMode(RFM69_MODE_STANDBY); // Turn off Rx while filling FIFO
-    while (0 == (rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY))
-      ;
-    spiSelect(sel);
-    spiTx(REG_FIFO | 0x80);
-    spiTx(n + 3);
-    spiTx(5); // from OEM Tx
-    spiTx((uint8_t)address);
-    spiTx(RFM69_CTL_REQACK); // CTL byte
-    spiSendBuffer(SERCOM_SPI, rfmBuffer, n);
-    spiDeSelect(sel);
-
-    eicChannelEnable(EIC_CH_RFM, EIC_CONFIG_SENSE0_RISE_Val, 0);
-    rfmSetMode(RFM69_MODE_TX);
-    while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT)) {
-      __WFI();
-    };
-    eicChannelDisable(EIC_CH_RFM);
-    rfmSetMode(RFM69_MODE_STANDBY);
-
-    // end "sendframe"
-    timerDelaySleepAsync_ms(RFM_TIMEOUT, SLEEP_MODE_IDLE, &timeoutSet);
-    while (!timeoutFlag) {
-      if (rfmAckRecv(5)) {
-        timerFlush();
-        sendComplete = true;
-        return RFM_SUCCESS;
-      }
-    }
-    timeoutFlag = false;
+  while (!rfmTxAvailable() && !timeoutFlag) {
+    (void)rfmRxDone();
   }
+
   timerFlush();
+  if (timeoutFlag) {
+    timeoutFlag = false;
+    return RFM_TIMED_OUT;
+  }
+
+  // end "send" in LPL
+  // "sendframe"
+  rfmSetMode(RFM69_MODE_STANDBY); // Turn off Rx while filling FIFO
+  while (0 == (rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY))
+    ;
+  spiSelect(sel);
+  spiTx(REG_FIFO | 0x80);
+  spiTx(n + 3);
+  spiTx(5u); // from OEM Tx
+  spiTx((uint8_t)address);
+  spiTx(0); // No ack requested
+  spiSendBuffer(rfmBuffer, n);
+  spiDeSelect(sel);
+
+  rfmSetMode(RFM69_MODE_TX);
+  while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT))
+    ;
+  rfmSetMode(RFM69_MODE_SLEEP);
+
   sendComplete = true;
-  return RFM_TIMED_OUT;
+  return RFM_SUCCESS;
 }
 
 bool rfmSendComplete(void) { return sendComplete; }
@@ -250,10 +227,34 @@ static void rfmSetMode(int_fast8_t mode) {
     return;
   }
 
-  rfmWriteReg(REG_OPMODE, ((rfmReadReg(REG_OPMODE) & 0xE3) | mode));
-  while ((RFM69_MODE_SLEEP == rfmMode) &&
-         (0 == (rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY)))
-    ;
+  uint8_t rOpMode = rfmReadReg(REG_OPMODE) & 0xE3;
+
+  switch (mode) {
+  case RFM69_MODE_TX:
+    rOpMode |= RFM_OPMODE_TRANSMITTER;
+    break;
+  case RFM69_MODE_RX:
+    rOpMode |= RFM_OPMODE_RECEIVER;
+    break;
+  case RFM69_MODE_SYNTH:
+    rOpMode |= RFM_OPMODE_SYNTHESIZER;
+    break;
+  case RFM69_MODE_STANDBY:
+    rOpMode |= RFM_OPMODE_STANDBY;
+    break;
+  case RFM69_MODE_SLEEP:
+    rOpMode |= RFM_OPMODE_SLEEP;
+    break;
+  default:
+    return;
+  }
+
+  rfmWriteReg(REG_OPMODE, rOpMode);
+  /* When coming from SLEEP, wait until FIFO is ready */
+  if (RFM69_MODE_SLEEP == rfmMode) {
+    while ((rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY) == 0)
+      ;
+  }
   rfmMode = mode;
 }
 
@@ -261,37 +262,49 @@ static void rfmSleep(void) { rfmSetMode(RFM69_MODE_SLEEP); }
 
 uint8_t *rfmGetBuffer(void) { return rfmBuffer; }
 
-RFMOpt_t *rfmGetHandle(void) { return &rfmOpt; }
-
 void rfmInterrupt(void) { rxRdy = true; }
 
-bool rfmInit(RFM_Freq_t freq) {
+bool rfmInit(RFMOpt_t *pOpt) {
 
   /* Configuration parameters */
   const uint8_t config[][2] = {
-      {REG_OPMODE, 0x04},     /* OPMODE: Sequencer, standby, listen off */
-      {REG_DATAMODUL, 0x00},  /* DataModul: Packet, FSK, no shaping */
-      {REG_BITRATEMSB, 0x02}, /* BitRate MSB: ~49.23 Kbps */
-      {REG_BITRATELSB, 0x8A}, /* BitRate LSB */
-      {REG_FDEVMSB, 0x05},    /* FdevMsb: ~90 kHz */
-      {REG_FDEVLSB, 0xC3},    /* FdevLsb */
-      {REG_FRFMSB,
-       (RFM_FREQ_868MHz == freq)
-           ? 0xD9
-           : ((RFM_FREQ_915MHz == freq) ? 0xE4 : 0x6C)}, /* FrfMsb */
-      {REG_FRFMID, 0x00},                                /* FrfMid */
-      {REG_FRFLSB, 0x00},                                /* FrfLsb */
-      {REG_PALEVEL, (0x80 | RFM_PALEVEL_DEF)},           /* PaLevel */
-      {REG_AFCFEI, 0x2C},
-      {REG_DIOMAPPING1, 0x80}, /* DioMapping1 */
-      {REG_DIOMAPPING2, 0x03}, /* DioMapping2 */
-      {REG_IRQFLAGS2, 0x00},   /* IrqFlags: FIFO overrun */
-      {REG_SYNCCONFIG, 0x88},  /* SyncConfig : On, FIFO fill, 2 bytes, Tol */
-      {REG_SYNCVALUE1, 0x2D},  /* SyncValue1 */
-      {REG_SYNCVALUE2, 210},   /* Group ID, fixed as 210 for OEM */
-      {REG_PACKETCONFIG1,
-       0x00}, /* PktConfig: fixed, !DC free, !CRC, !CRCClear */
-      {0xFF, 0}};
+      {REG_OPMODE, 0x04},    /* OPMODE: Sequencer, standby, listen off */
+      {REG_DATAMODUL, 0x00}, /* DataModul: Packet, FSK, no shaping */
+      {REG_BITRATEMSB, RFM_BITRATEMSB_55555},
+      {REG_BITRATELSB, RFM_BITRATELSB_55555},
+      {REG_FDEVMSB, RFM_FDEVMSB_50000},
+      {REG_FDEVLSB, RFM_FDEVLSB_50000},
+      {REG_FRFMSB, (RFM_FREQ_868MHz == pOpt->freq)
+                       ? RFM_FRFMSB_868
+                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMSB_915
+                                                          : RFM_FRFMSB_433)},
+      {REG_FRFMID, (RFM_FREQ_868MHz == pOpt->freq)
+                       ? RFM_FRFMID_868
+                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMID_915
+                                                          : RFM_FRFMID_433)},
+      {REG_FRFLSB, (RFM_FREQ_868MHz == pOpt->freq)
+                       ? RFM_FRFLSB_868
+                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFLSB_915
+                                                          : RFM_FRFLSB_433)},
+      {REG_RXBW, (RFM_RXBW_DCCFREQ_010 | RFM_RXBW_MANT_16 | RFM_RXBW_EXP_2)},
+      {REG_DIOMAPPING1, RFM_DIOMAPPING1_DIO0_01},
+      {REG_DIOMAPPING2, RFM_DIOMAPPING2_CLKOUT_OFF},
+      {REG_IRQFLAGS2, RFM_IRQFLAGS2_FIFOOVERRUN},
+      {REG_RSSITHRESH, 0xDC},
+      {REG_SYNCCONFIG, (RFM_SYNC_ON | RFM_SYNC_FIFOFILL_AUTO | RFM_SYNC_SIZE_2 |
+                        RFM_SYNC_TOL_0)},
+      {REG_SYNCVALUE1, 0x2D}, /* Make compatible with RFM12B library */
+      {REG_SYNCVALUE2, pOpt->group},
+      {REG_PACKETCONFIG1, RFM_PACKET1_FORMAT_VARIABLE | RFM_PACKET1_DCFREE_OFF |
+                              RFM_PACKET1_CRC_ON | RFM_PACKET1_CRCAUTOCLEAR_ON |
+                              RFM_PACKET1_ADRSFILTERING_OFF},
+      {REG_PAYLOADLENGTH, 66},
+      {REG_FIFOTHRESH,
+       (RFM_FIFOTHRESH_TXSTART_FIFONOTEMPTY | RFM_FIFOTHRESH_VALUE)},
+      {REG_PACKETCONFIG2,
+       (RFM_PACKET2_RXRESTARTDELAY_2BITS | RFM_PACKET2_AUTORXRESTART_OFF |
+        RFM_PACKET2_AES_OFF)},
+      {REG_TESTDAGC, RFM_DAGC_IMPROVED_LOWBETA0}};
 
   /* Initialise RFM69 */
   timerDelaySleepAsync_ms(25, SLEEP_MODE_IDLE, &timeoutSet);
@@ -310,17 +323,21 @@ bool rfmInit(RFM_Freq_t freq) {
   }
 
   /* Configuration */
-  for (int idxCfg = 0; (0xFF != config[idxCfg][0]); idxCfg++) {
+  for (size_t idxCfg = 0; idxCfg < (sizeof(config) / sizeof(*config));
+       idxCfg++) {
     rfmWriteReg(config[idxCfg][0], config[idxCfg][1]);
   }
 
   rfmSetAESKey(0);
+  rfmWriteReg(REG_PALEVEL, (RFM_PALEVEL_PA0_ON | pOpt->paLevel));
 
+  rfmSetMode(RFM69_MODE_STANDBY);
   initDone = true;
   rfmSleep();
 
-  // REVISIT configure EIC for external RFM signalling
-  // eicConfigureRfmIrq();
+  // eicChannelEnable((EIC_Cfg_t){
+  //     .ch = EIC_CH_RFM, .pin = PIN_RFM_IRQ, .sense = EIC_SENSE_RFM, .cb =
+  //     0});
   return true;
 }
 
@@ -333,7 +350,7 @@ RFMSend_t rfmSendBuffer(const int_fast8_t n) {
     return RFM_NO_INIT;
   }
 
-  return rfmSendWithRetry(n);
+  return rfmSendNoRetry(n);
 }
 
 void rfmSetAddress(const uint16_t addr) {

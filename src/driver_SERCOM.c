@@ -97,9 +97,9 @@ static void setupSPI(void) {
   SERCOM_SPI->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE(3) | SPI_DOPO | SPI_DIPO;
 
   /* Enable TX and RX interrupts (complete and empty), not routed to NVIC */
-  SERCOM_SPI->SPI.INTENSET.reg |= SERCOM_SPI_INTENSET_RXC |
-                                  SERCOM_SPI_INTENSET_TXC |
-                                  SERCOM_SPI_INTENSET_DRE;
+  SERCOM_SPI->SPI.INTENSET.reg = SERCOM_SPI_INTENSET_RXC |
+                                 SERCOM_SPI_INTENSET_TXC |
+                                 SERCOM_SPI_INTENSET_DRE;
 
   /* While disabled, RXEN will be set immediately. When the SPI SERCOM is
    * enabled, this requires synchronisation before the SPI is ready. See
@@ -197,8 +197,8 @@ void uartFlush(void) {
 void uartPutcBlocking(const char c) {
   while (!(SERCOM_UART->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE))
     ;
-  SERCOM_UART->USART.DATA.reg = c;
-  SERCOM_UART->USART.INTFLAG.reg |= SERCOM_USART_INTFLAG_DRE;
+  SERCOM_UART->USART.DATA.reg    = c;
+  SERCOM_UART->USART.INTFLAG.reg = SERCOM_USART_INTFLAG_DRE;
 }
 
 void uartPutsBlocking(const char *s) {
@@ -240,11 +240,11 @@ bool uartGetcReady(void) {
 }
 
 void uartInterruptEnable(const uint32_t interrupt) {
-  SERCOM_UART->USART.INTENSET.reg |= interrupt;
+  SERCOM_UART->USART.INTENSET.reg = interrupt;
 }
 
 void uartInterruptDisable(const uint32_t interrupt) {
-  SERCOM_UART->USART.INTENCLR.reg |= interrupt;
+  SERCOM_UART->USART.INTENCLR.reg = interrupt;
 }
 
 void uartRxDisable(void) {
@@ -262,7 +262,7 @@ void uartRxDisable(void) {
 uint32_t uartInterruptStatus(void) { return SERCOM_UART->USART.INTFLAG.reg; }
 
 void uartInterruptClear(uint32_t interrupt) {
-  SERCOM_UART->USART.INTFLAG.reg |= interrupt;
+  SERCOM_UART->USART.INTFLAG.reg = interrupt;
 }
 
 /*
@@ -323,22 +323,23 @@ void spiDeSelect(const Pin_t nSS) { portPinDrv(nSS.pin, PIN_DRV_SET); }
 
 void spiSelect(const Pin_t nSS) { portPinDrv(nSS.pin, PIN_DRV_CLR); }
 
-void spiSendBuffer(Sercom *sercom, const void *pSrc, int n) {
+void spiSendBuffer(const void *pSrc, int n) {
   uint8_t *pData = (uint8_t *)pSrc;
 
   while (n--) {
-    while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE))
-      ;
-    sercom->SPI.DATA.reg = *pData++;
+    spiSendByte(*pData++);
   }
 }
 
-uint8_t spiSendByte(Sercom *sercom, const uint8_t b) {
-  while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE))
+uint8_t spiSendByte(const uint8_t b) {
+  while (0 == (SERCOM_SPI->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE))
     ;
-  sercom->SPI.DATA.reg = b;
+  SERCOM_SPI->SPI.INTFLAG.reg = SERCOM_SPI_INTFLAG_RXC;
+  SERCOM_SPI->SPI.DATA.reg    = b;
 
-  while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_RXC))
+  while (0 == (SERCOM_SPI->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_RXC))
     ;
-  return (uint8_t)sercom->SPI.DATA.reg;
+
+  /* Reading SPI.DATA clears the RXC interrupt. */
+  return (uint8_t)SERCOM_SPI->SPI.DATA.reg;
 }

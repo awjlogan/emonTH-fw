@@ -24,6 +24,7 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 
 #define NETWORK_GROUP_DEF 210u /* Must match emonBase group */
 #define NODE_ID_DEF       27u  /* Default node ID */
+#define RFM_AES_DEF       "89txbe4p8aik5kt3"
 
 typedef struct EmonTHCfg_ {
   uint8_t  RF_Freq;

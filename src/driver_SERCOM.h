@@ -110,18 +110,16 @@ void spiDeSelect(const Pin_t nSS);
 void spiSelect(const Pin_t nSS);
 
 /*! @brief Send a buffer on the configured SPI channel
- *  @param [in] sercom : pointer to the SERCOM instance
  *  @param [in] pSrc : pointer to the source buffer
  *  @param [in] n : number of bytes to send
  */
-void spiSendBuffer(Sercom *sercom, const void *pSrc, int n);
+void spiSendBuffer(const void *pSrc, int n);
 
 /*! @brief Send a byte on the configured SPI channel
- *  @param [in] sercom : pointer to the SERCOM instance
  *  @param [in] b : byte to send
- *  @return data in the SPI buffer
+ *  @return data in the SPI Rx buffer
  */
-uint8_t spiSendByte(Sercom *sercom, const uint8_t b);
+uint8_t spiSendByte(const uint8_t b);
 
 /*! @brief Configure the DMA for non-blocking transactions
  */

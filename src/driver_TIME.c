@@ -95,7 +95,7 @@ bool timerDelaySleep_us(const uint32_t t_us) {
 
   timerSleepCommon(t_us);
   while (!tdMatch) {
-    __WFI();
+    samlSleepEnter();
   }
 
   TIMER_DELAY->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;

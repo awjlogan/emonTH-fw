@@ -345,7 +345,7 @@ void configEnter(void) {
       configExit = configProcessCmd();
       cmdPending = false;
     }
-    __WFI();
+    samlSleepEnter();
   }
   if (unsavedChange) {
     configSaveToNVM();
