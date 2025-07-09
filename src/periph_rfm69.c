@@ -22,8 +22,17 @@ typedef struct RFMRx_ {
   bool     ackReq;
 } RFMRx_t;
 
+typedef struct __attribute__((__packed__)) TxPkt_ {
+  uint8_t cmd;
+  uint8_t n;
+  uint8_t tgt;
+  uint8_t addr;
+  uint8_t ackReq;
+  uint8_t data[64];
+} TxPkt_t;
+
 static void      rfmPacketHandler(void);
-static uint8_t   rfmReadReg(const unsigned int addr);
+static uint8_t   rfmReadReg(const uint8_t addr);
 static int16_t   rfmReadRSSI(void);
 static void      rfmRxBegin(void);
 static bool      rfmRxDone(void);
@@ -31,14 +40,13 @@ static RFMSend_t rfmSendNoRetry(uint8_t n);
 static void      rfmSetMode(int_fast8_t mode);
 static void      rfmSleep(void);
 static bool      rfmTxAvailable(void);
-static void      rfmWriteReg(const unsigned int addr, const uint8_t data);
+static void      rfmWriteReg(const uint8_t addr, const uint8_t data);
 static uint8_t   spiRx(void);
 static void      spiTx(const uint8_t b);
 static void      timeoutSet(void);
 
 static uint16_t      address          = 0;
 static bool          initDone         = false;
-static uint8_t       rfmBuffer[64]    = {0};
 static int_fast8_t   rfmMode          = 0;
 static RFMRx_t       rfmRx            = {0};
 static volatile bool rfmSendInterrupt = false;
@@ -47,6 +55,7 @@ static volatile bool rxRdy            = false;
 static const Pin_t   sel              = {PIN_SPI_RFM_SS};
 static bool          sendComplete     = false;
 static volatile bool timeoutFlag      = false;
+static TxPkt_t       txPkt            = {0};
 
 static void rfmPacketHandler(void) {
   if ((RFM69_MODE_RX == rfmMode) &&
@@ -91,7 +100,7 @@ static void rfmPacketHandler(void) {
   rfmRx.rxRSSI = rfmReadRSSI();
 }
 
-static uint8_t rfmReadReg(const unsigned int addr) {
+static uint8_t rfmReadReg(const uint8_t addr) {
   uint8_t rdByte;
   spiSelect(sel);
   spiTx((uint8_t)addr);
@@ -112,7 +121,7 @@ static bool rfmTxAvailable(void) {
   return canSend;
 }
 
-static void rfmWriteReg(const unsigned int addr, const uint8_t data) {
+static void rfmWriteReg(const uint8_t addr, const uint8_t data) {
   spiSelect(sel);
   /* Datasheet 5.2.1, Figure 24: "wnr is 1 for write" */
   spiTx((uint8_t)addr | 0x80);
@@ -185,7 +194,7 @@ static RFMSend_t rfmSendNoRetry(uint8_t n) {
   // "send" in LPL
   rfmWriteReg(REG_PACKETCONFIG2,
               ((rfmReadReg(REG_PACKETCONFIG2) & 0xFB) | RFM_PACKET2_RXRESTART));
-  timerDelaySleepAsync_ms(RFM69_CSMA_LIMIT_MS, SLEEP_MODE_IDLE, &timeoutSet);
+  timerDelaySleepAsync_ms(RFM69_CSMA_LIMIT_MS, &timeoutSet);
 
   while (!rfmTxAvailable() && !timeoutFlag) {
     (void)rfmRxDone();
@@ -202,21 +211,11 @@ static RFMSend_t rfmSendNoRetry(uint8_t n) {
   rfmSetMode(RFM69_MODE_STANDBY); // Turn off Rx while filling FIFO
   while (0 == (rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY))
     ;
+
+  txPkt.n = (n + 3);
   spiSelect(sel);
-  spiTx(REG_FIFO | 0x80);
-  spiTx(n + 3);
-  spiTx(5u); // from OEM Tx
-  spiTx((uint8_t)address);
-  spiTx(0); // No ack requested
-  spiSendBuffer(rfmBuffer, n);
-  spiDeSelect(sel);
+  spiSendBufferNonBlocking(&txPkt, 5 + n);
 
-  rfmSetMode(RFM69_MODE_TX);
-  while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT))
-    ;
-  rfmSetMode(RFM69_MODE_SLEEP);
-
-  sendComplete = true;
   return RFM_SUCCESS;
 }
 
@@ -260,7 +259,18 @@ static void rfmSetMode(int_fast8_t mode) {
 
 static void rfmSleep(void) { rfmSetMode(RFM69_MODE_SLEEP); }
 
-uint8_t *rfmGetBuffer(void) { return rfmBuffer; }
+void rfmTxFinish(void) {
+  spiDeSelect(sel);
+
+  rfmSetMode(RFM69_MODE_TX);
+  /* Can use the interrupt to sleep in standby here - cleared on Tx exit */
+  while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT))
+    ;
+  sendComplete = true;
+  rfmSetMode(RFM69_MODE_SLEEP);
+}
+
+uint8_t *rfmGetBuffer(void) { return txPkt.data; }
 
 void rfmInterrupt(void) { rxRdy = true; }
 
@@ -307,7 +317,7 @@ bool rfmInit(RFMOpt_t *pOpt) {
       {REG_TESTDAGC, RFM_DAGC_IMPROVED_LOWBETA0}};
 
   /* Initialise RFM69 */
-  timerDelaySleepAsync_ms(25, SLEEP_MODE_IDLE, &timeoutSet);
+  timerDelaySleepAsync_ms(25, &timeoutSet);
   while ((0xAA != rfmReadReg(REG_SYNCVALUE1)) && !timeoutFlag) {
     rfmWriteReg(REG_SYNCVALUE1, 0xAAu);
   }
@@ -331,13 +341,14 @@ bool rfmInit(RFMOpt_t *pOpt) {
   rfmSetAESKey(0);
   rfmWriteReg(REG_PALEVEL, (RFM_PALEVEL_PA0_ON | pOpt->paLevel));
 
-  rfmSetMode(RFM69_MODE_STANDBY);
-  initDone = true;
   rfmSleep();
 
-  // eicChannelEnable((EIC_Cfg_t){
-  //     .ch = EIC_CH_RFM, .pin = PIN_RFM_IRQ, .sense = EIC_SENSE_RFM, .cb =
-  //     0});
+  txPkt.cmd    = (REG_FIFO | 0x80);
+  txPkt.tgt    = 5;
+  txPkt.ackReq = 0;
+
+  initDone     = true;
+  sendComplete = true;
   return true;
 }
 
@@ -353,7 +364,7 @@ RFMSend_t rfmSendBuffer(const int_fast8_t n) {
   return rfmSendNoRetry(n);
 }
 
-void rfmSetAddress(const uint16_t addr) {
-  address = addr;
+void rfmSetAddress(const uint8_t addr) {
+  txPkt.addr = addr;
   rfmWriteReg(REG_NODEADRS, addr);
 }

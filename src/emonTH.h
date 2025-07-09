@@ -8,14 +8,14 @@
 
 _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 
-#define WAKE_PERIOD_DEF 10u
+#define WAKE_PERIOD_DEF 5u
 
 /*********************************
  * Firmware version
  *********************************/
 
 #define VERSION_FW_MAJ 0u
-#define VERSION_FW_MIN 1u
+#define VERSION_FW_MIN 2u
 #define VERSION_FW_REV 0u
 
 /*********************************
@@ -50,7 +50,7 @@ _Static_assert(sizeof(EmonTHCfg_t) < 57, "EmonThCfg_t bigger than 56 bytes");
 typedef struct EmonTHDataset_ {
   HDCResultRaw_t hdcResRaw;
   int16_t        tempExternal[TEMP_MAX_ONEWIRE];
-  int16_t        battery;
+  uint32_t       battery;
   uint32_t       pulseCnt;
 } EmonTHDataset_t;
 

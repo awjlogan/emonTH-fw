@@ -4,10 +4,6 @@
 
 #include "emonTH_saml.h"
 
-typedef struct DMACCfgCh {
-  uint32_t ctrlb;
-} DMACCfgCh_t;
-
 /*! @brief Calculate the CRC16 (CCITT - 0x1021)
  *  @param [in] pData : pointer to data
  *  @param [in] n : number of bytes in data
@@ -37,41 +33,28 @@ void dmacChannelDisable(unsigned int ch);
  */
 void dmacChannelEnable(unsigned int ch);
 
-/*! @brief Get channel transfer status
- *  @param [in] ch : channel number
- *  @return true if channel ch is busy, false otherwise
- */
-bool dmacChannelBusy(unsigned int ch);
-
 /*! @brief Configure a DMA channel
  *  @param [in] ch : channel to configure
  *  @param [in] ctrlb : DMAC CTRLB value
  */
 void dmacChannelConfigure(unsigned int ch, const uint32_t ctrlb);
 
-/*! @brief Resume a DMA channel
- *  @param [in] ch : channel to resume
- */
-void dmacChannelResume(unsigned int ch);
-
-/*! @brief Suspend a DMA channel
- *  @param [in] ch : channel to suspend
- */
-void dmacChannelSuspend(unsigned int ch);
-
 /*! @brief Enable DMAC channel interrupt
  *  @param [in] ch : channel to enable interrupt for
  */
 void dmacEnableChannelInterrupt(unsigned int ch);
-
-/*! @brief Disable DMAC channel interrupt
- *  @param [in] ch : channel to disable interrupt for
- */
-void dmacDisableChannelInterrupt(unsigned int ch);
 
 /*! @brief Clear DMAC channel interrupt flag
  *  @param [in] ch : channel to clear interrupt flag for
  */
 void dmacClearChannelInterrupt(unsigned int ch);
 
-bool uartDmaComplete(void);
+/*! @brief Indicate if the SPI DMA is complete
+ *  @return true if complete, false otherwise
+ */
+bool dmacSPIComplete(void);
+
+/*! @brief Indicate if the UART DMA is complete
+ *  @return true if complete, false otherwise
+ */
+bool dmacUARTComplete(void);

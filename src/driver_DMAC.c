@@ -1,5 +1,6 @@
 #include "driver_DMAC.h"
 #include "driver_ADC.h"
+#include "driver_PORT.h"
 #include "emonTH_saml.h"
 
 #include "emonTH.h"
@@ -8,7 +9,8 @@ void irqHandlerADCCommon(void);
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
-static volatile bool           uartDmaCmpl = false;
+
+static volatile bool dmacComplete[2] = {0};
 
 /* Useful ref: https://aykevl.nl/2019/09/samd21-dma */
 
@@ -21,9 +23,13 @@ void dmacSetup(void) {
   /* CRC module - CRC16-CCITT byte wise access from IO */
   DMAC->CRCCTRL.reg = DMAC_CRCCTRL_CRCSRC_IO;
 
+  dmacComplete[0] = true;
+  dmacComplete[1] = true;
+
   /* Enable the DMAC interrupt in the NVIC, but leave the channel interrupt
    * enable/disable for each channel to the peripheral */
-  NVIC_EnableIRQ(DMAC_0_IRQn);
+  NVIC_EnableIRQ(DMAC_UART_IRQn);
+  NVIC_EnableIRQ(DMAC_SPI_IRQn);
 }
 
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch) {
@@ -38,60 +44,22 @@ void dmacChannelDisable(unsigned int ch) {
 void dmacChannelEnable(unsigned int ch) {
   DMAC->CHID.reg = ch;
   DMAC->CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;
-  if (DMA_CHAN_UART == ch) {
-    uartDmaCmpl = false;
-  }
+  dmacComplete[ch] = false;
 }
 
 void dmacEnableChannelInterrupt(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHINTENSET.reg |= DMAC_CHINTENSET_TCMPL;
-}
-
-void dmacDisableChannelInterrupt(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHINTENCLR.reg |= DMAC_CHINTENCLR_TCMPL;
+  DMAC->CHID.reg       = ch;
+  DMAC->CHINTENSET.reg = DMAC_CHINTENSET_TCMPL;
 }
 
 void dmacClearChannelInterrupt(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHINTFLAG.reg |= DMAC_CHINTFLAG_TCMPL;
+  DMAC->CHID.reg      = ch;
+  DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
 }
 
 void dmacChannelConfigure(unsigned int ch, const uint32_t ctrlb) {
   DMAC->CHID.reg    = ch;
   DMAC->CHCTRLB.reg = ctrlb;
-}
-
-void dmacChannelResume(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHCTRLB.reg |= DMAC_CHCTRLB_CMD_RESUME;
-}
-
-void dmacChannelSuspend(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHCTRLB.reg |= DMAC_CHCTRLB_CMD_SUSPEND;
-}
-
-bool dmacChannelBusy(unsigned int ch) {
-  if (0 != (DMAC->BUSYCH.reg & (1u << ch))) {
-    return 1u;
-  } else {
-    return 0;
-  }
-}
-
-void irq_handler_dmac(void) {
-  DMAC->CHID.reg = DMA_CHAN_UART;
-  if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
-    uartDmaCmpl         = true;
-    DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
-  }
-
-  DMAC->CHID.reg = DMA_CHAN_SPI;
-  if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
-    DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
-  }
 }
 
 uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n) {
@@ -116,4 +84,15 @@ uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n) {
   return DMAC->CRCCHKSUM.reg;
 }
 
-bool uartDmaComplete(void) { return uartDmaCmpl; }
+bool dmacSPIComplete(void) { return dmacComplete[1]; }
+
+bool dmacUARTComplete(void) { return dmacComplete[0]; }
+
+/* UART DMA handler */
+void irq_handler_dmac_0(void) {
+  dmacClearChannelInterrupt(DMA_CHAN_UART);
+  dmacComplete[0] = true;
+}
+
+/* SPI DMA handler */
+void irq_handler_dmac_1(void) { dmacComplete[1] = true; }

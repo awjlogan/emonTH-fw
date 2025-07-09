@@ -25,6 +25,12 @@ void eicChannelDisable(const int ch);
  */
 void eicChannelEnable(const EIC_Cfg_t eiccfg);
 
+/*! @brief Disable EIC */
+void eicDisable(void);
+
+/*! @brief Enable EIC */
+void eicEnable(void);
+
 /*! @brief Setup the External Interrupt Controller */
 void eicSetup(void);
 

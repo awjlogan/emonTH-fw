@@ -1,7 +1,6 @@
 #include <stdbool.h>
 
 #include "driver_ADC.h"
-#include "driver_DMAC.h"
 #include "driver_PORT.h"
 #include "driver_SAML.h"
 #include "emonTH_saml.h"
@@ -50,11 +49,10 @@ void adcSetup(void) {
   adcSync();
 
   /* Set 32 us sampling time, SAMPLEN+1 @ 250 kHz. */
-  /* Revisit : averaging to improve accuracy? */
   ADC->SAMPCTRL.reg = ADC_SAMPCTRL_SAMPLEN(0x7);
 
   /* Enable the result ready interrupt and route to NVIC (ADC_1). */
-  ADC->INTENSET.reg |= ADC_INTENSET_RESRDY;
+  ADC->INTENSET.reg = ADC_INTENSET_RESRDY;
   NVIC_EnableIRQ(ADC_1_IRQn);
 
   ADC->CTRLA.reg = ADC_CTRLA_ENABLE | ADC_CTRLA_RUNSTDBY | ADC_CTRLA_ONDEMAND;
@@ -68,7 +66,7 @@ static void adcSync(void) {
 
 void irq_handler_adc_1(void) {
   if (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY) {
-    adcResRdy = true;
-    ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
+    ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
+    adcResRdy        = true;
   }
 }

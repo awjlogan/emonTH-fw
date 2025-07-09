@@ -62,8 +62,10 @@ void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx) {
 }
 
 void samlSleepConfigure(void) {
-  PM->STDBYCFG.reg = PM_STDBYCFG_BBIASHS | PM_STDBYCFG_VREGSMOD_AUTO |
+  PM->STDBYCFG.reg = PM_STDBYCFG_BBIASHS | PM_STDBYCFG_VREGSMOD_LP |
                      PM_STDBYCFG_DPGPDSW | PM_STDBYCFG_BBIASTR;
+
+  // SUPC->VREG.reg = SUPC_VREG_LPEFF;
 }
 
 void samlSleepEnter(void) {
@@ -75,15 +77,16 @@ void samlSleepIdle(void) {
   PM->SLEEPCFG.reg = PM_SLEEPCFG_SLEEPMODE_IDLE;
   while (PM->SLEEPCFG.reg != PM_SLEEPCFG_SLEEPMODE_IDLE)
     ;
+}
 
-  SCB->SCR &=
-      ~SCB_SCR_SLEEPDEEP_Msk; /* Revisit : Harmony does not have this? */
+void samlSleepOff(void) {
+  PM->SLEEPCFG.reg = PM_SLEEPCFG_SLEEPMODE_OFF;
+  while (PM->SLEEPCFG.reg != PM_SLEEPCFG_SLEEPMODE_OFF)
+    ;
 }
 
 void samlSleepStandby(void) {
   PM->SLEEPCFG.reg = PM_SLEEPCFG_SLEEPMODE_STANDBY;
   while (PM->SLEEPCFG.reg != PM_SLEEPCFG_SLEEPMODE_STANDBY)
     ;
-
-  SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk; /* Revisit : Harmony does not have this? */
 }

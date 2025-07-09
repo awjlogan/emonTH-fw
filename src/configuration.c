@@ -4,6 +4,7 @@
 #include "emonTH_assert.h"
 
 #include "driver_ADC.h"
+#include "driver_DMAC.h"
 #include "driver_NVM.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
@@ -107,7 +108,7 @@ static void configDefault(void) {
   config.baseCfg.useJson    = true;              // JSON format for serial
 
   config.dataTxCfg.txType  = (uint8_t)DATATX_RFM69; // RFM only
-  config.dataTxCfg.rfmPwr  = 0x19;                  // Maximum power
+  config.dataTxCfg.rfmPwr  = 0x18;                  // +12 dBm
   config.dataTxCfg.rfmFreq = 2;                     // 433 MHz
 
   config.pulseCfg.active   = false; // Pulse channel inactive

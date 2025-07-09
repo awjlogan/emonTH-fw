@@ -82,7 +82,7 @@ TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
     tempSampled = true;
     (void)dev;
     if (TEMP_OK == ds18b20StartSample()) {
-      timerDelaySleepAsync_ms(800, SLEEP_MODE_STANDBY, &tempSampleReadySet);
+      timerDelaySleepAsync_ms(800, &tempSampleReadySet);
       return TEMP_OK;
     }
   }

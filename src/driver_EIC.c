@@ -55,6 +55,18 @@ void eicChannelEnable(const EIC_Cfg_t eiccfg) {
   }
 }
 
+void eicDisable(void) {
+  EIC->CTRLA.reg &= ~EIC_CTRLA_ENABLE;
+  while (EIC->SYNCBUSY.reg & EIC_SYNCBUSY_ENABLE)
+    ;
+}
+
+void eicEnable(void) {
+  EIC->CTRLA.reg |= EIC_CTRLA_ENABLE;
+  while (EIC->SYNCBUSY.reg & EIC_SYNCBUSY_ENABLE)
+    ;
+}
+
 void eicSetup(void) {
   /* EIC APB clock is unmasked on reset (19.8.7 APBA Mask).
    * If pulse counting is enabled, use asynchronous rising edge mode.

@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "driver_DMAC.h"
 #include "driver_PORT.h"
 #include "emonTH_saml.h"
 
@@ -51,13 +50,8 @@ typedef struct UART_Cfg_ {
   int         pin_rx;
   int         pmux;
   int         dmaChannel;
-  DMACCfgCh_t dmaCfg;
+  uint32_t    dmaCfg;
 } UART_Cfg_t;
-
-/*! @brief Disable a SERCOM module
- *  @param [in] sercom : pointer to the SERCOM instance
- */
-void sercomDisable(Sercom *sercom);
 
 /*! @brief Configure the serial communication modules
  */
@@ -93,16 +87,28 @@ void i2cDataWrite(uint8_t data);
  */
 uint8_t i2cDataRead(void);
 
-/*! @brief Set timeout flag */
-void i2cSetTimeout(void);
+/*! @brief Disable the I2C interface */
+void i2cDisable(void);
+
+/*! @brief Enable the I2C interface */
+void i2cEnable(void);
 
 /*! @brief Enable smart mode (ACK on read) */
 void i2cEnableSmartMode(void);
+
+/*! @brief Set timeout flag */
+void i2cSetTimeout(void);
 
 /*! @brief Select an SPI peripheral
  *  @param [in] nSS : grp+pin of chip select line
  */
 void spiDeSelect(const Pin_t nSS);
+
+/*! @brief Disable the SPI peripheral */
+void spiDisable(void);
+
+/*! @brief Enable the SPI peripheral */
+void spiEnable(void);
 
 /*! @brief Select an SPI peripheral
  *  @param [in] nSS : grp+pin of chip select line
@@ -115,21 +121,25 @@ void spiSelect(const Pin_t nSS);
  */
 void spiSendBuffer(const void *pSrc, int n);
 
+/*! @brief Send a buffer using DMA on the SPI channel
+ *  @param [in] pSrc : pointer to the source buffer
+ *  @param [in] n : number of bytes to send
+ */
+void spiSendBufferNonBlocking(const void *pSrc, int n);
+
 /*! @brief Send a byte on the configured SPI channel
  *  @param [in] b : byte to send
  *  @return data in the SPI Rx buffer
  */
 uint8_t spiSendByte(const uint8_t b);
 
-/*! @brief Configure the DMA for non-blocking transactions
- */
-void uartConfigureDMA(void);
+/*! @brief Disable the UART entirely, setting pins as pulled-up inputs */
+void uartDisable(void);
 
-/*! @brief Ensure all characters have been transmitted through the UART. */
-void uartFlush(void);
+/*! @brief Disable the UART's Rx channel and interrupt */
+void uartDisableRx(void);
 
-/*! @brief Get a character from the USART data buffer. Only valid when the
- *         INTFLAG.RXC bit it set.
+/*! @brief Get a character from the USART data buffer.
  *  @return character in buffer
  */
 char uartGetc(void);
@@ -173,10 +183,7 @@ void uartPutsBlocking(const char *s);
  *  @param [in] s : Pointer to the string
  *  @param [in] len : Length of the string (not including NULL)
  */
-void uartPutsNonBlocking(const char *const s, uint16_t len);
-
-/*! @brief Disable the UART's Rx channel and interrupt */
-void uartRxDisable(void);
+void uartPutsNonBlocking(const char *const s, uint32_t len);
 
 void setupUart(void);
 void setupI2C(void);

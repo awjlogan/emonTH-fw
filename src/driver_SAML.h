@@ -46,5 +46,8 @@ void samlSleepEnter(void);
 /*! @brief Configure shallow sleep state */
 void samlSleepIdle(void);
 
+/*! @brief Configure off sleep state */
+void samlSleepOff(void);
+
 /*! @brief Configure deep sleep state */
 void samlSleepStandby(void);

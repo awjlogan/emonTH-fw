@@ -52,9 +52,17 @@ RFMSend_t rfmSendBuffer(const int_fast8_t n);
 /*! @brief Sets the RFM69's address
  *  @param [in] addr : address to set the RFM69
  */
-void rfmSetAddress(const uint16_t addr);
+void rfmSetAddress(const uint8_t addr);
 
 /*! @brief Set the AES key for encryption
  *  @param [in] aes : 16 character AES key. 0 disables encryption.
  */
 void rfmSetAESKey(const char *aes);
+
+/*! @brief Return the status of the RFM Tx send
+ *  @return true if the Tx FIFO has been drained, false otherwise
+ */
+bool rfmTxFifoDrained(void);
+
+/*! @brief Finish Tx sequence, putting RFM to sleep */
+void rfmTxFinish(void);

@@ -35,7 +35,9 @@ typedef enum PeriphIndex_ {
 #define F_PERIPH 1000000ul
 
 /* Maximum number of OneWire DS18B20 sensors that can be used */
-#define TEMP_MAX_ONEWIRE 4
+#define TEMP_MAX_ONEWIRE 1
+_Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
+               "Max number of external OneWire sensors can only be 1 or 4.");
 
 #define RFM_TIMEOUT 30
 
@@ -61,6 +63,9 @@ typedef enum PeriphIndex_ {
 #define SERCOM_UART_HANDLER_RXC irq_handler_sercom0_2()
 #define SERCOM_UART_DRE_IRQn    SERCOM0_0_IRQn /* DRE interrupt */
 #define SERCOM_UART_RXC_IRQn    SERCOM0_2_IRQn /* RXC interrupt */
+
+#define DMAC_UART_IRQn DMAC_0_IRQn
+#define DMAC_SPI_IRQn  DMAC_1_IRQn
 
 /* Timer configuration */
 #define TIMER_DELAY          TC1
@@ -92,24 +97,24 @@ typedef enum PeriphIndex_ {
 #define EIC_FILTEN_RFM      0
 
 /* Regulator enable */
-#define PIN_REG_EN 0
+#define PIN_REG_EN 0u
 
 /* Slide switches */
-#define PIN_SW_NODE0 6
-#define PIN_SW_NODE1 7
+#define PIN_SW_NODE0 6u
+#define PIN_SW_NODE1 7u
 
 /* LED & GPIO */
-#define PIN_LED   27
-#define PIN_GPIO0 22
-#define PIN_GPIO1 23
+#define PIN_LED   27u
+#define PIN_GPIO0 22u
+#define PIN_GPIO1 23u
 
 /* Battery sensing */
-#define PIN_VBATT 2
+#define PIN_VBATT 2u
 #define AIN_VBATT ADC_INPUTCTRL_MUXPOS_AIN0
 
 /* OneWire Interface */
-#define PIN_ONEWIRE     3
-#define PIN_ONEWIRE_PWR 5
+#define PIN_ONEWIRE     3u
+#define PIN_ONEWIRE_PWR 5u
 
 /* Pulse interface */
 #define PIN_PULSE 4
@@ -138,8 +143,8 @@ typedef enum PeriphIndex_ {
 /* I2C related defines */
 #define PIN_I2CM_SDA 22u
 #define PIN_I2CM_SCL 23u
-#define PIN_HDC_DRDY 10
-#define PIN_EXT_EN   11
+#define PIN_HDC_DRDY 10u
+#define PIN_EXT_EN   11u
 #define PMUX_I2CM    PORT_PMUX_PMUXE(2) /* SERCOM */
 
 /* DMA defines */

@@ -3,12 +3,6 @@
 #include <stdbool.h>
 
 #include "emonTH.h"
-#include "periph_HDC2010.h"
-
-/*! @brief Convert the raw HDC2010 data to floating point
- *  @param [in] phdcInt : pointer to the raw HDC data.
- */
-void dataPackConvert(HDCResultRaw_t const *phdcRaw);
 
 /*! @brief Pack the temperature (internal and external), humidity, battery level
  * and pulse count into a packed structure for transmission over RFM link

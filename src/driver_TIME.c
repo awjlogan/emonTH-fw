@@ -80,9 +80,8 @@ bool timerDelaySleep_ms(const uint16_t t_ms) {
   return timerDelaySleep_us(t_ms * 1000);
 }
 
-bool timerDelaySleepAsync_ms(const uint16_t t_ms, const SleepMode_t sm,
-                             void (*cb)()) {
-  return timerDelaySleepAsync_us(t_ms * 1000, sm, cb);
+bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)()) {
+  return timerDelaySleepAsync_us(t_ms * 1000, cb);
 }
 
 bool timerDelaySleep_us(const uint32_t t_us) {
@@ -102,8 +101,7 @@ bool timerDelaySleep_us(const uint32_t t_us) {
   return true;
 }
 
-bool timerDelaySleepAsync_us(const uint32_t t_us, const SleepMode_t sm,
-                             void (*cb)()) {
+bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
   tcCB = cb;
   return timerSleepCommon(t_us);
 }
