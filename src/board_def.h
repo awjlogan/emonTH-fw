@@ -63,7 +63,12 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define DMAC_UART_IRQn DMAC_0_IRQn
 #define DMAC_SPI_IRQn  DMAC_1_IRQn
 
-/* Timer configuration */
+/* Timer configurations */
+#define TIMER_LP          TC0
+#define TIMER_LP_APBCMASK MCLK_APBCMASK_TC0
+#define TIMER_LP_GCLK_ID  TC0_GCLK_ID
+#define TIMER_LP_IRQn     TC0_IRQn
+
 #define TIMER_DELAY          TC1
 #define TIMER_DELAY_APBCMASK MCLK_APBCMASK_TC1
 #define TIMER_DELAY_GCLK_ID  TC1_GCLK_ID

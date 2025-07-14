@@ -37,6 +37,12 @@ bool timerDelaySleep_us(const uint32_t t_us);
  */
 bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)());
 
+/*! @brief Low power blocking sleep
+ *  @param [in] t_ms : delay in milliseconds (must be less than 32K)
+ *  @return true if successful, false otherwise
+ */
+bool timerDelaySleepLP(const uint16_t t_ms);
+
 /*! @brief Disable the timer */
 void timerFlush(void);
 

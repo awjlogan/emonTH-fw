@@ -19,9 +19,9 @@ static bool      timerSleepCommon(const uint32_t t_us);
 static void (*tcCB)(void);
 static void (*tcPulseCB)(void);
 
-static volatile bool tcInUse   = false;
 static volatile bool tcEnabled = false;
 static volatile bool tdMatch   = false;
+static volatile bool tdLPMatch = false;
 
 void timerDelay_us(uint16_t delay) {
   // clang-format off
@@ -105,11 +105,30 @@ bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
   return timerSleepCommon(t_us);
 }
 
+bool timerDelaySleepLP(const uint16_t t_ms) {
+  uint32_t cc = ((t_ms * 2048) / 1000) - 1;
+  tdLPMatch   = false;
+
+  TIMER_LP->COUNT16.CC[0].reg = cc;
+  while (TIMER_LP->COUNT16.SYNCBUSY.reg & TC_SYNCBUSY_CC0)
+    ;
+  TIMER_LP->COUNT16.COUNT.reg = 0;
+  while (TIMER_LP->COUNT16.SYNCBUSY.reg & TC_SYNCBUSY_COUNT)
+    ;
+  TIMER_LP->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+
+  while (!tdLPMatch) {
+    samlSleepEnter();
+  }
+  TIMER_LP->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+  return true;
+}
+
 static bool timerSleepCommon(const uint32_t t_us) {
 
   uint32_t cc = t_us / 8;
-  if (0 == cc) {
-    cc = 1;
+  if (0 != cc) {
+    cc--;
   }
 
   uint32_t ctrla = TIMER_DELAY->COUNT16.CTRLA.reg;
@@ -124,7 +143,7 @@ static bool timerSleepCommon(const uint32_t t_us) {
 
   tdMatch = false;
 
-  TIMER_DELAY->COUNT16.CC[0].reg = cc - 1;
+  TIMER_DELAY->COUNT16.CC[0].reg = cc;
   TIMER_DELAY->COUNT16.COUNT.reg = 0;
   TIMER_DELAY->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
 
@@ -134,17 +153,13 @@ static bool timerSleepCommon(const uint32_t t_us) {
 void timerFlush(void) {
   /* Flush internal flags and values */
   tcCB      = 0;
-  tcInUse   = false;
   tcEnabled = false;
   TIMER_DELAY->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
   tcSync();
 }
 
 void timerSetup() {
-  /* TIMER_DELAY is used as the delay and elapsed time counter.
-   * Enable APB clock, set TIMER_DELAY to generator 0 @ F_CORE.
-   * Enable the interrupt for Compare Match 0, and route to NVIC
-   */
+  /* TIMER_DELAY is used for higher precision times */
   MCLK->APBCMASK.reg |= TIMER_DELAY_APBCMASK;
   GCLK->PCHCTRL[TIMER_DELAY_GCLK_ID].reg =
       GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN;
@@ -160,6 +175,22 @@ void timerSetup() {
   TIMER_DELAY->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
 
   NVIC_EnableIRQ(TIMER_DELAY_IRQn);
+
+  /* TIMER_LP is 0.5 ms resolution time off the ULP32K */
+  MCLK->APBCMASK.reg |= TIMER_LP_APBCMASK;
+  GCLK->PCHCTRL[TIMER_LP_GCLK_ID].reg =
+      GCLK_PCHCTRL_GEN_GCLK2 | GCLK_PCHCTRL_CHEN;
+  while (!(GCLK->PCHCTRL[TIMER_LP_GCLK_ID].reg & GCLK_PCHCTRL_CHEN))
+    ;
+
+  TIMER_LP->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_RUNSTDBY |
+                                TC_CTRLA_ONDEMAND | TC_CTRLA_PRESCSYNC_RESYNC |
+                                TC_CTRLA_PRESCALER_DIV16;
+  TIMER_LP->COUNT16.WAVE.reg     = TC_WAVE_WAVEGEN_NFRQ;
+  TIMER_LP->COUNT16.COUNT.reg    = 0;
+  TIMER_LP->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
+
+  NVIC_EnableIRQ(TIMER_LP_IRQn);
 }
 
 void timerSetupPulse(const uint8_t per, void (*cb)()) {
