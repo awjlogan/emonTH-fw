@@ -95,4 +95,7 @@ void irq_handler_dmac_0(void) {
 }
 
 /* SPI DMA handler */
-void irq_handler_dmac_1(void) { dmacComplete[1] = true; }
+void irq_handler_dmac_1(void) {
+  dmacClearChannelInterrupt(DMA_CHAN_SPI);
+  dmacComplete[1] = true;
+}

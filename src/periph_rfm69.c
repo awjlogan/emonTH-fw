@@ -38,7 +38,6 @@ static void      rfmRxBegin(void);
 static bool      rfmRxDone(void);
 static RFMSend_t rfmSendNoRetry(uint8_t n);
 static void      rfmSetMode(int_fast8_t mode);
-static void      rfmSleep(void);
 static bool      rfmTxAvailable(void);
 static void      rfmWriteReg(const uint8_t addr, const uint8_t data);
 static uint8_t   spiRx(void);
@@ -212,9 +211,23 @@ static RFMSend_t rfmSendNoRetry(uint8_t n) {
   while (0 == (rfmReadReg(REG_IRQFLAGS1) & RFM_IRQFLAGS1_MODEREADY))
     ;
 
-  txPkt.n = (n + 3);
+  // txPkt.n = (n + 3);
   spiSelect(sel);
-  spiSendBufferNonBlocking(&txPkt, 5 + n);
+  spiTx(REG_FIFO | 0x80);
+  spiTx(n + 3);
+  spiTx(5u); // from OEM Tx
+  spiTx((uint8_t)address);
+  spiTx(0); // CTL byte
+  spiSendBuffer(txPkt.data, n);
+  spiDeSelect(sel);
+
+  rfmSetMode(RFM69_MODE_TX);
+  /* Can use the interrupt to sleep in standby here - cleared on Tx exit */
+  while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT))
+    ;
+
+  sendComplete = true;
+  rfmSetMode(RFM69_MODE_SLEEP);
 
   return RFM_SUCCESS;
 }
@@ -257,7 +270,7 @@ static void rfmSetMode(int_fast8_t mode) {
   rfmMode = mode;
 }
 
-static void rfmSleep(void) { rfmSetMode(RFM69_MODE_SLEEP); }
+void rfmSleep(void) { rfmSetMode(RFM69_MODE_SLEEP); }
 
 void rfmTxFinish(void) {
   spiDeSelect(sel);
@@ -315,6 +328,9 @@ bool rfmInit(RFMOpt_t *pOpt) {
        (RFM_PACKET2_RXRESTARTDELAY_2BITS | RFM_PACKET2_AUTORXRESTART_OFF |
         RFM_PACKET2_AES_OFF)},
       {REG_TESTDAGC, RFM_DAGC_IMPROVED_LOWBETA0}};
+
+  /* RFM starts up in STANDBY, see RegOpMode reset description */
+  rfmMode = 0x1;
 
   /* Initialise RFM69 */
   timerDelaySleepAsync_ms(25, &timeoutSet);

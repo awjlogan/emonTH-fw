@@ -59,6 +59,9 @@ void rfmSetAddress(const uint8_t addr);
  */
 void rfmSetAESKey(const char *aes);
 
+/*! @brief Put the RFM into retention sleep mode */
+void rfmSleep(void);
+
 /*! @brief Return the status of the RFM Tx send
  *  @return true if the Tx FIFO has been drained, false otherwise
  */

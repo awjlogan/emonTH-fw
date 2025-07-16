@@ -371,10 +371,13 @@ void spiSendBuffer(const void *pSrc, int n) {
 
 void spiSendBufferNonBlocking(const void *pSrc, int n) {
   volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_SPI);
+
   /* Valid bit is cleared when a channel is complete */
   dmacDesc->BTCTRL.reg |= DMAC_BTCTRL_VALID;
   dmacDesc->BTCNT.reg   = n;
   dmacDesc->SRCADDR.reg = (uint32_t)pSrc + n;
+
+  dmacClearChannelInterrupt(DMA_CHAN_SPI);
   dmacChannelEnable(DMA_CHAN_SPI);
 }
 

@@ -97,23 +97,24 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, uint32_t *tempNum) {
   utilItoa(strBuffer, pCfg->baseCfg.reportTime, ITOA_BASE10);
   uartPuts(strBuffer);
   uartPuts("\r\n");
+
+  RFMOpt_t rfmOpt = {.freq    = pCfg->dataTxCfg.rfmFreq,
+                     .group   = NETWORK_GROUP_DEF,
+                     .nodeID  = (swVal + pCfg->baseCfg.nodeID),
+                     .paLevel = pCfg->dataTxCfg.rfmPwr};
+
+  uartPuts("> Setting up RFM69... ");
+  /* Initialise RFM69 into sleep mode, regardless of its future use */
+  if (rfmInit(&rfmOpt)) {
+    rfmSetAESKey(RFM_AES_DEF);
+    rfmSetAddress(rfmOpt.nodeID);
+    rfmSleep();
+    uartPuts("Done!\r\n");
+  } else {
+    uartPuts("Failed :(\r\n");
+    errorFatal();
+  }
   uartPuts("\r\n");
-
-  // RFMOpt_t rfmOpt = {.freq    = pCfg->dataTxCfg.rfmFreq,
-  //                    .group   = NETWORK_GROUP_DEF,
-  //                    .nodeID  = (swVal + pCfg->baseCfg.nodeID),
-  //                    .paLevel = pCfg->dataTxCfg.rfmPwr};
-
-  // uartPuts("> Setting up RFM69... ");
-  // /* Initialise RFM69 into sleep mode, regardless of its future use */
-  // if (rfmInit(&rfmOpt)) {
-  //   rfmSetAESKey(RFM_AES_DEF);
-  //   rfmSetAddress(rfmOpt.nodeID);
-  //   uartPuts("Done!\r\n");
-  // } else {
-  //   uartPuts("Failed :(\r\n");
-  //   errorFatal();
-  // }
 
   /* Configure the pulse input if in use. */
   if (pCfg->pulseCfg.active) {
@@ -267,14 +268,6 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
     rfmSendBuffer(sizeof(PackedData_t));
   }
 
-  /* If using the RFM, sleep while the SPI DMA to complete */
-  while (!dmacSPIComplete()) {
-    samlSleepEnter();
-  }
-  if (pOpt->useRFM) {
-    rfmTxFinish();
-  }
-
   while (!dmacUARTComplete()) {
     samlSleepEnter();
   }
@@ -340,7 +333,7 @@ int main(void) {
 
   boardSetup(pConfig, &tempExtNum);
 
-  pConfig->dataTxCfg.txType = DATATX_UART;
+  pConfig->dataTxCfg.txType = DATATX_BOTH;
   txOptions(pConfig, &txOpt);
 
   adcSampleTrigger(); /* First ADC sample is junk */
