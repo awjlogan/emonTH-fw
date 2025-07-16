@@ -29,9 +29,13 @@
 
 MEMORY
 {
-  /* bootloader (rx) : ORIGIN = 0x00000000, LENGTH = 1K */
-  /* flash (rx)      : ORIGIN = 0x00000400, LENGTH = 31K */
-  flash (rx)      : ORIGIN = 0x00000000, LENGTH = 32K
+  /* No bootloader */
+  /* flash (rx)      : ORIGIN = 0x00000000, LENGTH = 32K */
+
+  /* With serial bootloader */
+  bootloader (rx) : ORIGIN = 0x00000000, LENGTH = 1K
+  flash (rx)      : ORIGIN = 0x00000400, LENGTH = 31K
+
   data  (rx)      : ORIGIN = 0x00400000, LENGTH = 2K
   ram  (rwx)      : ORIGIN = 0x20000000, LENGTH = 4K
 }

@@ -264,8 +264,10 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
   }
 
   if (pOpt->useRFM) {
+    spiEnable();
     dataPackPacked(pSrc, (PackedData_t *)rfmGetBuffer());
     rfmSendBuffer(sizeof(PackedData_t));
+    spiDisable();
   }
 
   while (!dmacUARTComplete()) {
@@ -339,6 +341,7 @@ int main(void) {
   adcSampleTrigger(); /* First ADC sample is junk */
 
   rtcEnable(pConfig->baseCfg.reportTime);
+  spiDisable();
   regDisable();
   samlSleepEnter();
 
