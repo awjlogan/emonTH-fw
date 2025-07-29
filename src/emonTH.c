@@ -109,6 +109,8 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, uint32_t *tempNum) {
     rfmSetAESKey(RFM_AES_DEF);
     rfmSetAddress(rfmOpt.nodeID);
     rfmSleep();
+    spiDisable();
+
     uartPuts("Done!\r\n");
   } else {
     uartPuts("Failed :(\r\n");
@@ -127,7 +129,6 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, uint32_t *tempNum) {
     *tempNum = tempSetup();
   }
 
-  setupI2C();
   i2cEnable();
   if (!hdc2010Setup()) {
     errorFatal();
@@ -154,18 +155,12 @@ static bool evtPending(EVTSRC_t evt) {
 
 static void gpioClr(const int gpio) {
   const int pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
-
-  // Revisit : use the GPIO pins, won't work in v0.2 board
-  (void)pin;
-  portPinDrv(PIN_EXT_EN, PIN_DRV_CLR);
+  portPinDrv(pin, PIN_DRV_CLR);
 }
 
 static void gpioSet(const int gpio) {
   const int pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
-
-  // Revisit : use the GPIO pins, won't work in v0.2 board
-  (void)pin;
-  portPinDrv(PIN_EXT_EN, PIN_DRV_SET);
+  portPinDrv(pin, PIN_DRV_SET);
 }
 
 static void interactiveWait(void) {
@@ -204,7 +199,9 @@ static void measureInternal(EmonTHDataset_t *pData) {
   HDCResultRaw_t hdcResultRaw = {0};
 
   /* Start samples in parallel, proceed when complete */
+  i2cEnable();
   hdc2010ConversionStart();
+
   adcSampleTrigger();
 
   while (!hdc2010SampleReady() && !adcSampleReady()) {
@@ -212,6 +209,7 @@ static void measureInternal(EmonTHDataset_t *pData) {
   }
 
   hdc2010SampleGet(&hdcResultRaw);
+  i2cDisable();
 
   pData->battery   = adcGetResult();
   pData->hdcResRaw = hdcResultRaw;
@@ -256,10 +254,9 @@ static uint32_t tempSetup(void) {
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer) {
 
+  samlSleepIdle(); /* Require IDLE for DMA rather than standby */
   if (pOpt->logSerial) {
     uint32_t n = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
-    setupUart();
-    uartDisableRx();
     uartPutsNonBlocking(txBuffer, n);
   }
 
@@ -273,6 +270,8 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
   while (!dmacUARTComplete()) {
     samlSleepEnter();
   }
+
+  samlSleepStandby();
 }
 
 static void txOptions(EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt) {
@@ -331,17 +330,13 @@ int main(void) {
   pConfig = configLoadFromNVM();
 
   interactiveWait();
-  portPinDrv(PIN_LED, PIN_DRV_CLR);
 
   boardSetup(pConfig, &tempExtNum);
-
-  pConfig->dataTxCfg.txType = DATATX_BOTH;
   txOptions(pConfig, &txOpt);
 
   adcSampleTrigger(); /* First ADC sample is junk */
 
   rtcEnable(pConfig->baseCfg.reportTime);
-  spiDisable();
   regDisable();
   samlSleepEnter();
 
@@ -351,20 +346,15 @@ int main(void) {
       emonTHEventClr(EVT_WAKE_TIMER);
 
       eicEnable();
-      i2cEnable();
-
       measureInternal(&dataset);
 
-      samlSleepIdle();
       transmitData(&dataset, &txOpt, txBuffer);
 
       timerDelaySleep_ms(1);
-      if (txOpt.logSerial) {
-        setupI2C();
-      }
       eicDisable();
 
-      if (!vLow && dataset.battery < 1500) {
+      /* If the battery dips below 2.4V disable LP efficiency */
+      if (!vLow && (dataset.battery < ADC_VBATT_LOW)) {
         vLow = true;
         SUPC->VREG.reg &= ~SUPC_VREG_LPEFF;
       }

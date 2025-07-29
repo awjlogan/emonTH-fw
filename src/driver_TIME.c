@@ -186,7 +186,7 @@ void timerPulseStart(uint16_t tMask_ms) {
   MCLK->APBCMASK.reg &= ~TIMER_PULSE_APBCMASK;
 }
 
-void irq_handler_tc1(void) {
+void TIMER_DELAY_HANDLER(void) {
   if ((TIMER_DELAY->COUNT16.INTFLAG.reg & TC_INTFLAG_MC0)) {
     TIMER_DELAY->COUNT16.INTFLAG.reg = TC_INTFLAG_MC0;
 
@@ -198,7 +198,7 @@ void irq_handler_tc1(void) {
   }
 }
 
-void irq_handler_tc2(void) {
+void TIMER_PULSE_HANDLER(void) {
   tcPulseCB();
   MCLK->APBCMASK.reg |= TIMER_PULSE_APBCMASK;
   GCLK->PCHCTRL[TIMER_PULSE_GCLK_ID].reg =

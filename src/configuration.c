@@ -43,7 +43,6 @@ typedef struct __attribute__((__packed__)) NVMHeader_ {
  * Prototypes
  *************************************/
 
-static bool  configConsole(void);
 static bool  configDatalog(void);
 static void  configDefault(void);
 static bool  configJSON(void);
@@ -53,6 +52,7 @@ static bool  configRF433(void);
 static bool  configRFM(void);
 static bool  configRFPower(void);
 static void  configSaveToNVM(void);
+static bool  configUART(void);
 static char *getLastReset(void);
 static void  inBufferClear(int n);
 static void  printSettings(void);
@@ -72,22 +72,6 @@ static bool                 unsavedChange = false;
 
 /* The NVM page buffer must be 4 byte aligned for allow access from DFLASH */
 uint8_t pageBuffer[FLASH_PAGE_SIZE] __attribute__((aligned(16))) = {0};
-
-static bool configConsole(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
-    return false;
-  }
-  if ((convI.val != 0) && (convI.val != 1)) {
-    return false;
-  }
-  if (convI.val) {
-    config.dataTxCfg.txType |= (1 << 1);
-  } else {
-    config.dataTxCfg.txType &= ~(1 << 1);
-  }
-  return true;
-}
 
 static bool configDatalog(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
@@ -218,6 +202,22 @@ static bool configRFPower(void) {
   }
 
   config.dataTxCfg.rfmPwr = convI.val;
+  return true;
+}
+
+static bool configUART(void) {
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  if ((convI.val != 0) && (convI.val != 1)) {
+    return false;
+  }
+  if (convI.val) {
+    config.dataTxCfg.txType |= (1 << 1);
+  } else {
+    config.dataTxCfg.txType &= ~(1 << 1);
+  }
   return true;
 }
 
@@ -493,7 +493,7 @@ static bool configProcessCmd(void) {
     uartPuts(helpText);
     break;
   case 'c':
-    cmdUnsaved = configConsole();
+    cmdUnsaved = configUART();
     break;
   case 'd':
     cmdUnsaved = configDatalog();

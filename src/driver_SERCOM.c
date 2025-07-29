@@ -159,7 +159,7 @@ void setupUart(void) {
 }
 
 void sercomSetup(void) {
-  // setupI2C();
+  setupI2C();
   setupSPI();
   setupUart();
 }

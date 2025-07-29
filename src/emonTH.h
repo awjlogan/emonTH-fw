@@ -15,7 +15,7 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
  *********************************/
 
 #define VERSION_FW_MAJ 0u
-#define VERSION_FW_MIN 2u
+#define VERSION_FW_MIN 99u
 #define VERSION_FW_REV 0u
 
 /*********************************
@@ -104,6 +104,7 @@ void emonTHEventClr(const EVTSRC_t evt);
  */
 void emonTHEventSet(const EVTSRC_t evt);
 
+/*! @brief Set the flag that any character has been received on UART */
 void emonTHInteractiveUartSet(void);
 
 /*! @brief Blocking write of a string to UART.
