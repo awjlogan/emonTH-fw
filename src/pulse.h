@@ -9,7 +9,7 @@ typedef struct PulseCfg_ {
 } PulseCfg_t;
 
 /*! Initialise the pulse counter */
-void pulseInit(int timeMask_ms);
+void pulseInit(uint8_t timeMask_ms);
 
 /*! @brief Get the current pulse count value
  *  @return the current pulse count

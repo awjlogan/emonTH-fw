@@ -44,9 +44,7 @@ void timerFlush(void);
 void timerSetup(void);
 
 /*! @brief Set up the timer for pulse timing, if enabled */
-void timerPulseSetup(void (*cb)());
+void timerSetupPulse(const uint8_t per, void (*cb)());
 
-/*! @brief Start the timer for pulse masking
- *  @param [in] tMask_ms : time to mask interrupts in milliseconds.
- */
-void timerPulseStart(uint16_t tMask_ms);
+/*! @brief Start the timer for pulse masking */
+void timerStartPulse(void);

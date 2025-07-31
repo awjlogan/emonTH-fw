@@ -5,14 +5,12 @@
 #include "driver_TIME.h"
 #include "emonTH.h"
 
-static volatile bool pulseMasked;
-static uint32_t      pulseCount;
-static int           mask_ms;
+static volatile bool pulseMasked = false;
+static uint32_t      pulseCount  = 0;
 
-void pulseInit(int timeMask_ms) {
-  mask_ms = timeMask_ms;
+void pulseInit(uint8_t timeMask_ms) {
   eicCallbackSet(EIC_CH_PULSE, &pulseInterruptCB);
-  timerPulseSetup(&pulseTimerCB);
+  timerSetupPulse(timeMask_ms, &pulseTimerCB);
 }
 
 uint32_t pulseGetCount() { return pulseCount; }
@@ -23,6 +21,6 @@ void pulseInterruptCB(void) {
   if (!pulseMasked) {
     pulseCount++;
     pulseMasked = true;
-    timerPulseStart(mask_ms);
+    timerStartPulse();
   }
 }

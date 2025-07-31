@@ -11,13 +11,11 @@ void clkSetup(void) {
                             OSCCTRL_OSC16MCTRL_ENABLE |
                             OSCCTRL_OSC16MCTRL_FSEL_8;
 
-  /* Setup Clock Generator 1 to run at OSC16M / 8 -> 1 MHz for peripherals.
-   * GENDIV divides the frequency by 2^(GENDIV + 1)
-   */
+  /* GCLK1 to run at OSCULP32K / 32 -> 1.024 kHz for low power timers. */
   GCLK->GENCTRL[1].reg =
-      GCLK_GENCTRL_DIV(8) | GCLK_GENCTRL_GENEN | GCLK_GENCTRL_SRC_OSC16M;
+      GCLK_GENCTRL_DIV(32) | GCLK_GENCTRL_GENEN | GCLK_GENCTRL_SRC_OSCULP32K;
 
-  /* Mask off peripherals that are never used */
+  /* Mask off peripherals that are not used by default used */
   MCLK->AHBMASK.reg &= ~MCLK_AHBMASK_TRAM;
 
   MCLK->APBAMASK.reg &= ~MCLK_APBAMASK_FREQM;
