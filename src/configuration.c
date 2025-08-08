@@ -49,6 +49,7 @@ static void  configDefault(void);
 static bool  configJSON(void);
 static bool  configProcessCmd(void);
 static bool  configPulse(void);
+static bool  configRF433(void);
 static bool  configRFM(void);
 static bool  configRFPower(void);
 static void  configSaveToNVM(void);
@@ -109,7 +110,7 @@ static void configDefault(void) {
 
   config.dataTxCfg.txType  = (uint8_t)DATATX_RFM69; // RFM only
   config.dataTxCfg.rfmPwr  = 0x18;                  // +12 dBm
-  config.dataTxCfg.rfmFreq = 2;                     // 433 MHz
+  config.dataTxCfg.rfmFreq = 3;                     // 433.92 MHz
 
   config.pulseCfg.active   = false; // Pulse channel inactive
   config.pulseCfg.timeMask = 100u;  // 100 ms minimum between pulses
@@ -165,6 +166,28 @@ static bool configPulse(void) {
   } else {
     config.pulseCfg.active   = true;
     config.pulseCfg.timeMask = timeMask;
+  }
+  return true;
+}
+
+static bool configRF433(void) {
+  int val = inBuffer[1] - '0';
+
+  if (!((0 == val) || (1 == val))) {
+    return false;
+  }
+
+  /* Only applies to 433 MHz ISM band */
+  if (!((config.dataTxCfg.rfmFreq == 2) || (config.dataTxCfg.rfmFreq == 3))) {
+    return false;
+  }
+
+  if (val) {
+    config.dataTxCfg.rfmFreq = 2;
+    uartPuts("> 433.00 MHz (backwards compatible, illegal).\r\n");
+  } else {
+    config.dataTxCfg.rfmFreq = 3;
+    uartPuts("> 433.92 MHz (check Rx frequency).\r\n");
   }
   return true;
 }
@@ -231,7 +254,7 @@ static char *getLastReset(void) {
  *  @return 32bit word from index
  */
 uint32_t getUniqueID(int idx) {
-  /* Section 10.3Serial Number */
+  /* Section 10.3 Serial Number */
   const uint32_t id_addr_lut[4] = {0x0080A00C, 0x0080A040, 0x0080A044,
                                    0x0080A048};
   return *(volatile uint32_t *)id_addr_lut[idx];
@@ -273,7 +296,10 @@ static void printSettings(void) {
       uartPuts("915");
       break;
     case 2:
-      uartPuts("433");
+      uartPuts("433.00");
+      break;
+    case 3:
+      uartPuts("433.92");
       break;
     }
     uartPuts(" MHz @ ");
@@ -325,7 +351,7 @@ void configCmdChar(const uint8_t c) {
       inBufferIdx--;
       inBuffer[inBufferIdx] = 0;
     }
-  } else if ((inBufferIdx < IN_BUFFER_W) && utilCharPrintable(c)) {
+  } else if ((inBufferIdx < (IN_BUFFER_W - 1)) && utilCharPrintable(c)) {
     inBuffer[inBufferIdx++] = c;
   } else {
     inBufferClear(IN_BUFFER_W);
@@ -349,7 +375,7 @@ void configEnter(void) {
     samlSleepEnter();
   }
   if (unsavedChange) {
-    configSaveToNVM();
+    uartPuts("> Unsaved changes not written.\r\n");
   }
   portPinDrv(PIN_LED, PIN_DRV_CLR);
 }
@@ -426,6 +452,7 @@ static bool configProcessCmd(void) {
       " - ?           : show this text again\r\n"
       " - c<n>        : enable UART. n = 0: OFF, n = 1: ON\r\n"
       " - d<n>        : set the data acquisition period\r\n"
+      " - f           : exit, lock, and continue\r\n"
       " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
       " - l           : list settings\r\n"
       " - m <x> <y>   : Pulse counting.\r\n"
@@ -471,6 +498,9 @@ static bool configProcessCmd(void) {
   case 'd':
     cmdUnsaved = configDatalog();
     break;
+  case 'f':
+    exitConfig = true;
+    break;
   case 'j':
     cmdUnsaved = configJSON();
     break;
@@ -492,7 +522,6 @@ static bool configProcessCmd(void) {
     cmdUnsaved = true;
     break;
   case 's':
-    /* Save to EEPROM config space after recalculating CRC */
     configSaveToNVM();
     unsavedChange = false;
     break;
@@ -500,7 +529,7 @@ static bool configProcessCmd(void) {
     cmdUnsaved = configRFM();
     break;
   case 'x':
-    exitConfig = true;
+    cmdUnsaved = configRF433();
     break;
   }
 
@@ -513,6 +542,7 @@ static bool configProcessCmd(void) {
 }
 
 void configSaveToNVM(void) {
+  /* Save to EEPROM after calculating CRC for integrity */
   NVMHeader_t *header = (NVMHeader_t *)pageBuffer;
 
   header->writeCount += 2;

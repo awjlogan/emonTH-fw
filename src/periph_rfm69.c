@@ -289,6 +289,33 @@ void rfmInterrupt(void) { rxRdy = true; }
 
 bool rfmInit(RFMOpt_t *pOpt) {
 
+  uint8_t frf_msb = 0;
+  uint8_t frf_mid = 0;
+  uint8_t frf_lsb = 0;
+
+  switch (pOpt->freq) {
+  case 0:
+    frf_msb = RFM_FRFMSB_868;
+    frf_mid = RFM_FRFMID_868;
+    frf_lsb = RFM_FRFLSB_868;
+    break;
+  case 1:
+    frf_msb = RFM_FRFMSB_915;
+    frf_mid = RFM_FRFMID_915;
+    frf_lsb = RFM_FRFLSB_915;
+    break;
+  case 2:
+    frf_msb = RFM_FRFMSB_433;
+    frf_mid = RFM_FRFMID_433_00;
+    frf_lsb = RFM_FRFLSB_433_00;
+    break;
+  case 3:
+    frf_msb = RFM_FRFMSB_433;
+    frf_mid = RFM_FRFMID_433_92;
+    frf_lsb = RFM_FRFLSB_433_92;
+    break;
+  }
+
   /* Configuration parameters */
   const uint8_t config[][2] = {
       {REG_OPMODE, 0x04},    /* OPMODE: Sequencer, standby, listen off */
@@ -297,18 +324,9 @@ bool rfmInit(RFMOpt_t *pOpt) {
       {REG_BITRATELSB, RFM_BITRATELSB_55555},
       {REG_FDEVMSB, RFM_FDEVMSB_50000},
       {REG_FDEVLSB, RFM_FDEVLSB_50000},
-      {REG_FRFMSB, (RFM_FREQ_868MHz == pOpt->freq)
-                       ? RFM_FRFMSB_868
-                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMSB_915
-                                                          : RFM_FRFMSB_433)},
-      {REG_FRFMID, (RFM_FREQ_868MHz == pOpt->freq)
-                       ? RFM_FRFMID_868
-                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMID_915
-                                                          : RFM_FRFMID_433)},
-      {REG_FRFLSB, (RFM_FREQ_868MHz == pOpt->freq)
-                       ? RFM_FRFLSB_868
-                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFLSB_915
-                                                          : RFM_FRFLSB_433)},
+      {REG_FRFMSB, frf_msb},
+      {REG_FRFMID, frf_mid},
+      {REG_FRFLSB, frf_lsb},
       {REG_RXBW, (RFM_RXBW_DCCFREQ_010 | RFM_RXBW_MANT_16 | RFM_RXBW_EXP_2)},
       {REG_DIOMAPPING1, RFM_DIOMAPPING1_DIO0_01},
       {REG_DIOMAPPING2, RFM_DIOMAPPING2_CLKOUT_OFF},
