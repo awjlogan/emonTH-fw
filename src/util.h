@@ -27,13 +27,6 @@ ConvInt_t utilAtoi(char *pBuf, ITOA_BASE_t base);
  */
 bool utilCharPrintable(const char c);
 
-/*! @brief Convert float to null terminated base 10 string, with 2 dp.
- *         precision Returns the number of characters (including NULL).
- *  @param [in] pBuf : pointer to string buffer, at least 11 characters
- *  @param [in] val : value to convert
- */
-unsigned int utilFtoa(char *pBuf, float val);
-
 /*! @brief Convert integer to null terminated string. Returns the number of
  *         characters (including NULL).
  *  @param [in] pBuf : pointer to string buffer, at least 11 characters

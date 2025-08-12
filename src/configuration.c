@@ -471,7 +471,8 @@ static bool configProcessCmd(void) {
       " - v           : firmware and board information\r\n"
       " - w<n>        : enable wireless. n = 0: OFF, n = 1: ON\r\n"
       "both\r\n"
-      " - x           : exit, lock, and continue\r\n";
+      " - x<n>        : 433 MHz compatibility. n = 0: 433.92 MHz, n = 1: "
+      "433.00 MHz\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */
   while (!termFound && (arglen < IN_BUFFER_W)) {
