@@ -111,9 +111,9 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, uint32_t *tempNum) {
     rfmSleep();
     spiDisable();
 
-    uartPuts("Done!\r\n");
+    uartPuts("Done\r\n");
   } else {
-    uartPuts("Failed :(\r\n");
+    uartPuts("Failed\r\n");
     errorFatal();
   }
   uartPuts("\r\n");
@@ -124,16 +124,22 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, uint32_t *tempNum) {
     timerPulseSetup(&pulseTimerCB);
   }
 
+  uartPuts("Finding sensors:\r\n");
+  uartPuts("  - HDC2010... ");
+
+  i2cEnable();
+  if (hdc2010Setup()) {
+    uartPuts("Done\r\n");
+  } else {
+    uartPuts("Failed");
+    errorFatal();
+  }
+  i2cDisable();
+
   /* Find any external temperature sensors.  */
   if (pCfg->baseCfg.extTempEn) {
     *tempNum = tempSetup();
   }
-
-  i2cEnable();
-  if (!hdc2010Setup()) {
-    errorFatal();
-  }
-  i2cDisable();
 }
 
 static void errorFatal(void) {
@@ -170,10 +176,9 @@ static void interactiveWait(void) {
   int  remain    = 5;
   char strbuf[4] = {0};
 
-  portPinDrv(PIN_LED, PIN_DRV_SET);
-
   uartPuts("> Press any key within 5 seconds to enter "
            "configuration.\r\n");
+
   while ((count < 20) && !interactiveUart) {
     timerDelaySleep_ms(250);
     portPinDrv(PIN_LED, PIN_DRV_TGL);

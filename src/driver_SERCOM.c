@@ -11,20 +11,20 @@
 #define I2CM_ACTIVATE_TIMEOUT_US 200u /* Time to wait for I2C bus */
 
 /* ======= SERCOM assignment and configuration =======
- * UART:
+ * I2C:
  *  SERCOM0
- *    Tx (data out):  pin 23, PA24, pad 2 (TXPO = 1)
- *    Rx (data in):   pin 24, PA25, pad 3 (RXPO = 3)
+ *    SDA: pin 21, PA22, pad 0
+ *    SCL: pin 22, PA23, pad 1
  * SPI:
  *  SERCOM1
  *    !SS : pin 16, PA15
  *    MOSI: pin 17, PA16, pad 0 (DOPO = 3)
  *    MISO: pin 19, PA18, pad 2 (DIPO = 2)
  *    SCK : pin 20, PA18, pad 3 (DOPO = 3)
- * I2C:
+ * UART:
  *  SERCOM2 (Alt)
- *    SDA: pin 11, PA08, pad 0 (37.4 Signal Description)
- *    SCL: pin 12, PA09, pad 1
+ *    Tx (data out):  pin 11, PA08, pad 0 (TXPO = 0)
+ *    Rx (data in):   pin 12, PA09, pad 1 (RXPO = 1)
  */
 
 // static void setupI2C(void);
@@ -134,9 +134,10 @@ void setupUart(void) {
     ;
 
   /* Configure the USART */
-  SERCOM_UART->USART.CTRLA.reg =
-      SERCOM_USART_CTRLA_DORD | SERCOM_USART_CTRLA_SAMPR(sampr) |
-      SERCOM_USART_CTRLA_MODE(1) | UART_RXPO | UART_TXPO;
+  SERCOM_UART->USART.CTRLA.reg = SERCOM_USART_CTRLA_DORD |
+                                 SERCOM_USART_CTRLA_SAMPR(sampr) |
+                                 SERCOM_USART_CTRLA_MODE(1) | UART_RXPO |
+                                 UART_TXPO | SERCOM_USART_CTRLA_RUNSTDBY;
 
   /* TX/RX enable requires synchronisation */
   SERCOM_UART->USART.CTRLB.reg = SERCOM_USART_CTRLB_RXEN |
@@ -159,9 +160,9 @@ void setupUart(void) {
 }
 
 void sercomSetup(void) {
+  setupUart();
   setupI2C();
   setupSPI();
-  setupUart();
 }
 
 /*
@@ -206,19 +207,21 @@ void uartDisable(void) {
   portPinMuxClear(PIN_UART_RX);
   portPinDir(PIN_UART_RX, PIN_DIR_IN);
   portPinCfg(PIN_UART_RX, PORT_PINCFG_PULLEN, PIN_CFG_SET);
+  portPinCfg(PIN_UART_RX, PORT_PINCFG_INEN, PIN_CFG_CLR);
   portPinMuxClear(PIN_UART_TX);
   portPinDir(PIN_UART_TX, PIN_DIR_IN);
   portPinCfg(PIN_UART_TX, PORT_PINCFG_PULLEN, PIN_CFG_SET);
+  portPinCfg(PIN_UART_TX, PORT_PINCFG_INEN, PIN_CFG_CLR);
 }
 
 void uartDisableRx(void) {
-
   SERCOM_UART->USART.CTRLB.reg &= ~SERCOM_USART_CTRLB_RXEN;
   while (SERCOM_UART->USART.STATUS.reg & SERCOM_USART_SYNCBUSY_CTRLB)
     ;
   /* Errata 2.12.6 Overconsumption in Standby mode. Configure RXPO and TXPO to
    * use the same pad to remove GCLK request. */
   SERCOM_UART->USART.CTRLA.bit.RXPO = UART_PAD_TX;
+  SERCOM_UART->USART.CTRLA.reg &= ~SERCOM_USART_CTRLA_RUNSTDBY;
   NVIC_DisableIRQ(SERCOM_UART_RXC_IRQn);
 }
 

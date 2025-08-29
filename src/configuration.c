@@ -360,23 +360,26 @@ void configCmdChar(const uint8_t c) {
 }
 
 void configEnter(void) {
-  bool configExit = false;
 
   portPinDrv(PIN_LED, PIN_DRV_SET);
   inBufferClear(IN_BUFFER_W);
 
   uartPuts("\033c==== emonTH3 Configuration ====\r\n\r\n");
   uartPuts("'?' to list commands\r\n\r\n");
-  while (!configExit) {
+  while (1) {
     if (cmdPending) {
-      configExit = configProcessCmd();
       cmdPending = false;
+      if (configProcessCmd()) {
+        break;
+      };
     }
     samlSleepEnter();
   }
   if (unsavedChange) {
     uartPuts("> Unsaved changes not written.\r\n");
   }
+
+  uartPuts("\r\n====== End Configuration ======\r\n\r\n");
   portPinDrv(PIN_LED, PIN_DRV_CLR);
 }
 
@@ -526,6 +529,9 @@ static bool configProcessCmd(void) {
     configSaveToNVM();
     unsavedChange = false;
     break;
+  case 'v':
+    configFirmwareBoardInfo();
+    break;
   case 'w':
     cmdUnsaved = configRFM();
     break;
@@ -562,6 +568,7 @@ void SERCOM_UART_HANDLER_RXC {
   /* Echo the received character to the TX channel, and send to the command
    * stream.
    */
+
   emonTHInteractiveUartSet();
   if (uartGetcReady()) {
     uint8_t rx_char = uartGetc();

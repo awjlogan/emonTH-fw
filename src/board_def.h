@@ -127,18 +127,18 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 /* UART related defines */
 #define PIN_UART_RX 9u
 #define PIN_UART_TX 8u
-#define UART_PAD_TX 2u
-#define UART_PAD_RX 3u
+#define UART_PAD_TX 0u
+#define UART_PAD_RX 1u
 #define UART_BAUD   115200u
-#define UART_TXPO   SERCOM_USART_CTRLA_TXPO(1)
-#define UART_RXPO   SERCOM_USART_CTRLA_RXPO(3)
+#define UART_TXPO   SERCOM_USART_CTRLA_TXPO(UART_PAD_TX)
+#define UART_RXPO   SERCOM_USART_CTRLA_RXPO(UART_PAD_RX)
 #define PMUX_UART   PORT_PMUX_PMUXE(3) /* SERCOM-ALT */
 
 /* SPI related defines */
 #define PIN_SPI_MISO   18u
 #define PIN_SPI_SCK    19u
 #define PIN_SPI_MOSI   16u
-#define PIN_SPI_RFM_SS 15u
+#define PIN_SPI_RFM_SS 17u
 #define SPI_DATA_BAUD  4000000ul
 #define SPI_DIPO       SERCOM_SPI_CTRLA_DIPO(2)
 #define SPI_DOPO       SERCOM_SPI_CTRLA_DOPO(3)
