@@ -26,17 +26,6 @@ typedef enum SleepMode_t {
  */
 uint32_t samlCalibration(const Calibration_t cal);
 
-/*! @brief Returns the minimum allowed sleep mode
- *  @return the sleep mode required
- */
-SleepMode_t samlGetActivity(void);
-
-/*! @brief Set the activity level for each peripheral
- *  @param [in] sm : the minimum level required
- *  @param [in] periphIdx : the peripheral index
- */
-void samlSetActivity(const SleepMode_t sm, const PeriphIndex_t periphIdx);
-
 /*! @brief Configure sleep controller */
 void samlSleepConfigure();
 

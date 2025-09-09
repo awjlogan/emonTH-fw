@@ -21,7 +21,6 @@ static bool hdc2010RegWrite(const uint8_t reg, const uint8_t data);
 
 void hdc2010ConversionStart(void) {
   hdc2010RegWrite(HDC2010_MEASUREMENT_CFG, 0x01);
-  // samlSetActivity(SLEEP_MODE_STANDBY, PERIPH_IDX_I2CM);
   sampleStarted = true;
 }
 
@@ -31,7 +30,6 @@ static void hdc2010Interrupt(void) { sampleReady = true; }
 
 static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n) {
   uint8_t *buffer = (uint8_t *)pDst;
-  // samlSetActivity(SLEEP_MODE_IDLE, PERIPH_IDX_I2CM);
   if (I2CM_SUCCESS == i2cActivate((HDC_ADDR << 1))) {
     i2cDataWrite(ptrStart);
     i2cAck(I2CM_ACK, I2CM_ACK_CMD_STOP);
@@ -45,7 +43,6 @@ static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n) {
     }
     i2cAck(I2CM_NACK, I2CM_ACK_CMD_STOP);
   }
-  // samlSetActivity(SLEEP_MODE_STANDBY, PERIPH_IDX_I2CM);
 }
 
 static bool hdc2010RegWrite(const uint8_t reg, const uint8_t data) {
