@@ -358,13 +358,6 @@ int main(void) {
       timerDelaySleep_ms(1);
       eicDisable();
 
-      /* If the battery dips below 2.5 V disable LP efficiency as this is only
-       * effective in the range 2.5 V to 3.63 V */
-      if (!vLow && (dataset.battery < ADC_VBATT_LOW)) {
-        vLow = true;
-        SUPC->VREG.reg &= ~SUPC_VREG_LPEFF;
-      }
-
       samlSleepStandby();
       regDisable();
     }

@@ -27,7 +27,9 @@ void samlSleepConfigure(void) {
   PM->STDBYCFG.reg = PM_STDBYCFG_BBIASHS | PM_STDBYCFG_VREGSMOD_LP |
                      PM_STDBYCFG_DPGPDSW | PM_STDBYCFG_BBIASTR;
 
-  SUPC->VREG.reg = SUPC_VREG_LPEFF;
+  /* REVISIT : Vref LPEFF seems to block the whole system
+   * SUPC->VREG.reg = SUPC_VREG_LPEFF;
+   */
 }
 
 void samlSleepEnter(void) {
