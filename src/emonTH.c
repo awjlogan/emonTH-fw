@@ -43,16 +43,16 @@ AssertInfo_t             g_assert_info;
  * Static function prototypes
  *************************************/
 
-static void     boardSetup(EmonTHConfigPacked_t *pCfg, uint32_t *tempNum);
-static void     errorFatal(void);
-static bool     evtPending(EVTSRC_t evt);
-static void     gpioClr(const int gpio);
-static void     gpioSet(const int gpio);
-static void     measureInternal(EmonTHDataset_t *pData);
-static uint8_t  readSlideSW(void);
-static void     regEnable(bool dly);
-static void     regDisable(void);
-static uint32_t tempSetup(void);
+static void    boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum);
+static void    errorFatal(void);
+static bool    evtPending(EVTSRC_t evt);
+static void    gpioClr(const int gpio);
+static void    gpioSet(const int gpio);
+static void    measureInternal(EmonTHDataset_t *pData);
+static uint8_t readSlideSW(void);
+static void    regEnable(bool dly);
+static void    regDisable(void);
+static int     tempSetup(void);
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer);
 static void txOptions(EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt);
@@ -84,7 +84,7 @@ void emonTHEventSet(const EVTSRC_t evt) {
   __enable_irq();
 }
 
-static void boardSetup(EmonTHConfigPacked_t *pCfg, uint32_t *tempNum) {
+static void boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum) {
   char strBuffer[8];
 
   uint8_t swVal = readSlideSW();
@@ -252,9 +252,7 @@ static void regEnable(bool dly) {
 /*! @brief Initialises the temperature sensors
  *  @return number of temperature sensors found
  */
-static uint32_t tempSetup(void) {
-  return tempSensorsInit(TEMP_INTF_ONEWIRE, 0);
-}
+static int tempSetup(void) { return tempSensorsInit(TEMP_INTF_ONEWIRE, 0); }
 
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer) {
@@ -267,8 +265,9 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
 
   if (pOpt->useRFM) {
     spiEnable();
-    dataPackPacked(pSrc, (PackedData_t *)rfmGetBuffer());
-    rfmSendBuffer(sizeof(PackedData_t));
+    dataPackPacked(pSrc, (void *)rfmGetBuffer());
+    rfmSendBuffer((4 == pSrc->numExtMax) ? sizeof(PackedData_4Ext_t)
+                                         : sizeof(PackedData_1Ext_t));
     spiDisable();
   }
 
@@ -319,7 +318,7 @@ int main(void) {
 
   EmonTHDataset_t       dataset               = {0};
   EmonTHConfigPacked_t *pConfig               = 0;
-  uint32_t              tempExtNum            = 0;
+  int                   tempExtNum            = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
   TransmitOpt_t         txOpt                 = {0};
   bool                  vLow                  = false;
@@ -338,6 +337,7 @@ int main(void) {
 
   boardSetup(pConfig, &tempExtNum);
   txOptions(pConfig, &txOpt);
+  dataset.numExtMax = pConfig->baseCfg.extTempEn;
 
   adcSampleTrigger(); /* First ADC sample is junk */
 

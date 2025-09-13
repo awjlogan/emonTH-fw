@@ -5,6 +5,7 @@
 #include "board_def.h"
 #include "driver_PORT.h"
 #include "driver_TIME.h"
+#include "emonTH.h"
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
 
@@ -27,19 +28,24 @@ typedef struct __attribute__((__packed__)) Scratch_ {
  */
 
 /* Device address table */
-static uint64_t     address[TEMP_MAX_ONEWIRE];
-static unsigned int addressRemap[TEMP_MAX_ONEWIRE];
+static DS18B20_Slot_t slots[TEMP_MAX_ONEWIRE];
+static uint64_t       address[TEMP_MAX_ONEWIRE];
+static unsigned int   addressRemap[TEMP_MAX_ONEWIRE];
+static volatile bool  rstPulseComplete = false;
 
 /* OneWire functions & state variables */
 static uint8_t      calcCRC8(const uint8_t crc, const uint8_t value);
 static bool         oneWireFirst(void);
 static bool         oneWireNext(void);
+static void         oneWirePwrOff(void);
+static void         oneWirePwrOn(void);
 static unsigned int oneWireReadBit(void);
 static void         oneWireReadBytes(void *pDst, const uint8_t n);
 static bool         oneWireReset(void);
 static bool         oneWireSearch(void);
 static void         oneWireWriteBit(unsigned int bit);
 static void         oneWireWriteBytes(const void *pSrc, const uint8_t n);
+static void         setRstPulseComplete(void);
 
 uint64_t ROM_NO;
 uint8_t  crc8;
@@ -82,6 +88,13 @@ static bool oneWireFirst(void) {
   lastFamilyDiscrepancy = 0;
 
   return oneWireSearch();
+}
+
+static void oneWirePwrOff(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR); }
+
+static void oneWirePwrOn(void) {
+  portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET);
+  timerDelaySleep_us(250);
 }
 
 /*! @brief: Find the next device on the 1-Wire bus
@@ -131,6 +144,7 @@ static bool oneWireReset(void) {
 
   bool presence = false;
 
+  portPinDrv(PIN_ONEWIRE, PIN_DRV_CLR);
   portPinDir(PIN_ONEWIRE, PIN_DIR_OUT);
 
   timerDelaySleep_us(512u);
@@ -139,10 +153,16 @@ static bool oneWireReset(void) {
   /* Wait 48+20 us (wake up) to ensure t_PDHIGH has elapsed, then wait the full
    * t_RSTH time +25 us slack to complete the reset sequence.
    */
-  timerDelaySleep_us(48);
+  timerDelaySleep_us(75);
 
-  /* Enable the interrupt for the OneWire pin and go back to sleep */
-  timerDelaySleep_us(440u);
+  /* Set the async timer and poll the 1-Wire input for LOW from device. */
+  rstPulseComplete = false;
+  timerDelaySleepAsync_us(450u, &setRstPulseComplete);
+  while (!rstPulseComplete) {
+    if (0 == portPinValue(PIN_ONEWIRE)) {
+      presence = true;
+    }
+  }
 
   return presence;
 }
@@ -268,32 +288,52 @@ static void oneWireWriteBytes(const void *pSrc, const uint8_t n) {
   }
 }
 
-unsigned int ds18b20InitSensors(void) {
+int ds18b20InitSensors(DS18B20_Slot_t *pSlot) {
 
-  unsigned int deviceCount  = 0;
-  int          searchResult = 0;
+  int deviceCount  = 0;
+  int searchResult = 0;
 
-  /* Disable the pin's pull up, and search for devices */
-  portPinDrv(PIN_ONEWIRE, PIN_DRV_CLR);
+  oneWirePwrOn();
+
   searchResult = oneWireFirst();
 
   while (searchResult && (deviceCount < TEMP_MAX_ONEWIRE)) {
-    address[deviceCount] = ROM_NO;
+    pSlot[deviceCount].active  = true;
+    pSlot[deviceCount].address = ROM_NO;
     deviceCount++;
 
     searchResult = oneWireNext();
   }
 
-  /* REVISIT : populate remapping table from saved sensors */
+  /* REVISIT assign addresses to slots */
+
+  /* Assign saved sensors to correct index */
+  // for (int i = 0; i < deviceCount; i++) {
+  //   for (int j = 0; j < TEMP_MAX_ONEWIRE; j++) {
+  //     if (pSlot[j].active && pSlot[j].address == addrsFound[i]) {
+  //       slots[i].active  = true;
+  //       slots[i].address = pSlot[j].address;
+  //     }
+  //   }
+  // }
+
   for (unsigned int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
     addressRemap[i] = i;
   }
 
+  for (int i = 0; i < deviceCount; i++) {
+    slots[i].active  = true;
+    slots[i].address = pSlot[i].address;
+  }
+
+  oneWirePwrOff();
   return deviceCount;
 }
 
 TempStatus_t ds18b20StartSample(void) {
   const uint8_t cmds[2] = {0xCC, 0x44};
+
+  oneWirePwrOn();
 
   /* Check for presence pulse before continuing */
   if (!oneWireReset()) {
@@ -332,6 +372,8 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
   oneWireWriteBytes(&CMD_SCRATCH_READ, 1);
   oneWireReadBytes(&scratch, sizeof(scratch));
 
+  oneWirePwrOff();
+
   /* Check CRC for received data */
   for (unsigned int i = 0; i < (sizeof(scratch) - 1); i++) {
     calcCRC8(crcDS, si[i]);
@@ -364,3 +406,5 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
   tempRes.temp = scratch.temp;
   return tempRes;
 }
+
+static void setRstPulseComplete(void) { rstPulseComplete = true; }

@@ -25,18 +25,18 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 #define NETWORK_GROUP_DEF 210u /* Must match emonBase group */
 #define NODE_ID_DEF       27u  /* Default node ID */
 #define RFM_AES_DEF       "89txbe4p8aik5kt3"
+#define TEMP_NUM_DEF      1u
 
 typedef struct EmonTHCfg_ {
-  uint8_t  RF_Freq;
-  uint8_t  networkGroup;
-  uint8_t  nodeID;
-  bool     idFromNVM;
-  int8_t   txType;
-  uint8_t  rfPower;
-  bool     pulseEnabled;
-  uint8_t  pulsePeriod;
-  uint8_t  extTempEnabled;
-  uint64_t oneWireAddress[TEMP_MAX_ONEWIRE];
+  uint8_t RF_Freq;
+  uint8_t networkGroup;
+  uint8_t nodeID;
+  bool    idFromNVM;
+  int8_t  txType;
+  uint8_t rfPower;
+  bool    pulseEnabled;
+  uint8_t pulsePeriod;
+  uint8_t extTempEnabled;
 } EmonTHCfg_t;
 
 _Static_assert(sizeof(EmonTHCfg_t) < 57, "EmonThCfg_t bigger than 56 bytes");
@@ -52,22 +52,32 @@ typedef struct EmonTHDataset_ {
   int16_t        tempExternal[TEMP_MAX_ONEWIRE];
   uint32_t       battery;
   uint32_t       pulseCnt;
+  int            numExtMax;
 } EmonTHDataset_t;
 
 /* This struct must match the OEM definitions found at:
  * https://docs.openenergymonitor.org/electricity-monitoring/networking/sending-data-between-nodes-rfm.html
  */
-typedef struct __attribute__((__packed__)) PackedData_ {
+typedef struct __attribute__((__packed__)) PackedData_4Ext_ {
   int16_t  tempInternal;
   int16_t  tempExternal[TEMP_MAX_ONEWIRE];
   int16_t  humidityInternal;
   uint16_t battery;
   uint32_t pulse;
-} PackedData_t;
+} PackedData_4Ext_t;
+
+typedef struct __attribute__((__packed__)) PackedData_1Ext_ {
+  int16_t  tempInternal;
+  int16_t  tempExternal;
+  int16_t  humidityInternal;
+  uint16_t battery;
+  uint32_t pulse;
+} PackedData_1Ext_t;
 
 /* Maximum size of RFM69CW buffer is 61 bytes. Node, number, and CRC included.
  */
-_Static_assert((sizeof(PackedData_t) + 4) < 62, "PackedData_t > 62 bytes");
+_Static_assert((sizeof(PackedData_4Ext_t) + 4) < 62,
+               "PackedData_4Ext_t > 62 bytes");
 
 /* EVTSRC_t contains all the event/interrupts sources. This value is shifted
  * to provide a vector of set events as bits.

@@ -23,14 +23,13 @@ static volatile bool tcInUse   = false;
 static volatile bool tcEnabled = false;
 static volatile bool tdMatch   = false;
 
-/* REVISIT check correctness of this @ 8 MHz */
 void timerDelay_us(uint16_t delay) {
   // clang-format off
   __asm volatile (	"MOV R0,%[loops]\n\t"
       "1: \n\t"
 			"SUB R0, #1\n\t"
 			"CMP R0, #0\n\t"
-			"BNE 1b \n\t" : : [loops] "r" (8*delay) : "memory");
+			"BNE 1b \n\t" : : [loops] "r" (2*delay) : "memory");
   // clang-format on
 }
 

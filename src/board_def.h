@@ -40,7 +40,7 @@ typedef enum PeriphIndex_ {
 #define ADC_VBATT_LOW ((1 << ADC_BITS) * (VBATT_LOW / ADC_REF))
 
 /* Maximum number of OneWire DS18B20 sensors that can be used */
-#define TEMP_MAX_ONEWIRE 1
+#define TEMP_MAX_ONEWIRE 4
 _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
                "Max number of external OneWire sensors can only be 1 or 4.");
 

@@ -12,10 +12,10 @@ void portPinCfg(unsigned int pin, unsigned int cfg, PINCFG_t cs) {
 void portPinDir(unsigned int pin, PINDIR_t mode) {
   if (PIN_DIR_IN == mode) {
     PORT->Group[0].DIRCLR.reg = (1u << pin);
+    PORT->Group[0].PINCFG[pin].reg |= PORT_PINCFG_INEN;
   } else {
     PORT->Group[0].DIRSET.reg = (1u << pin);
   }
-  PORT->Group[0].PINCFG[pin].reg |= PORT_PINCFG_INEN;
 }
 
 void portPinDrv(unsigned int pin, PINDRV_t drv) {

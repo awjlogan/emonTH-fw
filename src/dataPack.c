@@ -110,15 +110,25 @@ static int strnCat(StrN_t *strD, const StrN_t *strS) {
 }
 
 void dataPackPacked(const EmonTHDataset_t *restrict pData,
-                    PackedData_t *restrict pPacked) {
+                    void *restrict pPacked) {
 
   /* T/H 10x value, e.g. 261 = 26.1ºC */
-  pPacked->tempInternal     = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
-  pPacked->humidityInternal = pData->hdcResRaw.humidity * 1000 / (1 << 16);
-  pPacked->battery          = (pData->battery * 3226) / 10;
-  pPacked->pulse            = pData->pulseCnt;
-  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-    pPacked->tempExternal[i] = pData->tempExternal[i];
+  if (4 == pData->numExtMax) {
+    PackedData_4Ext_t *tx = (PackedData_4Ext_t *)pPacked;
+    tx->tempInternal      = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
+    tx->humidityInternal  = pData->hdcResRaw.humidity * 1000 / (1 << 16);
+    tx->battery           = (pData->battery * 3226) / 10;
+    tx->pulse             = pData->pulseCnt;
+    for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+      tx->tempExternal[i] = pData->tempExternal[i];
+    }
+  } else {
+    PackedData_1Ext_t *tx = (PackedData_1Ext_t *)pPacked;
+    tx->tempInternal      = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
+    tx->humidityInternal  = pData->hdcResRaw.humidity * 1000 / (1 << 16);
+    tx->battery           = (pData->battery * 3226) / 10;
+    tx->pulse             = pData->pulseCnt;
+    tx->tempExternal      = pData->tempExternal[0];
   }
 }
 

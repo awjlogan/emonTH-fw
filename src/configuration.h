@@ -18,7 +18,7 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
   uint8_t  nodeID;     /* ID for report*/
   uint8_t  dataGrp;    /* Transmission group - default 210 */
   bool     useJson;    /* JSON format for serial output */
-  bool     extTempEn;  /* External temperature sensor enabled */
+  uint8_t  extTempEn;  /* Number of external temperature sensor enabled */
   uint16_t reportTime; /* Time between reports (s) */
   uint8_t  res0[2];
 } BaseCfg_t;
@@ -40,7 +40,6 @@ typedef struct __attribute__((__packed__)) EmonTHConfigPacked_ {
   BaseCfg_t        baseCfg;
   DataTxCfg_t      dataTxCfg;
   PulseCfgPacked_t pulseCfg;
-  uint64_t         oneWireAddress[TEMP_MAX_ONEWIRE];
 } EmonTHConfigPacked_t;
 
 _Static_assert(sizeof(EmonTHConfigPacked_t) < 57,

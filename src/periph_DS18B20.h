@@ -4,6 +4,11 @@
 
 #include "temperature.h"
 
+typedef struct DS18B20_Slot_ {
+  bool     active;
+  uint64_t address;
+} DS18B20_Slot_t;
+
 typedef struct DS18B20_Res_ {
   TempStatus_t status;
   int16_t      temp;
@@ -12,7 +17,7 @@ typedef struct DS18B20_Res_ {
 /*! @brief Configure the OneWire port and initialise
  *  @return the number of sensors found
  */
-unsigned int ds18b20InitSensors(void);
+int ds18b20InitSensors(DS18B20_Slot_t *pSlot);
 
 /*! @brief Start a temperature conversion on all OneWire devices
  *  @return Status of the start

@@ -10,7 +10,7 @@
  *  @param [out] pPacked : pointer to the destination packet
  */
 void dataPackPacked(const EmonTHDataset_t *restrict pData,
-                    PackedData_t *restrict pPacked);
+                    void *restrict pPacked);
 
 /*! @brief Packs the data packet into serial format.
  *         Returns the number of characters that would have been packed,
