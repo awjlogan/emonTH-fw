@@ -322,7 +322,6 @@ int main(void) {
   uint32_t              tempExtNum            = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
   TransmitOpt_t         txOpt                 = {0};
-  bool                  vLow                  = false;
 
   ucSetup();
   regEnable(true);

@@ -34,11 +34,6 @@ typedef enum PeriphIndex_ {
 #define F_CORE   8000000ul
 #define F_PERIPH 1000000ul
 
-#define ADC_BITS      12u
-#define ADC_REF       3.3
-#define VBATT_LOW     2.5
-#define ADC_VBATT_LOW ((1 << ADC_BITS) * (VBATT_LOW / ADC_REF))
-
 /* Maximum number of OneWire DS18B20 sensors that can be used */
 #define TEMP_MAX_ONEWIRE 1
 _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
