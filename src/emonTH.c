@@ -48,6 +48,7 @@ static void    errorFatal(void);
 static bool    evtPending(EVTSRC_t evt);
 static void    gpioClr(const int gpio);
 static void    gpioSet(const int gpio);
+static void    measureExternal(EmonTHDataset_t *pData, int numExt);
 static void    measureInternal(EmonTHDataset_t *pData);
 static uint8_t readSlideSW(void);
 static void    regEnable(bool dly);
@@ -200,6 +201,25 @@ static void interactiveWait(void) {
   portPinDrv(PIN_LED, PIN_DRV_CLR);
 }
 
+static void measureExternal(EmonTHDataset_t *pData, int numExt) {
+  if (!numExt) {
+    return;
+  }
+
+  /* DS18B20 conversion takes 750 ms @ 12 bit resolution */
+  if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
+
+    // REVISIT : sleep is not long enough, need to do extra loops.
+    for (int i = 0; i < 2; i++) {
+      timerDelaySleep_ms(800);
+    }
+  }
+
+  for (int i = 0; i < numExt; i++) {
+    tempSampleRead(TEMP_INTF_ONEWIRE, pData->tempExternal);
+  }
+}
+
 static void measureInternal(EmonTHDataset_t *pData) {
   HDCResultRaw_t hdcResultRaw = {0};
 
@@ -347,18 +367,18 @@ int main(void) {
 
   while (1) {
     if (evtPending(EVT_WAKE_TIMER)) {
-      regEnable(true);
       emonTHEventClr(EVT_WAKE_TIMER);
 
+      regEnable(true);
       eicEnable();
+
       measureInternal(&dataset);
+      measureExternal(&dataset, tempExtNum);
 
       transmitData(&dataset, &txOpt, txBuffer);
 
       timerDelaySleep_ms(1);
       eicDisable();
-
-      samlSleepStandby();
       regDisable();
     }
     samlSleepEnter();

@@ -45,7 +45,7 @@ _Static_assert(sizeof(EmonTHCfg_t) < 57, "EmonThCfg_t bigger than 56 bytes");
  * Remaining
  *********************************/
 
-#define TX_BUFFER_W 128u
+#define TX_BUFFER_W 196u
 
 typedef struct EmonTHDataset_ {
   HDCResultRaw_t hdcResRaw;

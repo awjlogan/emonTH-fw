@@ -80,6 +80,7 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
   if (TEMP_INTF_ONEWIRE == intf) {
     bool presence = true;
     int  i        = 0;
+    ds18b20PowerOn();
     while ((i < numSensors) && presence) {
       DS18B20_Res_t dsbResult = ds18b20ReadSample(i);
       if (TEMP_NO_SENSORS == dsbResult.status) {
@@ -89,6 +90,7 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
       }
       i++;
     }
+    ds18b20PowerOff();
 
     /* No presence pulse detected, scrub and exit */
     if (!presence) {
@@ -117,6 +119,7 @@ TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
     tempSampled = true;
     (void)dev;
     if (TEMP_OK == ds18b20StartSample()) {
+      tempSampleReadyFlag = false;
       timerDelaySleepAsync_ms(800, &tempSampleReadySet);
       return TEMP_OK;
     }

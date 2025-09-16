@@ -19,6 +19,12 @@ typedef struct DS18B20_Res_ {
  */
 int ds18b20InitSensors(DS18B20_Slot_t *pSlot);
 
+/*! @brief Power off OneWire interface */
+void ds18b20PowerOff(void);
+
+/*! @brief Power on OneWire interface */
+void ds18b20PowerOn(void);
+
 /*! @brief Start a temperature conversion on all OneWire devices
  *  @return Status of the start
  */
