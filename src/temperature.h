@@ -38,7 +38,7 @@ void tempPowerOn(void);
  *  @param [in] pParams : parameters for given interface type
  *  @return number of sensors found
  */
-unsigned int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
+int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
 
 /*! @brief Read temperature samples from all monitors
  *  @param [in] intf : interface type

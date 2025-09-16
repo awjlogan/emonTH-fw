@@ -110,25 +110,32 @@ static int strnCat(StrN_t *strD, const StrN_t *strS) {
 }
 
 void dataPackPacked(const EmonTHDataset_t *restrict pData,
-                    PackedData_t *restrict pPacked) {
+                    void *restrict pPacked) {
 
   /* T/H 10x value, e.g. 261 = 26.1ºC */
-  pPacked->tempInternal     = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
-  pPacked->humidityInternal = pData->hdcResRaw.humidity * 1000 / (1 << 16);
-  pPacked->battery          = (pData->battery * 3226) / 10;
-  pPacked->pulse            = pData->pulseCnt;
-  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-    pPacked->tempExternal[i] = pData->tempExternal[i];
+  if (4 == pData->numExtMax) {
+    PackedData_4Ext_t *tx = (PackedData_4Ext_t *)pPacked;
+    tx->tempInternal      = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
+    tx->humidityInternal  = pData->hdcResRaw.humidity * 1000 / (1 << 16);
+    tx->battery           = (pData->battery * 3226) / 10;
+    tx->pulse             = pData->pulseCnt;
+    for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+      tx->tempExternal[i] = pData->tempExternal[i];
+    }
+  } else {
+    PackedData_1Ext_t *tx = (PackedData_1Ext_t *)pPacked;
+    tx->tempInternal      = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
+    tx->humidityInternal  = pData->hdcResRaw.humidity * 1000 / (1 << 16);
+    tx->battery           = (pData->battery * 3226) / 10;
+    tx->pulse             = pData->pulseCnt;
+    tx->tempExternal      = pData->tempExternal[0];
   }
 }
 
 int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
-                   int m, int opt) {
+                   int m, bool json) {
   EMONTH_ASSERT(pData);
   EMONTH_ASSERT(pDst);
-
-  bool json   = opt & 0x1;
-  bool tempEx = opt & 0x2;
 
   uint32_t     battery = pData->battery * 3226;
   int          tempInt = ((pData->hdcResRaw.temp * 1650) / (1 << 16)) - 400;
@@ -149,21 +156,24 @@ int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
   (void)strnItoa(&strConv, tempInt % 10);
   strn.n += strnCat(&strn, &strConv);
 
+  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+    tempInt = pData->tempExternal[i] * 62500; /* micro-degrees */
+    tempInt = tempInt / 100000;               /* deci-degrees */
+    catId(&strn, (i + 1), STR_TEMPEX, json);
+
+    (void)strnItoa(&strConv, tempInt / 10);
+    strn.n += strnCat(&strn, &strConv);
+    strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
+    (void)strnItoa(&strConv, tempInt % 10);
+    strn.n += strnCat(&strn, &strConv);
+  }
+
   catId(&strn, -1, STR_HUMID, json);
   (void)strnItoa(&strConv, humInt / 10);
   strn.n += strnCat(&strn, &strConv);
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
   (void)strnItoa(&strConv, humInt % 10);
   strn.n += strnCat(&strn, &strConv);
-
-  if (tempEx) {
-    for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-      catId(&strn, i, STR_TEMPEX, json);
-      // REVISIT conversion here is wrong, need to take the raw fixed point.
-      (void)strnItoa(&strConv, (pData->tempExternal[i] / 100));
-      strn.n += strnCat(&strn, &strConv);
-    }
-  }
 
   catId(&strn, -1, STR_BATT, json);
   (void)strnItoa(&strConv, (battery / 1000000));

@@ -10,7 +10,7 @@
  *  @param [out] pPacked : pointer to the destination packet
  */
 void dataPackPacked(const EmonTHDataset_t *restrict pData,
-                    PackedData_t *restrict pPacked);
+                    void *restrict pPacked);
 
 /*! @brief Packs the data packet into serial format.
  *         Returns the number of characters that would have been packed,
@@ -20,8 +20,8 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
  *  @param [in] pData : pointer to the raw data
  *  @param [out] pDst : pointer to the destination buffer
  *  @param [in] m : width of the destination buffer
- *  @param [in] opt : [0]: json false -> K:V; true -> JSON, [1]: tempEx
+ *  @param [in] json : select JSON output (true), or K:V (false)
  *  @return the number of the characters that would be packed
  */
 int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
-                   int m, int opt);
+                   int m, bool json);

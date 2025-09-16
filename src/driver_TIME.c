@@ -23,14 +23,13 @@ static volatile bool tcInUse   = false;
 static volatile bool tcEnabled = false;
 static volatile bool tdMatch   = false;
 
-/* REVISIT check correctness of this @ 8 MHz */
 void timerDelay_us(uint16_t delay) {
   // clang-format off
   __asm volatile (	"MOV R0,%[loops]\n\t"
       "1: \n\t"
 			"SUB R0, #1\n\t"
 			"CMP R0, #0\n\t"
-			"BNE 1b \n\t" : : [loops] "r" (8*delay) : "memory");
+			"BNE 1b \n\t" : : [loops] "r" (2*delay) : "memory");
   // clang-format on
 }
 
@@ -77,11 +76,11 @@ void timerEnable(void) {
 }
 
 bool timerDelaySleep_ms(const uint16_t t_ms) {
-  return timerDelaySleep_us(t_ms * 1000);
+  return timerDelaySleep_us((uint32_t)t_ms * 1000);
 }
 
 bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)()) {
-  return timerDelaySleepAsync_us(t_ms * 1000, cb);
+  return timerDelaySleepAsync_us((uint32_t)t_ms * 1000, cb);
 }
 
 bool timerDelaySleep_us(const uint32_t t_us) {
@@ -107,16 +106,28 @@ bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
 }
 
 static bool timerSleepCommon(const uint32_t t_us) {
+
   uint32_t cc = t_us / 8;
   if (0 == cc) {
     cc = 1;
   }
+
+  uint32_t ctrla = TIMER_DELAY->COUNT16.CTRLA.reg;
+  ctrla &= ~(TC_CTRLA_PRESCALER_Msk);
+  if (UINT16_MAX < cc) {
+    ctrla |= TC_CTRLA_PRESCALER_DIV256;
+    cc = cc / 4;
+  } else {
+    ctrla |= TC_CTRLA_PRESCALER_DIV64;
+  }
+  TIMER_DELAY->COUNT16.CTRLA.reg = ctrla;
 
   tdMatch = false;
 
   TIMER_DELAY->COUNT16.CC[0].reg = cc - 1;
   TIMER_DELAY->COUNT16.COUNT.reg = 0;
   TIMER_DELAY->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+
   return true;
 }
 

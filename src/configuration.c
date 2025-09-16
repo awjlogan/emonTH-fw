@@ -45,7 +45,9 @@ typedef struct __attribute__((__packed__)) NVMHeader_ {
 
 static bool  configDatalog(void);
 static void  configDefault(void);
+static bool  configExtTempMax(void);
 static bool  configJSON(void);
+static bool  configOneWire(void);
 static bool  configProcessCmd(void);
 static bool  configPulse(void);
 static bool  configRF433(void);
@@ -91,6 +93,7 @@ static void configDefault(void) {
   config.baseCfg.dataGrp    = NETWORK_GROUP_DEF; // Group for OEM
   config.baseCfg.reportTime = WAKE_PERIOD_DEF;   // Time between reports
   config.baseCfg.useJson    = true;              // JSON format for serial
+  config.baseCfg.extTempEn  = TEMP_NUM_DEF;      // Max num external sensors
 
   config.dataTxCfg.txType  = (uint8_t)DATATX_RFM69; // RFM only
   config.dataTxCfg.rfmPwr  = 0x18;                  // +12 dBm
@@ -98,6 +101,21 @@ static void configDefault(void) {
 
   config.pulseCfg.active   = false; // Pulse channel inactive
   config.pulseCfg.timeMask = 100u;  // 100 ms minimum between pulses
+}
+
+static bool configExtTempMax(void) {
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+
+  /* Must be 0, 1 or 4 */
+  if ((0 != convI.val) && (1 != convI.val) && (4 != convI.val)) {
+    return false;
+  }
+
+  config.baseCfg.extTempEn = convI.val;
+  return true;
 }
 
 static bool configJSON(void) {
@@ -108,6 +126,25 @@ static bool configJSON(void) {
 
   config.baseCfg.useJson = (bool)convI.val;
   return true;
+}
+
+static bool configOneWire(void) {
+
+  for (int i = 0; i < IN_BUFFER_W; i++) {
+    if (0 == inBuffer[i]) {
+      break;
+    } else if (' ' == inBuffer[i]) {
+      inBuffer[i] = 0;
+    }
+  }
+
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
+  if (!convI.valid) {
+    return false;
+  }
+
+  return false;
 }
 
 static bool configNodeID(void) {
@@ -308,15 +345,14 @@ static void printSettings(void) {
   } else if ((DATATX_UART == tx) || (DATATX_BOTH == tx)) {
     uartPuts("Serial\r\n");
   }
-  uartPuts("\r\n");
 
-  uartPuts("Pulse channel ");
+  uartPuts("Pulse channel     : ");
   if (config.pulseCfg.active) {
-    uartPuts("  - Hysteresis (ms): ");
+    uartPuts("Enabled\r\n  - Hysteresis (ms): ");
     putInt(config.pulseCfg.timeMask);
     uartPuts("\r\n");
   } else {
-    uartPuts("disabled.");
+    uartPuts("Disabled");
   }
   uartPuts("\r\n\r\n");
 
@@ -455,6 +491,7 @@ static bool configProcessCmd(void) {
       " - ?           : show this text again\r\n"
       " - c<n>        : enable UART. n = 0: OFF, n = 1: ON\r\n"
       " - d<n>        : set the data acquisition period\r\n"
+      " - e<n>        : number of external temperature sensors (0, 1, or 4)\r\n"
       " - f           : exit, lock, and continue\r\n"
       " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
       " - l           : list settings\r\n"
@@ -465,8 +502,6 @@ static bool configProcessCmd(void) {
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
       " - s           : save settings to NVM\r\n"
-      " - t0 <n>      : enable external temperature sensing. n = 0: OFF, n = "
-      "1: ON\r\n"
       " - t<x> <yy> <yy> <yy> <yy> <yy> <yy> <yy> <yy>\r\n"
       "   : change an external sensor's position\r\n"
       "     - x: position of sensor in the list (1-based)\r\n"
@@ -502,6 +537,9 @@ static bool configProcessCmd(void) {
   case 'd':
     cmdUnsaved = configDatalog();
     break;
+  case 'e':
+    cmdUnsaved = configExtTempMax();
+    break;
   case 'f':
     exitConfig = true;
     break;
@@ -528,6 +566,9 @@ static bool configProcessCmd(void) {
   case 's':
     configSaveToNVM();
     unsavedChange = false;
+    break;
+  case 't':
+    cmdUnsaved = configOneWire();
     break;
   case 'v':
     configFirmwareBoardInfo();
