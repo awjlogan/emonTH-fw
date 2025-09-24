@@ -358,11 +358,11 @@ int main(void) {
   txOptions(pConfig, &txOpt);
   dataset.numExtMax = pConfig->baseCfg.extTempEn;
 
-  adcSampleTrigger(); /* First ADC sample is junk */
+  /* Discard the first sample */
+  measureInternal(&dataset);
+  emonTHEventSet(EVT_WAKE_TIMER);
 
   rtcEnable(pConfig->baseCfg.reportTime);
-  regDisable();
-  samlSleepEnter();
 
   while (1) {
     if (evtPending(EVT_WAKE_TIMER)) {
