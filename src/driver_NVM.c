@@ -4,8 +4,13 @@
 #include "emonTH_assert.h"
 #include "emonTH_saml.h"
 
-void nvmDataFlashRead(const int page, uint32_t *pDst) {
+/* The NVM page buffer must be 4 byte aligned for allow access from DFLASH */
+uint8_t pageBuffer[FLASH_PAGE_SIZE] __attribute__((aligned(16))) = {0};
+
+void nvmDataFlashRead(const NVMPage_t page) {
   EMONTH_ASSERT(page < NVMCTRL_DATAFLASH_PAGES);
+
+  uint32_t *pDst = (uint32_t *)pageBuffer;
 
   const volatile uint32_t *addr =
       (const volatile uint32_t *)((FLASH_PAGE_SIZE * page) + NVMCTRL_DATAFLASH);
@@ -15,8 +20,8 @@ void nvmDataFlashRead(const int page, uint32_t *pDst) {
   }
 }
 
-void nvmDataFlashWrite(const int page, const uint32_t *pSrc) {
-  const uint32_t    *pBuf       = pSrc;
+void nvmDataFlashWrite(const NVMPage_t page) {
+  const uint32_t    *pBuf       = (const uint32_t *)pageBuffer;
   volatile uint32_t *nvmAddress = (volatile uint32_t *)NVMCTRL_DATAFLASH;
 
   /* Flush anything outstanding in the page buffer */
@@ -45,4 +50,6 @@ void nvmDataFlashWrite(const int page, const uint32_t *pSrc) {
     ;
 }
 
-void nvmSetup(void) {}
+uint8_t *nvmPageBuffer(void) { return pageBuffer; }
+
+void nvmPageBufferClear(void) { memset(pageBuffer, 0, sizeof(pageBuffer)); }

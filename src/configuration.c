@@ -28,17 +28,6 @@ typedef enum {
   RCAUSE_POR   = 0x01
 } RCAUSE_t;
 
-typedef struct __attribute__((__packed__)) NVMHeader_ {
-  uint32_t watermark;
-  uint16_t crc16;
-  uint8_t  writeCount;
-  uint8_t  res0;
-} NVMHeader_t;
-
-/* Configuration key - indicates that the configuration is the default or
- * has been retrieved NVM. */
-#define CONFIG_NVM_KEY 0xca55e77eul
-
 /*************************************
  * Prototypes
  *************************************/
@@ -73,7 +62,7 @@ static EmonTHConfigPacked_t config        = {0};
 static bool                 unsavedChange = false;
 
 /* The NVM page buffer must be 4 byte aligned for allow access from DFLASH */
-uint8_t pageBuffer[FLASH_PAGE_SIZE] __attribute__((aligned(16))) = {0};
+// uint8_t pageBuffer[FLASH_PAGE_SIZE] __attribute__((aligned(16))) = {0};
 
 static bool configDatalog(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
@@ -448,15 +437,15 @@ void configFirmwareBoardInfo(void) {
 
 EmonTHConfigPacked_t *configLoadFromNVM(void) {
 
-  NVMHeader_t *header    = (NVMHeader_t *)pageBuffer;
+  NVMHeader_t *header    = (NVMHeader_t *)nvmPageBuffer();
   bool         keyFound  = false;
   uint16_t     crc16Calc = 0;
   bool         badCRC    = false;
 
   EmonTHConfigPacked_t *pCfg =
-      (EmonTHConfigPacked_t *)(pageBuffer + sizeof(*header));
+      (EmonTHConfigPacked_t *)(nvmPageBuffer() + sizeof(*header));
 
-  nvmDataFlashRead(0, (uint32_t *)pageBuffer);
+  nvmDataFlashRead(NVM_PAGE_CONFIG);
 
   keyFound  = (CONFIG_NVM_KEY == header->watermark);
   crc16Calc = calcCRC16_ccitt(pCfg, sizeof(*pCfg));
@@ -466,12 +455,12 @@ EmonTHConfigPacked_t *configLoadFromNVM(void) {
    * default values to the NVM. */
   if (!keyFound || badCRC) {
     configDefault();
-    memset(pageBuffer, 0, sizeof(pageBuffer));
+    nvmPageBufferClear();
     header->watermark  = CONFIG_NVM_KEY;
     header->writeCount = 2;
     header->crc16      = calcCRC16_ccitt(&config, sizeof(config));
     memcpy(pCfg, &config, sizeof(config));
-    nvmDataFlashWrite(0, (uint32_t *)pageBuffer);
+    nvmDataFlashWrite(NVM_PAGE_CONFIG);
   }
 
   memcpy(&config, pCfg, sizeof(*pCfg));
@@ -591,14 +580,14 @@ static bool configProcessCmd(void) {
 
 void configSaveToNVM(void) {
   /* Save to EEPROM after calculating CRC for integrity */
-  NVMHeader_t *header = (NVMHeader_t *)pageBuffer;
+  NVMHeader_t *header = (NVMHeader_t *)nvmPageBuffer();
 
   header->writeCount += 2;
   header->watermark = CONFIG_NVM_KEY;
   header->crc16     = calcCRC16_ccitt(&config, sizeof(EmonTHConfigPacked_t));
 
-  memcpy(pageBuffer + sizeof(*header), &config, sizeof(config));
-  nvmDataFlashWrite(0, (uint32_t *)pageBuffer);
+  memcpy(nvmPageBuffer() + sizeof(*header), &config, sizeof(config));
+  nvmDataFlashWrite(NVM_PAGE_CONFIG);
 }
 
 /* =======================
