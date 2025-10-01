@@ -4,7 +4,6 @@
 #include "emonTH_assert.h"
 
 #include "driver_ADC.h"
-#include "driver_DMAC.h"
 #include "driver_NVM.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
@@ -437,30 +436,15 @@ void configFirmwareBoardInfo(void) {
 
 EmonTHConfigPacked_t *configLoadFromNVM(void) {
 
-  NVMHeader_t *header    = (NVMHeader_t *)nvmPageBuffer();
-  bool         keyFound  = false;
-  uint16_t     crc16Calc = 0;
-  bool         badCRC    = false;
+  EmonTHConfigPacked_t *pCfg = (EmonTHConfigPacked_t *)nvmPageBuffer();
 
-  EmonTHConfigPacked_t *pCfg =
-      (EmonTHConfigPacked_t *)(nvmPageBuffer() + sizeof(*header));
+  NVMStatus_t nvm = nvmDataFlashRead(NVM_PAGE_CONFIG);
 
-  nvmDataFlashRead(NVM_PAGE_CONFIG);
-
-  keyFound  = (CONFIG_NVM_KEY == header->watermark);
-  crc16Calc = calcCRC16_ccitt(pCfg, sizeof(*pCfg));
-  badCRC    = crc16Calc != header->crc16;
-
-  /* The watermark has not been found or the CRC values do not match. Restore
-   * default values to the NVM. */
-  if (!keyFound || badCRC) {
+  if (NVM_READ_OK != nvm) {
     configDefault();
     nvmPageBufferClear();
-    header->watermark  = CONFIG_NVM_KEY;
-    header->writeCount = 2;
-    header->crc16      = calcCRC16_ccitt(&config, sizeof(config));
     memcpy(pCfg, &config, sizeof(config));
-    nvmDataFlashWrite(NVM_PAGE_CONFIG);
+    nvmDataFlashWrite(NVM_PAGE_CONFIG, sizeof(config));
   }
 
   memcpy(&config, pCfg, sizeof(*pCfg));
@@ -579,15 +563,9 @@ static bool configProcessCmd(void) {
 }
 
 void configSaveToNVM(void) {
-  /* Save to EEPROM after calculating CRC for integrity */
-  NVMHeader_t *header = (NVMHeader_t *)nvmPageBuffer();
-
-  header->writeCount += 2;
-  header->watermark = CONFIG_NVM_KEY;
-  header->crc16     = calcCRC16_ccitt(&config, sizeof(EmonTHConfigPacked_t));
-
-  memcpy(nvmPageBuffer() + sizeof(*header), &config, sizeof(config));
-  nvmDataFlashWrite(NVM_PAGE_CONFIG);
+  nvmPageBufferClear();
+  memcpy(nvmPageBuffer(), &config, sizeof(config));
+  nvmDataFlashWrite(NVM_PAGE_CONFIG, sizeof(config));
 }
 
 /* =======================

@@ -1,14 +1,28 @@
 #include <string.h>
 
+#include "driver_DMAC.h"
 #include "driver_NVM.h"
 #include "emonTH_assert.h"
 #include "emonTH_saml.h"
 
+/* Configuration key - indicates that the configuration is the default or
+ * has been retrieved NVM. */
+#define CONFIG_NVM_KEY 0xca55e77eul
+
+typedef struct __attribute__((__packed__)) NVMHeader_ {
+  uint32_t watermark;  /* Indicate the page is in use */
+  uint16_t crc16;      /* CRC16 CCITT */
+  uint8_t  writeCount; /* Number of times this page has been written */
+  uint8_t  n;          /* Number of data bytes in page */
+} NVMHeader_t;
+
 /* The NVM page buffer must be 4 byte aligned for allow access from DFLASH */
 uint8_t pageBuffer[FLASH_PAGE_SIZE] __attribute__((aligned(16))) = {0};
 
-void nvmDataFlashRead(const NVMPage_t page) {
+NVMStatus_t nvmDataFlashRead(const NVMPage_t page) {
   EMONTH_ASSERT(page < NVMCTRL_DATAFLASH_PAGES);
+
+  NVMStatus_t status = NVM_READ_OK;
 
   uint32_t *pDst = (uint32_t *)pageBuffer;
 
@@ -18,11 +32,35 @@ void nvmDataFlashRead(const NVMPage_t page) {
   for (size_t i = 0; i < (FLASH_PAGE_SIZE / sizeof(*pDst)); i++) {
     *pDst++ = *addr++;
   }
+
+  NVMHeader_t *header = (NVMHeader_t *)pageBuffer;
+
+  if (CONFIG_NVM_KEY != header->watermark) {
+    return NVM_READ_NO_INIT;
+  }
+
+  if (calcCRC16_ccitt(pageBuffer + sizeof(*header), header->n) !=
+      header->crc16) {
+    return NVM_READ_BAD_CRC;
+  }
+
+  return status;
 }
 
-void nvmDataFlashWrite(const NVMPage_t page) {
+void nvmDataFlashWrite(const NVMPage_t page, const int n) {
   const uint32_t    *pBuf       = (const uint32_t *)pageBuffer;
   volatile uint32_t *nvmAddress = (volatile uint32_t *)NVMCTRL_DATAFLASH;
+
+  NVMHeader_t *header = (NVMHeader_t *)pageBuffer;
+
+  if (CONFIG_NVM_KEY != header->watermark) {
+    header->watermark  = CONFIG_NVM_KEY;
+    header->crc16      = calcCRC16_ccitt(pageBuffer + sizeof(*header), n);
+    header->writeCount = 1;
+    header->n          = n;
+  } else {
+    header->writeCount++;
+  }
 
   /* Flush anything outstanding in the page buffer */
   if (NVMCTRL->STATUS.reg & NVMCTRL_STATUS_LOAD) {
@@ -50,6 +88,9 @@ void nvmDataFlashWrite(const NVMPage_t page) {
     ;
 }
 
-uint8_t *nvmPageBuffer(void) { return pageBuffer; }
+uint8_t *nvmPageBuffer(void) { return pageBuffer + sizeof(NVMHeader_t); }
 
-void nvmPageBufferClear(void) { memset(pageBuffer, 0, sizeof(pageBuffer)); }
+void nvmPageBufferClear(void) {
+  memset((pageBuffer + sizeof(NVMHeader_t)), 0,
+         (sizeof(pageBuffer) - sizeof(NVMHeader_t)));
+}
