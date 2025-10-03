@@ -63,23 +63,29 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define DMAC_UART_IRQn DMAC_0_IRQn
 #define DMAC_SPI_IRQn  DMAC_1_IRQn
 
-/* Timer configurations */
+/* Timer configurations
+ * TC0/1 share the same GCLK source, so group on same low power oscillator.
+ * TC2 handles higher resolution time.
+ */
+#define TC_NUM_INST 3
+
 #define TIMER_LP          TC0
 #define TIMER_LP_APBCMASK MCLK_APBCMASK_TC0
 #define TIMER_LP_GCLK_ID  TC0_GCLK_ID
 #define TIMER_LP_IRQn     TC0_IRQn
+#define TIMER_LP_HANDLER  irq_handler_tc0
 
-#define TIMER_DELAY          TC1
-#define TIMER_DELAY_APBCMASK MCLK_APBCMASK_TC1
-#define TIMER_DELAY_GCLK_ID  TC1_GCLK_ID
-#define TIMER_DELAY_IRQn     TC1_IRQn
-#define TIMER_DELAY_HANDLER  irq_handler_tc1
+#define TIMER_PULSE          TC1
+#define TIMER_PULSE_APBCMASK MCLK_APBCMASK_TC1
+#define TIMER_PULSE_GCLK_ID  TC1_GCLK_ID
+#define TIMER_PULSE_IRQn     TC1_IRQn
+#define TIMER_PULSE_HANDLER  irq_handler_tc1
 
-#define TIMER_PULSE          TC2
-#define TIMER_PULSE_APBCMASK MCLK_APBCMASK_TC2
-#define TIMER_PULSE_GCLK_ID  TC2_GCLK_ID
-#define TIMER_PULSE_IRQn     TC2_IRQn
-#define TIMER_PULSE_HANDLER  irq_handler_tc2
+#define TIMER_DELAY          TC2
+#define TIMER_DELAY_APBCMASK MCLK_APBCMASK_TC2
+#define TIMER_DELAY_GCLK_ID  TC2_GCLK_ID
+#define TIMER_DELAY_IRQn     TC2_IRQn
+#define TIMER_DELAY_HANDLER  irq_handler_tc2
 
 /* EIC channels */
 #define EIC_RISE EIC_CONFIG_SENSE0_RISE

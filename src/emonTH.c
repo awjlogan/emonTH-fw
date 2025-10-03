@@ -122,7 +122,6 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum) {
   /* Configure the pulse input if in use. */
   if (pCfg->pulseCfg.active) {
     pulseInit(pCfg->pulseCfg.timeMask);
-    timerSetupPulse(pCfg->pulseCfg.timeMask, &pulseTimerCB);
   }
 
   uartPuts("Finding sensors:\r\n");

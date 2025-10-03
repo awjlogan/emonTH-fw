@@ -10,7 +10,6 @@ static uint32_t      pulseCount  = 0;
 
 void pulseInit(uint8_t timeMask_ms) {
   eicCallbackSet(EIC_CH_PULSE, &pulseInterruptCB);
-  timerSetupPulse(timeMask_ms, &pulseTimerCB);
 }
 
 uint32_t pulseGetCount() { return pulseCount; }
@@ -21,6 +20,5 @@ void pulseInterruptCB(void) {
   if (!pulseMasked) {
     pulseCount++;
     pulseMasked = true;
-    timerStartPulse();
   }
 }

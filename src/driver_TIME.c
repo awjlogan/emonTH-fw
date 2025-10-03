@@ -5,23 +5,26 @@
 #include "emonTH_assert.h"
 #include "emonTH_saml.h"
 
-typedef struct PrescaledTimer_ {
-  uint16_t period;
-  uint16_t prescalar;
-} PrescaledTimer_t;
-
-PrescaledTimer_t calcPrescalar(const uint32_t t_us);
-void             tcSync(void);
-void             timerDisable(void);
-void             timerEnable(void);
-static bool      timerSleepCommon(const uint32_t t_us);
+static void tcSync(void);
+static bool timerDelaySleepLP(const uint16_t t_ms);
+static bool timerSleepCommon(const uint32_t t_us);
 
 static void (*tcCB)(void);
+static void (*tcLPCB)(void);
 static void (*tcPulseCB)(void);
 
 static volatile bool tcEnabled = false;
 static volatile bool tdMatch   = false;
 static volatile bool tdLPMatch = false;
+
+typedef struct tcCfg_ {
+  Tc      *instance;
+  uint32_t apbmask;
+  uint8_t  gclk_id;
+  uint32_t phctrl_gclk;
+  uint32_t prescalar;
+  uint8_t  irqn;
+} tcCfg_t;
 
 void timerDelay_us(uint16_t delay) {
   // clang-format off
@@ -33,50 +36,17 @@ void timerDelay_us(uint16_t delay) {
   // clang-format on
 }
 
-PrescaledTimer_t calcPrescalar(const uint32_t t_us) {
-  PrescaledTimer_t pt = {.period = t_us, .prescalar = TC_CTRLA_PRESCALER_DIV1};
-
-  /* Drop to millisecond resolution, with 3% correction for divider. */
-  if (t_us > 1000) {
-    pt.prescalar = TC_CTRLA_PRESCALER_DIV1024;
-    pt.period    = t_us * 1024 / 1000000;
-  } else if (!(t_us & ((1 << 8) - 1))) {
-    pt.prescalar = TC_CTRLA_PRESCALER_DIV256_Val;
-    pt.period    = t_us >> 8;
-  } else if (!(t_us & ((1 << 6) - 1))) {
-    pt.prescalar = TC_CTRLA_PRESCALER_DIV64_Val;
-    pt.period    = t_us >> 6;
-  }
-
-  pt.period -= 1;
-  return pt;
-}
-
-void tcSync(void) {
+static void tcSync(void) {
   while (TIMER_DELAY->COUNT16.SYNCBUSY.reg)
     ;
 }
 
-void timerDisable(void) {
-  TIMER_DELAY->COUNT16.CTRLA.bit.PRESCALER = TC_CTRLA_PRESCALER_DIV1;
-  TIMER_DELAY->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
-  tcSync();
-  GCLK->PCHCTRL[TIMER_DELAY_GCLK_ID].reg &= ~GCLK_PCHCTRL_CHEN;
-  MCLK->APBCMASK.reg &= ~TIMER_DELAY_APBCMASK;
-  tcEnabled = false;
-}
-
-void timerEnable(void) {
-  MCLK->APBCMASK.reg |= TIMER_DELAY_APBCMASK;
-  GCLK->PCHCTRL[TIMER_DELAY_GCLK_ID].reg =
-      GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN;
-  TIMER_DELAY->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
-  tcSync();
-  tcEnabled = true;
-}
-
 bool timerDelaySleep_ms(const uint16_t t_ms) {
-  return timerDelaySleep_us((uint32_t)t_ms * 1000);
+  if (t_ms < 75) {
+    return timerDelaySleep_us((uint32_t)t_ms * 1000);
+  } else {
+    return timerDelaySleepLP(t_ms);
+  }
 }
 
 bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)()) {
@@ -105,8 +75,8 @@ bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
   return timerSleepCommon(t_us);
 }
 
-bool timerDelaySleepLP(const uint16_t t_ms) {
-  uint32_t cc = ((t_ms * 2048) / 1000) - 1;
+static bool timerDelaySleepLP(const uint16_t t_ms) {
+  uint32_t cc = ((t_ms * 1024) / 1000) - 1;
   tdLPMatch   = false;
 
   TIMER_LP->COUNT16.CC[0].reg = cc;
@@ -125,7 +95,6 @@ bool timerDelaySleepLP(const uint16_t t_ms) {
 }
 
 static bool timerSleepCommon(const uint32_t t_us) {
-
   uint32_t cc = t_us / 8;
   if (0 != cc) {
     cc--;
@@ -159,65 +128,45 @@ void timerFlush(void) {
 }
 
 void timerSetup() {
-  /* TIMER_DELAY is used for higher precision times */
-  MCLK->APBCMASK.reg |= TIMER_DELAY_APBCMASK;
-  GCLK->PCHCTRL[TIMER_DELAY_GCLK_ID].reg =
-      GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN;
-  while (!(GCLK->PCHCTRL[TIMER_DELAY_GCLK_ID].reg & GCLK_PCHCTRL_CHEN))
-    ;
 
-  TIMER_DELAY->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_RUNSTDBY |
-                                   TC_CTRLA_PRESCSYNC_RESYNC |
-                                   TC_CTRLA_PRESCALER_DIV64; /* 8 us tick */
+  tcCfg_t tcCfg[TC_NUM_INST] = {/* High resolution (8 us) timer */
+                                {.instance    = TIMER_DELAY,
+                                 .apbmask     = TIMER_DELAY_APBCMASK,
+                                 .gclk_id     = TIMER_DELAY_GCLK_ID,
+                                 .phctrl_gclk = GCLK_PCHCTRL_GEN_GCLK0,
+                                 .prescalar   = TC_CTRLA_PRESCALER_DIV64,
+                                 .irqn        = TIMER_DELAY_IRQn},
+                                /* Low power ~1 ms resolution timer */
+                                {.instance    = TIMER_LP,
+                                 .apbmask     = TIMER_LP_APBCMASK,
+                                 .gclk_id     = TIMER_LP_GCLK_ID,
+                                 .phctrl_gclk = GCLK_PCHCTRL_GEN_GCLK1,
+                                 .prescalar   = 0,
+                                 .irqn        = TIMER_LP_IRQn},
+                                /* Dedicated pulse channel timer */
+                                {.instance    = TIMER_PULSE,
+                                 .apbmask     = TIMER_PULSE_APBCMASK,
+                                 .gclk_id     = TIMER_PULSE_GCLK_ID,
+                                 .phctrl_gclk = GCLK_PCHCTRL_GEN_GCLK1,
+                                 .prescalar   = 0,
+                                 .irqn        = TIMER_PULSE_IRQn}};
 
-  TIMER_DELAY->COUNT16.WAVE.reg     = TC_WAVE_WAVEGEN_NFRQ;
-  TIMER_DELAY->COUNT16.COUNT.reg    = 0;
-  TIMER_DELAY->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
+  for (int i = 0; i < TC_NUM_INST; i++) {
+    tcCfg_t *t = &tcCfg[i];
+    MCLK->APBCMASK.reg |= t->apbmask;
+    GCLK->PCHCTRL[t->gclk_id].reg = t->phctrl_gclk | GCLK_PCHCTRL_CHEN;
+    while (!(GCLK->PCHCTRL[t->gclk_id].reg & GCLK_PCHCTRL_CHEN))
+      ;
 
-  NVIC_EnableIRQ(TIMER_DELAY_IRQn);
+    t->instance->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_RUNSTDBY |
+                                     TC_CTRLA_PRESCSYNC_RESYNC | t->prescalar;
 
-  /* TIMER_LP is 0.5 ms resolution time off the ULP32K */
-  MCLK->APBCMASK.reg |= TIMER_LP_APBCMASK;
-  GCLK->PCHCTRL[TIMER_LP_GCLK_ID].reg =
-      GCLK_PCHCTRL_GEN_GCLK2 | GCLK_PCHCTRL_CHEN;
-  while (!(GCLK->PCHCTRL[TIMER_LP_GCLK_ID].reg & GCLK_PCHCTRL_CHEN))
-    ;
+    t->instance->COUNT16.WAVE.reg     = TC_WAVE_WAVEGEN_NFRQ;
+    t->instance->COUNT16.COUNT.reg    = 0;
+    t->instance->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
 
-  TIMER_LP->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_RUNSTDBY |
-                                TC_CTRLA_ONDEMAND | TC_CTRLA_PRESCSYNC_RESYNC |
-                                TC_CTRLA_PRESCALER_DIV16;
-  TIMER_LP->COUNT16.WAVE.reg     = TC_WAVE_WAVEGEN_NFRQ;
-  TIMER_LP->COUNT16.COUNT.reg    = 0;
-  TIMER_LP->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
-
-  NVIC_EnableIRQ(TIMER_LP_IRQn);
-}
-
-void timerSetupPulse(const uint8_t per, void (*cb)()) {
-  EMONTH_ASSERT(cb);
-  tcPulseCB = cb;
-
-  MCLK->APBCMASK.reg |= TIMER_PULSE_APBCMASK;
-  GCLK->PCHCTRL[TIMER_PULSE_GCLK_ID].reg =
-      GCLK_PCHCTRL_GEN_GCLK1 | GCLK_PCHCTRL_CHEN;
-  while (!(GCLK->PCHCTRL[TIMER_PULSE_GCLK_ID].reg & GCLK_PCHCTRL_CHEN))
-    ;
-
-  TIMER_PULSE->COUNT8.CTRLA.reg    = TC_CTRLA_MODE_COUNT8 | TC_CTRLA_RUNSTDBY;
-  TIMER_PULSE->COUNT8.CTRLBSET.reg = TC_CTRLBSET_ONESHOT;
-  TIMER_PULSE->COUNT8.INTENSET.reg = TC_INTENSET_OVF;
-  TIMER_PULSE->COUNT8.PER.reg      = per;
-
-  NVIC_EnableIRQ(TIMER_PULSE_IRQn);
-}
-
-void timerStartPulse(void) {
-  TIMER_PULSE->COUNT8.CTRLA.reg |= TC_CTRLA_ENABLE;
-  while (TIMER_PULSE->COUNT8.SYNCBUSY.reg)
-    ;
-  TIMER_PULSE->COUNT8.CTRLBSET.reg = TC_CTRLBSET_CMD_RETRIGGER;
-  while (TIMER_PULSE->COUNT8.SYNCBUSY.reg)
-    ;
+    NVIC_EnableIRQ(t->irqn);
+  }
 }
 
 void TIMER_DELAY_HANDLER(void) {
@@ -232,7 +181,19 @@ void TIMER_DELAY_HANDLER(void) {
   }
 }
 
+void TIMER_LP_HANDLER(void) {
+  if ((TIMER_LP->COUNT16.INTFLAG.reg & TC_INTFLAG_MC0)) {
+    TIMER_LP->COUNT16.INTFLAG.reg = TC_INTFLAG_MC0;
+    tdLPMatch                     = true;
+
+    if (tcLPCB) {
+      tcLPCB();
+      tcLPCB = 0;
+    }
+  }
+}
+
 void TIMER_PULSE_HANDLER(void) {
-  TIMER_PULSE->COUNT8.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+  TIMER_PULSE->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
   tcPulseCB();
 }
