@@ -309,10 +309,9 @@ static void printSettings(void) {
   }
   uartPuts("abled\r\n");
 
-  uartPuts("Data transmission : ");
-  TxType_t tx = (TxType_t)config.dataTxCfg.txType;
-  if ((DATATX_RFM69 == tx) || (DATATX_BOTH == tx)) {
-    uartPuts("RFM69, ");
+  uartPuts("Data transmission :\r\n");
+  if (config.dataTxCfg.txType & 0x1) {
+    uartPuts("  - RFM69, ");
     switch (config.dataTxCfg.rfmFreq) {
     case 0:
       uartPuts("868");
@@ -330,8 +329,9 @@ static void printSettings(void) {
     uartPuts(" MHz @ ");
     putInt(config.dataTxCfg.rfmPwr - 18);
     uartPuts("dB\r\n");
-  } else if ((DATATX_UART == tx) || (DATATX_BOTH == tx)) {
-    uartPuts("Serial\r\n");
+  }
+  if (config.dataTxCfg.txType & 0x2) {
+    uartPuts("  - Serial enabled\r\n");
   }
 
   uartPuts("Pulse channel     : ");
@@ -481,7 +481,6 @@ static bool configProcessCmd(void) {
       "     - yy : hexadecimal bytes, e.g. 28 81 43 31 07 00 00 D9\r\n"
       " - v           : firmware and board information\r\n"
       " - w<n>        : enable wireless. n = 0: OFF, n = 1: ON\r\n"
-      "both\r\n"
       " - x<n>        : 433 MHz compatibility. n = 0: 433.92 MHz, n = 1: "
       "433.00 MHz\r\n";
 
