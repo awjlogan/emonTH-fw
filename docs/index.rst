@@ -8,4 +8,4 @@ emonTH3 User Guide
    Install <install.md>
    firmware.md
    configuration.md
-   Technical <technical.md>
+   Power Consumption <power.md>

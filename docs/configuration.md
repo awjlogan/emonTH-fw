@@ -1,60 +1,58 @@
 # Configuration
 
-- Battery operation is expected, although 5 V d.c. can be supplied via the screw terminal block if desired.
-- Transmits readings from internal temperature and humidity sensor, also external DS18B20 temperature sensor can be connected if desired.
-- Settings can be adjusted at power-up using the UART connector.
+- Battery operation is expected, although 5 V d.c. can be supplied via the screw terminal block if desired
+- Transmits readings from internal temperature and humidity sensor
+- External DS18B20 temperature sensor can be connected if desired
+- Settings can be adjusted at power-up using the UART interface
 
 ## Setting up
 
-By default, data is transmitted by radio approximately every 55 s, identified as Node 27. Changing the internal DIP switches before power-up can change this to Node 28, 29 or 30.
+By default, data is transmitted by radio approximately every 55 s, identified as node 27. Changing the internal DIP switches before power-up can change this to node 28, 29 or 30.
 
-Adding an external temperature sensor before power-up will allow it to be recognised and the readings automatically included in the sent data.
+Adding one or more external temperature sensor before power-up will allow them to be recognised and the readings automatically included in the sent data.
 
 ## Additional set-up options
 
-At power-up, if you have a serial monitor connected to the UART port set to 115200 baud, you will see a “Welcome” message giving the software version number, the radio, pulse counter and temperature settings, and some more diagnostic messages. There is a 5 second count down during which time the LED will flash slowly. Press any key while in the serial monitor to enter the configuration menu.
-
-Entering Settings mode...
+At power-up, if you have a serial monitor connected to the UART port set to 115200 baud, you will see a “Welcome” message giving the software version number, the radio, pulse counter and temperature settings, and some diagnostic messages. There is a 5 second count down during which time the LED will flash slowly. Press any key while in the serial monitor to enter the configuration menu.
 
 Available commands:
 
-- **l** list the settings
-- **r** restore sketch defaults
-- **s** save settings to EEPROM
-- **v** show firmware version
-- **x** exit, lock and continue
-- **?** show this text again
-
-- **w\<x\>** turn RFM Wireless data off: x = 0 or on: x = 1
-- **b\<n\>** set r.f. band n = a single numeral: 4 = 433MHz, 8 = 868MHz, 9 = 915MHz (may require hardware change)
-- **p\<nn\>** set the r.f. power. nn - an integer 0 - 31 representing -18 dBm to +13 dBm. Default: 25 (+7 dBm)
-- **g\<nnn\>** set Network Group nnn - an integer (OEM default = 210)
-- **n\<nn\>** set node ID n= an integer (standard node ids are 1..60)
-
-- **m\<x\> \<yy\>** meter pulse counting:
-  - x = 0 for OFF, x = 1 for ON, 
-  - \<yy\> = an integer for the pulse minimum period in ms. (y is not needed, or ignored when x = 0)
-
-- **t0 \<y\>** turn external temperature measurement on or off: y = 0 for OFF, y = 1 for ON
-
-- **t\<x\> \<yy\> \<yy\> \<yy\> \<yy\> \<yy\> \<yy\> \<yy\> \<yy\>**
-  - change an external temperature sensor's address or position:
+- **?** show the available commands
+- **c\<n\>** enable (n = 1) or disable (n = 0) data over UART
+- **d\<n\>** set the data acquistion period in seconds
+- **e\<n\>** sets the maximum number of external temperature sensors. 0, 1, or 4
+- **f** exit configuration and start monitoring
+- **j\<n\>** enable (n = 1) or disable (n = 0) JSON format for serial data
+- **l** list settings
+- **m\<x\> \<y\>** meter pulse counting:
+  - x = 0 for OFF, x = 1 for ON,
+  - \<y\> = an integer for the pulse minimum period in ms. (y is not needed, or ignored when x = 0)
+- **n\<n\>** sets the base node ID. \[1..60\]
+- **r** restore default settings
+- **s** save settings to NVM
+- **t\<x\> \<y\> \<y\> \<y\> \<y\> \<y\> \<y\> \<y\> \<y\>**
+  - set an external temperature sensor's position:
   - x = a single numeral: the position of the sensor in the list (1-based)
-  - yy = 8 hexadecimal bytes representing the sensor's address
-  - e.g. 28 81 43 31 07 00 00 D
-  - N.B. Sensors CANNOT be added.
+  - y = 8 hexadecimal bytes representing the sensor's address
+- **v** display board and firmware information
+- **w\<n\>** enable (n = 1) or disable (n = 0) wireless data transmission
+- **x\<n\>** use 433.00 MHz RF compatibility (n = 1), or 433.92 MHz (n = 0)
 
-Only the radio, pulse and temperature sensor settings can be changed, the temperature and humidity sensors cannot be calibrated. Normally, you should save ‘ **s’** the settings before you exit ‘ **x’** , so that they will be retained and used forever (until changed again).
+Normally you should save, **s**, the settings before you exit, **x**, so that they will be retained and persist across reboots.
 
-If you turn the radio off and serial data on ( **w2** ), only the serial data in a format compatible with the emonHub Serial Interfacer will be sent to the FTDI port. ( **w3** ) will send data both by radio and the serial port, the default is radio only ( **w1** ).
+Sending data over serial will increase power consumption, even when the emonTH is not connected. The default setting is for wireless transmission only..
 
-If you turn the radio power up above the default value of 25, ensure you select the frequency band that matches the radio module fitted, else the radio module itself could be destroyed. Turning the power up will significantly reduce the battery life, conversely turning the power down will increase the battery life.
+Turning the RF power up will reduce the battery life. Conversely turning the power down will increase the battery life.
 
-If you change the NodeID, then the internal DIP switches add 0, 1, 2 or 3 to the new NodeID.
+The internal DIP switches add 0, 1, 2 or 3 to the base node ID.
+
+```{note}
+The node ID can only be changed at power on.
+```
 
 The meter pulse minimum period inhibits the effect of ‘contact bounce’ if the pulses come from a mechanical switch. The period can be lengthened if necessary, or shortened to zero if the pulses come from an electronic switch.
 
-The external temperature sensor is only turned on if one or more is detected at the start. A connected sensor can be turned off to save power without needing to disconnect it.
+The external temperature sensor is only turned on if one or more is detected at power up.
 
 ## Data Output
 

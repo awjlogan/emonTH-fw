@@ -24,10 +24,10 @@ If more than one emonTH is to be used with the same base-station, each emonTH wi
 
 ### 3. emonCMS Setup
 
-  - RF transmission from the emonTH will be picked up automatically and data will appear in local emonCMS Inputs page.
-  - If [Remote logging](../emoncms/intro-remote.md) has been setup, data will also be posted to Emoncms.org.
-  - See guide [Log Locally](../emoncms/intro-rpi.md) for an overview of logging inputs to feeds. For EmonTH inputs select a feed interval 60s or greater:
-  
+- RF transmission from the emonTH will be picked up automatically and data will appear in local emonCMS Inputs page.
+- If [Remote logging](../emoncms/intro-remote.md) has been setup, data will also be posted to Emoncms.org.
+- See guide [Log Locally](../emoncms/intro-rpi.md) for an overview of logging inputs to feeds. For EmonTH inputs select a feed interval 60s or greater:
+
 ```{note}
 Important: the emonTH reports data at a ~60 s interval. It's important to log the data to emonCMS with a 60 s interval as shown below.
 ```
@@ -42,7 +42,6 @@ If using more than 4x emonTH units [emonhub.conf node decoders will need to be s
 
 ## Changing the emonTH node ID
 
-**DIP Switch Config**<br>
 The on-board DIP switch can be used to select up to four node IDs:
 
 | DIP 1 | DIP 2 | RF node ID   |
@@ -52,8 +51,7 @@ The on-board DIP switch can be used to select up to four node IDs:
 | OFF   | ON    | 29           |
 | ON    | ON    | 30           |
 
-**Serial Config**<br>
-The base emonTH node ID can also be changed using a USB to UART cable and the Arduino IDE.
+The base emonTH node ID can be changed using a USB to UART cable and the Arduino IDE.
 
 ## Add: External temperature sensor(s)
 
@@ -63,7 +61,7 @@ The emonTH3 firmware supports up to 4 external OneWire temperature sensors.
 - Red: Power (the external sensors are powered down when not in use)
 - White: OneWire data
 
-![](img/emonth_external_ds18b20.jpg)
+![Adding external DS18B20 sensor](img/emonth_external_ds18b20.jpg)
 
 ## Add: External optical pulse sensor
 
@@ -77,15 +75,12 @@ Connect the red wire to the 3.3V terminal, the black wire to the GND terminal an
 - Black: GND
 - Blue: IRQ1/D3
 
-![](img/emonth_optical_pulse.jpg)
+![Adding optical pulse sensor](img/emonth_optical_pulse.jpg)
 
-![](img/emonth_optical_pulse_bottom.jpg)
+![Adding optical pulse sensor (bottom)](img/emonth_optical_pulse_bottom.jpg)
 
-**Input pull-up**<br>
 There is an input pull-up inside the pulse (IRQ) input that is enabled in the standard sketch. Therefore, you can connect a volt-free contact or an SO output between screw terminal 4 (IRQ input, SO+) and screw terminal 3 (GND, SO-) without the need for an additional resistor. If you must connect your contacts between VCC (screw terminal 2) and screw terminal 4, then you must add a pull-down resistor of resistance low enough to overcome the internal pull-up resistor, or you can use a higher-value resistor and modify the sketch to disable the internal pull-up.
 
-If you are using a reed switch, you may find that you get more than one count per pulse. Adding a 0.1 µF capacitor across the reed switch has been shown to eliminate this problem. 
+If you are using a reed switch, you may find that you get more than one count per pulse. Adding a 0.1 µF capacitor across the reed switch has been shown to eliminate this problem.
 
-**Emoncms input processing**<br>
-To record the total accumulated pulse count in emoncms use the wh_accumulator input process which detects resets continuing the total pulse count accumulation from the last value before the reset.
-
+To record the total accumulated pulse count in emonCMS use the `wh_accumulator` input process which detects resets continuing the total pulse count accumulation from the last value before the reset.
