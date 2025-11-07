@@ -36,10 +36,17 @@ typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
   uint8_t res0[2];
 } PulseCfgPacked_t;
 
+typedef struct __attribute__((__packed__)) SCDCfgPacked_ {
+  uint16_t altitude;       /* Height above sea level */
+  uint16_t sampleInterval; /* Time between CO2 samples (s) */
+  uint8_t  res0[4];
+} SCDCfgPacked_t;
+
 typedef struct __attribute__((__packed__)) EmonTHConfigPacked_ {
   BaseCfg_t        baseCfg;
   DataTxCfg_t      dataTxCfg;
   PulseCfgPacked_t pulseCfg;
+  SCDCfgPacked_t   scdCfg;
 } EmonTHConfigPacked_t;
 
 _Static_assert(sizeof(EmonTHConfigPacked_t) < 57,

@@ -19,6 +19,7 @@
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
 #include "periph_HDC2010.h"
+#include "periph_SCD4x.h"
 #include "periph_rfm69.h"
 #include "pulse.h"
 #include "temperature.h"
@@ -126,16 +127,21 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum) {
     pulseInit(pCfg->pulseCfg.timeMask);
   }
 
+  /* Find I2C sensors */
   uartPuts("Finding sensors:\r\n");
   uartPuts("  - HDC2010... ");
 
   i2cEnable();
+
   if (hdc2010Setup()) {
     uartPuts("Done\r\n");
   } else {
     uartPuts("Failed");
     errorFatal();
   }
+
+  scd4xDiscover(pCfg->scdCfg.altitude);
+
   i2cDisable();
 
   /* Find any external temperature sensors.  */
@@ -363,7 +369,17 @@ int main(void) {
   txOptions(pConfig, &txOpt);
   dataset.numExtMax = pConfig->baseCfg.extTempEn;
 
+<<<<<<< HEAD
   /* Discard the first sample and take a real sample immediately */
+=======
+  if (scd4xPresent()) {
+    rtcEvtReg((RTC_Evt_t){.smpInterval = pConfig->scdCfg.sampleInterval,
+                          .evt         = EVT_SCD4x_SAMPLE});
+    dataset.co2 = scd4xMeasureCO2_LP();
+  }
+
+  /* Discard the first sample */
+>>>>>>> 2520e0b ([SCD4x] Add CO2 sampling framework)
   measureInternal(&dataset);
   emonTHEventSet(EVT_WAKE_TIMER);
 
@@ -385,6 +401,17 @@ int main(void) {
       eicDisable();
       regDisable();
     }
+
+    if (evtPending(EVT_SCD4x_SAMPLE)) {
+      emonTHEventClr(EVT_SCD4x_SAMPLE);
+
+      regEnable(true);
+
+      dataset.co2 = scd4xMeasureCO2_LP();
+
+      regDisable();
+    }
+
     samlSleepEnter();
   }
 }

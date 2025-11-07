@@ -319,6 +319,10 @@ void i2cEnable(void) {
     ;
 }
 
+bool i2cEnabled(void) {
+  return SERCOM_I2CM->I2CM.CTRLA.reg & SERCOM_I2CM_CTRLA_ENABLE;
+}
+
 void i2cEnableSmartMode(void) {
   SERCOM_I2CM->I2CM.CTRLB.reg |= SERCOM_I2CM_CTRLB_SMEN;
 }
