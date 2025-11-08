@@ -375,7 +375,7 @@ int main(void) {
   if (scd4xPresent()) {
     rtcEvtReg((RTC_Evt_t){.smpInterval = pConfig->scdCfg.sampleInterval,
                           .evt         = EVT_SCD4x_SAMPLE});
-    dataset.co2 = scd4xMeasureCO2_LP();
+    dataset.co2 = scd4xMeasureCO2();
   }
 
   /* Discard the first sample */
@@ -407,7 +407,7 @@ int main(void) {
 
       regEnable(true);
 
-      dataset.co2 = scd4xMeasureCO2_LP();
+      dataset.co2 = scd4xMeasureCO2();
 
       regDisable();
     }

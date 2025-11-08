@@ -10,12 +10,14 @@ typedef enum RWC_ { C, CF, R, W } RWC_t;
 typedef enum SCD_ID_ { SCD40, SCD41, SCD43, SCD4x_NONE } SCD_ID_t;
 
 typedef enum SCD_Reg_ {
-  CMD_ALTITUDE_GET  = 0x2322u,
-  CMD_ALTITUDE_SET  = 0x2427u,
-  CMD_PERSIST_CFG   = 0x3615u,
-  CMD_SAMPLE_READ   = 0xec05u,
-  CMD_SAMPLE_SINGLE = 0x219du,
-  CMD_SCD_VARIANT   = 0x202fu
+  CMD_ALTITUDE_GET   = 0x2322u,
+  CMD_ALTITUDE_SET   = 0x2427u,
+  CMD_PERIODIC_START = 0x21b1u,
+  CMD_PERSIST_CFG    = 0x3615u,
+  CMD_SAMPLE_READ    = 0xec05u,
+  CMD_SAMPLE_READY   = 0xe4b8u,
+  CMD_SAMPLE_SINGLE  = 0x219du,
+  CMD_SCD_VARIANT    = 0x202fu
 } SCD_Reg_t;
 
 typedef enum SCD_Resp_ {
@@ -39,11 +41,17 @@ SCD_Cmd_t cmdAltitudeGet = {
 SCD_Cmd_t cmdAltitudeSet = {
     .cmd = CMD_ALTITUDE_SET, .n = 2, .rwc = W, .t_wait = 1};
 
+SCD_Cmd_t cmdPeriodicStart = {
+    .cmd = CMD_PERIODIC_START, .n = 0, .rwc = C, .t_wait = 0};
+
 SCD_Cmd_t cmdPersistCfg = {
     .cmd = CMD_PERSIST_CFG, .n = 0, .rwc = C, .t_wait = 800};
 
 SCD_Cmd_t cmdSampleRead = {
     .cmd = CMD_SAMPLE_READ, .n = 2, .rwc = R, .t_wait = 1};
+
+SCD_Cmd_t cmdSampleReady = {
+    .cmd = CMD_SAMPLE_READY, .n = 2, .rwc = R, .t_wait = 1};
 
 SCD_Cmd_t cmdSampleSingle = {
     .cmd = CMD_SAMPLE_SINGLE, .n = 0, .rwc = C, .t_wait = 5000};
@@ -55,6 +63,7 @@ static void       byteSwap(uint8_t *pBuf);
 static SCD_Resp_t cmdExecute(const SCD_Cmd_t cmd, uint8_t *pData);
 static uint8_t    crcCalc(const uint8_t *pData, const size_t n);
 static void       initSCD(const uint16_t altitude);
+static uint16_t   measureSCD40(void);
 static void       powerOff(void);
 static void       powerOn(void);
 static void       printInfo(void);
@@ -62,7 +71,6 @@ static void       regRead(const SCD_Cmd_t cmd, uint8_t *pData);
 static void       regWrite(const uint8_t *pData);
 
 static SCD_ID_t scdID;
-static bool     singleShotAllowed;
 
 static void byteSwap(uint8_t *pBuf) {
   uint8_t tmp0 = pBuf[0];
@@ -133,6 +141,23 @@ static void initSCD(uint16_t altitude) {
     cmdExecute(cmdAltitudeSet, dBuf);
     cmdExecute(cmdPersistCfg, NULL);
   }
+
+  if (SCD40 == scdID) {
+    cmdExecute(cmdPeriodicStart, NULL);
+  }
+}
+
+static uint16_t measureSCD40(void) {
+  uint8_t dbuf[2];
+
+  /* the 11 LSBs of of data ready are 0 when not ready */
+  do {
+    cmdExecute(cmdSampleReady, dbuf);
+  } while (0 == (dbuf[1] & 0x7FF));
+
+  cmdExecute(cmdSampleRead, dbuf);
+  byteSwap(dbuf);
+  return *(uint16_t *)dbuf;
 }
 
 static void printInfo(void) {
@@ -183,8 +208,7 @@ void scd4xDiscover(const uint16_t altitude) {
   uint8_t rxBuf[2];
   scdID = SCD4x_NONE;
 
-  portPinDrv(PIN_EXT_EN, PIN_DRV_SET);
-  timerDelaySleep_ms(5);
+  powerOn();
 
   if (SCD_RESP_OK == cmdExecute(cmdSCDVariant, rxBuf))
     switch (rxBuf[1]) {
@@ -201,15 +225,25 @@ void scd4xDiscover(const uint16_t altitude) {
       scdID = SCD4x_NONE;
     }
 
-  singleShotAllowed = (scdID == SCD41) || (scdID == SCD43);
   printInfo();
 
   if (SCD4x_NONE != scdID) {
     initSCD(altitude);
   }
+
+  /* SCD40 does not support power cycling, leave on */
+  if (SCD40 != scdID) {
+    powerOff();
+  }
 }
 
-uint16_t scd4xMeasureCO2_LP(void) {
+uint16_t scd4xMeasureCO2(void) {
+
+  /* SCD40 does not support power cycled sampling */
+  if (scdID == SCD40) {
+    return measureSCD40();
+  }
+
   uint16_t co2;
   bool     i2cIsEnabled = i2cEnabled();
 

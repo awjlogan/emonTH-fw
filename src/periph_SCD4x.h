@@ -5,10 +5,10 @@
  */
 void scd4xDiscover(const uint16_t altitude);
 
-/*! @brief Measure CO2 level in single shot mode
+/*! @brief Measure CO2 level
  *  @return Measured CO2 level (ppm)
  */
-uint16_t scd4xMeasureCO2_LP(void);
+uint16_t scd4xMeasureCO2(void);
 
 /*! @brief Indicate if there is an SCD4x present
  *  @return true if present, false otherwise
