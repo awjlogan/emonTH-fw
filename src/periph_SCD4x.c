@@ -134,7 +134,6 @@ static void initSCD(uint16_t altitude) {
 
   /* Check altitude has been set as configured */
   cmdExecute(cmdAltitudeGet, dBuf);
-  byteSwap(dBuf);
   if (altitude != *(uint16_t *)dBuf) {
     *(uint16_t *)dBuf = altitude;
     byteSwap(dBuf);
@@ -156,7 +155,6 @@ static uint16_t measureSCD40(void) {
   } while (0 == (dbuf[1] & 0x7FF));
 
   cmdExecute(cmdSampleRead, dbuf);
-  byteSwap(dbuf);
   return *(uint16_t *)dbuf;
 }
 
@@ -264,7 +262,6 @@ uint16_t scd4xMeasureCO2(void) {
   }
 
   powerOff();
-  byteSwap((uint8_t *)&co2);
   return co2;
 }
 
