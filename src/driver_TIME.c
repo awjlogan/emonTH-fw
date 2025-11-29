@@ -10,12 +10,21 @@ static bool timerDelaySleepLP(const uint16_t t_ms);
 static bool timerSleepCommon(const uint32_t t_us);
 
 static void (*tcCB)(void);
+static void (*ovfCB)(void);
 static void (*tcLPCB)(void);
 static void (*tcPulseCB)(void);
 
 static volatile bool tcEnabled = false;
 static volatile bool tdMatch   = false;
 static volatile bool tdLPMatch = false;
+
+static volatile int   ledPulseIdx      = 0;
+static volatile bool  ledPulseDown     = false;
+static const uint16_t ledPulseTop      = 1953;
+static const uint16_t ledIntensity[32] = {
+    1,    7,    17,   30,   47,   68,   93,   122,  154,  190, 230,
+    274,  322,  373,  429,  488,  551,  617,  688,  762,  841, 923,
+    1008, 1098, 1192, 1289, 1390, 1495, 1604, 1716, 1832, 1953};
 
 typedef struct tcCfg_ {
   Tc      *instance;
@@ -158,6 +167,10 @@ void timerSetup() {
     while (!(GCLK->PCHCTRL[t->gclk_id].reg & GCLK_PCHCTRL_CHEN))
       ;
 
+    t->instance->COUNT16.CTRLA.reg = TC_CTRLA_SWRST;
+    while (t->instance->COUNT16.SYNCBUSY.reg & TC_SYNCBUSY_SWRST)
+      ;
+
     t->instance->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_RUNSTDBY |
                                      TC_CTRLA_PRESCSYNC_RESYNC | t->prescalar;
 
@@ -167,6 +180,31 @@ void timerSetup() {
 
     NVIC_EnableIRQ(t->irqn);
   }
+}
+
+void timerSetupLED(void (*cb)()) {
+  EMONTH_ASSERT(cb);
+  ovfCB = cb;
+
+  MCLK->APBCMASK.reg |= TIMER_LP_APBCMASK;
+  GCLK->PCHCTRL[TIMER_LP_GCLK_ID].reg =
+      GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN;
+  while (!(GCLK->PCHCTRL[TIMER_LP_GCLK_ID].reg & GCLK_PCHCTRL_CHEN))
+    ;
+
+  TIMER_LP->COUNT16.CTRLA.reg = TC_CTRLA_MODE_COUNT16 | TC_CTRLA_RUNSTDBY |
+                                TC_CTRLA_PRESCSYNC_RESYNC |
+                                TC_CTRLA_PRESCALER_DIV64;
+
+  /* Enable NPWM mode with CC update buffering */
+  TIMER_LP->COUNT16.WAVE.reg     = TC_WAVE_WAVEGEN_NPWM;
+  // TIMER_LP->COUNT16.CTRLBSET.reg = TC_CTRLBSET_LUPD;
+  TIMER_LP->COUNT16.PER.reg      = ledPulseTop;
+  TIMER_LP->COUNT16.COUNT.reg    = 0;
+  TIMER_LP->COUNT16.INTENSET.reg = TC_INTENSET_OVF;
+  TIMER_LP->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+
+  NVIC_EnableIRQ(TIMER_LP_IRQn);
 }
 
 void TIMER_DELAY_HANDLER(void) {
@@ -190,6 +228,27 @@ void TIMER_LP_HANDLER(void) {
       tcLPCB();
       tcLPCB = 0;
     }
+  }
+
+  /* Pulsed LED at startup + configuration */
+  if ((TIMER_LP->COUNT16.INTFLAG.reg & TC_INTFLAG_OVF)) {
+    TIMER_LP->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
+    // TIMER_LP->COUNT16.
+    if (false == ledPulseDown) {
+      ledPulseIdx++;
+      if (32 == ledPulseIdx) {
+        ledPulseIdx  = 31;
+        ledPulseDown = true;
+      }
+    } else {
+      ledPulseIdx--;
+      if (-1 == ledPulseIdx) {
+        ledPulseIdx  = 0;
+        ledPulseDown = false;
+      }
+    }
+    TIMER_LP->COUNT16.CCBUF[0].reg = ledIntensity[ledPulseIdx];
+    ovfCB();
   }
 }
 

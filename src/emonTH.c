@@ -36,6 +36,7 @@ typedef struct TransmitOpt_ {
 
 static volatile bool     interactiveUart    = false;
 static volatile bool     interactiveTimeout = false;
+static volatile int      ledPulseOvf        = 0;
 static volatile uint32_t evtPend;
 AssertInfo_t             g_assert_info;
 
@@ -48,6 +49,7 @@ static void    errorFatal(void);
 static bool    evtPending(EVTSRC_t evt);
 static void    gpioClr(const int gpio);
 static void    gpioSet(const int gpio);
+static void    ledPulseOvfIncr(void);
 static void    measureExternal(EmonTHDataset_t *pData, int numExt);
 static void    measureInternal(EmonTHDataset_t *pData);
 static uint8_t readSlideSW(void);
@@ -172,33 +174,38 @@ static void gpioSet(const int gpio) {
 static void interactiveWait(void) {
   /* Wait for 5 s with LED flashing @ 2 Hz. Enter configuration mode by pressing
    * any key. */
-  int  count     = 0;
-  int  remain    = 5;
-  char strbuf[4] = {0};
+  int remain = 4;
 
   uartPuts("> Press any key within 5 seconds to enter "
            "configuration.\r\n");
 
-  while ((count < 20) && !interactiveUart) {
-    timerDelaySleep_ms(250);
-    portPinDrv(PIN_LED, PIN_DRV_TGL);
-    if (!(count % 4)) {
+  portPinMux(PIN_LED, 0x4);
+  portPinCfg(PIN_LED, PORT_PINCFG_PMUXEN, PIN_CFG_SET);
+
+  timerSetupLED(&ledPulseOvfIncr);
+  while (ledPulseOvf < (((N_STEPS * 2) * 5)) && !interactiveUart) {
+    samlSleepEnter();
+
+    if (!(ledPulseOvf % (N_STEPS * 2)) && (0 != remain)) {
+      char strbuf[4] = {0};
       utilItoa(strbuf, remain--, ITOA_BASE10);
       uartPuts(strbuf);
-    } else {
+    } else if (!(ledPulseOvf % (N_STEPS / 2))) {
       uartPuts(".");
     }
-    count++;
   }
 
   if (interactiveUart) {
     configEnter();
-  } else {
-    uartPuts("0\r\n");
   }
 
+  uartPuts("\r\n\r\n");
+  timerSetup();
+  portPinCfg(PIN_LED, PORT_PINCFG_PMUXEN, PIN_CFG_CLR);
   portPinDrv(PIN_LED, PIN_DRV_CLR);
 }
+
+static void ledPulseOvfIncr(void) { ledPulseOvf++; }
 
 static void measureExternal(EmonTHDataset_t *pData, int numExt) {
   if (!numExt) {
@@ -325,7 +332,6 @@ static void ucSetup(void) {
   sercomSetup();
   rtcSetup();
   adcSetup();
-  timerSetup();
   eicSetup();
   dmacSetup();
 
@@ -357,7 +363,7 @@ int main(void) {
   txOptions(pConfig, &txOpt);
   dataset.numExtMax = pConfig->baseCfg.extTempEn;
 
-  /* Discard the first sample */
+  /* Discard the first sample and take a real sample immediately */
   measureInternal(&dataset);
   emonTHEventSet(EVT_WAKE_TIMER);
 

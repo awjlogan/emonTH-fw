@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define N_STEPS 32
+
 #include "driver_SAML.h"
 
 /*! @brief  Blocking delay, only used for short delays where enabling and
@@ -42,6 +44,11 @@ void timerFlush(void);
 
 /*! @brief Sets up the system timer units */
 void timerSetup(void);
+
+/*! @brief Set up the timer for LED pulse at startup
+ *  @param [in] cb : pointer to callback on overflow
+ */
+void timerSetupLED(void (*cb)());
 
 /*! @brief Set up the timer for pulse timing, if enabled */
 void timerSetupPulse(const uint8_t per, void (*cb)());
