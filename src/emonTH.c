@@ -369,17 +369,13 @@ int main(void) {
   txOptions(pConfig, &txOpt);
   dataset.numExtMax = pConfig->baseCfg.extTempEn;
 
-<<<<<<< HEAD
-  /* Discard the first sample and take a real sample immediately */
-=======
   if (scd4xPresent()) {
     rtcEvtReg((RTC_Evt_t){.smpInterval = pConfig->scdCfg.sampleInterval,
                           .evt         = EVT_SCD4x_SAMPLE});
     dataset.co2 = scd4xMeasureCO2();
   }
 
-  /* Discard the first sample */
->>>>>>> 2520e0b ([SCD4x] Add CO2 sampling framework)
+  /* Discard the first sample and take a real sample immediately */
   measureInternal(&dataset);
   emonTHEventSet(EVT_WAKE_TIMER);
 

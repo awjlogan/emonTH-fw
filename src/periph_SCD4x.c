@@ -208,15 +208,16 @@ void scd4xDiscover(const uint16_t altitude) {
 
   powerOn();
 
+  /* Bits [15:12] of word[0] encode variant (3.10.6) */
   if (SCD_RESP_OK == cmdExecute(cmdSCDVariant, rxBuf))
     switch (rxBuf[1]) {
-    case 0x0u:
+    case 0x04u:
       scdID = SCD40;
       break;
-    case 0x1u:
+    case 0x14u:
       scdID = SCD41;
       break;
-    case 0x5u:
+    case 0x54u:
       scdID = SCD43;
       break;
     default:
