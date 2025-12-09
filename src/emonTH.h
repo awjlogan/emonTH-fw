@@ -53,6 +53,7 @@ typedef struct EmonTHDataset_ {
   uint32_t       battery;
   uint32_t       pulseCnt;
   int            numExtMax;
+  uint16_t       co2;
 } EmonTHDataset_t;
 
 /* This struct must match the OEM definitions found at:
@@ -64,6 +65,7 @@ typedef struct __attribute__((__packed__)) PackedData_4Ext_ {
   int16_t  humidityInternal;
   uint16_t battery;
   uint32_t pulse;
+  uint16_t co2;
 } PackedData_4Ext_t;
 
 typedef struct __attribute__((__packed__)) PackedData_1Ext_ {
@@ -72,6 +74,7 @@ typedef struct __attribute__((__packed__)) PackedData_1Ext_ {
   int16_t  humidityInternal;
   uint16_t battery;
   uint32_t pulse;
+  uint16_t co2;
 } PackedData_1Ext_t;
 
 /* Maximum size of RFM69CW buffer is 61 bytes. Node, number, and CRC included.
@@ -100,7 +103,8 @@ typedef enum EVTSRC_ {
   EVT_ONEWIRE_READ    = 15u,
   EVT_ENTER_CONFIG    = 19u,
   EVT_SEND_DATA_RFM   = 20u,
-  EVT_SEND_DATA_UART  = 21u
+  EVT_SEND_DATA_UART  = 21u,
+  EVT_SCD4x_SAMPLE    = 22u
 } EVTSRC_t;
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled

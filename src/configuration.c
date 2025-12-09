@@ -42,12 +42,14 @@ static bool  configRF433(void);
 static bool  configRFM(void);
 static bool  configRFPower(void);
 static void  configSaveToNVM(void);
+static bool  configSCD(void);
 static bool  configUART(void);
 static char *getLastReset(void);
 static void  inBufferClear(int n);
 static void  printSettings(void);
 static void  putInt(const int i);
 static void  putUniqueID(void);
+static void  sepNullBuffer(void);
 
 /*************************************
  * Local variables
@@ -89,6 +91,9 @@ static void configDefault(void) {
 
   config.pulseCfg.active   = false; // Pulse channel inactive
   config.pulseCfg.timeMask = 100u;  // 100 ms minimum between pulses
+
+  config.scdCfg.altitude       = 0;   // Sea level
+  config.scdCfg.sampleInterval = 600; // 10 minute CO2 sampling
 }
 
 static bool configExtTempMax(void) {
@@ -118,13 +123,7 @@ static bool configJSON(void) {
 
 static bool configOneWire(void) {
 
-  for (int i = 0; i < IN_BUFFER_W; i++) {
-    if (0 == inBuffer[i]) {
-      break;
-    } else if (' ' == inBuffer[i]) {
-      inBuffer[i] = 0;
-    }
-  }
+  sepNullBuffer();
 
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
 
@@ -227,6 +226,32 @@ static bool configRFPower(void) {
   }
 
   config.dataTxCfg.rfmPwr = convI.val;
+  return true;
+}
+
+static bool configSCD(void) {
+
+  sepNullBuffer();
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+
+  config.scdCfg.sampleInterval = convI.val;
+
+  size_t i;
+  for (i = 0; i < IN_BUFFER_W; i++) {
+    if (0 == inBuffer[i]) {
+      break;
+    }
+  }
+
+  convI = utilAtoi(inBuffer + i, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  config.scdCfg.altitude = convI.val;
+
   return true;
 }
 
@@ -363,6 +388,16 @@ static void putUniqueID(void) {
   }
 }
 
+static void sepNullBuffer(void) {
+  for (int i = 0; i < IN_BUFFER_W; i++) {
+    if (0 == inBuffer[i]) {
+      break;
+    } else if (' ' == inBuffer[i]) {
+      inBuffer[i] = 0;
+    }
+  }
+}
+
 void configCmdChar(const uint8_t c) {
   if (('\r' == c) || ('\n' == c)) {
     if (!cmdPending) {
@@ -462,6 +497,9 @@ static bool configProcessCmd(void) {
       "\r\n"
       "emonTH information and configuration commands\r\n\r\n"
       " - ?           : show this text again\r\n"
+      " - a<n> <m>    : Configure SCD4x CO2 sensor\r\n"
+      "     -  n : sample interval (s)\r\n"
+      "     -  m : altitude above sea level (m)\r\n"
       " - c<n>        : enable UART. n = 0: OFF, n = 1: ON\r\n"
       " - d<n>        : set the data acquisition period\r\n"
       " - e<n>        : number of external temperature sensors (0, 1, or 4)\r\n"
@@ -502,6 +540,9 @@ static bool configProcessCmd(void) {
   case '?':
     /* Print help text */
     uartPuts(helpText);
+    break;
+  case 'a':
+    cmdUnsaved = configSCD();
     break;
   case 'c':
     cmdUnsaved = configUART();

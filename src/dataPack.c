@@ -19,6 +19,7 @@
 #define STR_LCURL  9
 #define STR_RCURL  10
 #define STR_COMMA  11
+#define STR_CO2    12
 
 /* "Fat" string with current length and buffer size. */
 typedef struct StrN {
@@ -42,7 +43,8 @@ const StrN_t baseStr[] = {
     {.str = "pulse", .n = 5, .m = 6},    {.str = "temp", .n = 4, .m = 5},
     {.str = ":", .n = 1, .m = 2},        {.str = "\r\n", .n = 2, .m = 3},
     {.str = "\"", .n = 1, .m = 2},       {.str = "{", .n = 1, .m = 2},
-    {.str = "}", .n = 1, .m = 2},        {.str = ",", .n = 1, .m = 2}};
+    {.str = "}", .n = 1, .m = 2},        {.str = ",", .n = 1, .m = 2},
+    {.str = "co2", .n = 3, .m = 4}};
 
 /*! @brief "Append <field><id>:" to the string
  *  @param [out] strD : pointer to the fat string
@@ -122,6 +124,7 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
     for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
       tx->tempExternal[i] = pData->tempExternal[i];
     }
+    tx->co2 = pData->co2;
   } else {
     PackedData_1Ext_t *tx = (PackedData_1Ext_t *)pPacked;
     tx->tempInternal      = pData->hdcResRaw.temp * 1650 / (1 << 16) - 400;
@@ -129,6 +132,7 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
     tx->battery           = (pData->battery * 3226) / 10;
     tx->pulse             = pData->pulseCnt;
     tx->tempExternal      = pData->tempExternal[0];
+    tx->co2               = pData->co2;
   }
 }
 
@@ -184,6 +188,10 @@ int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
 
   catId(&strn, -1, STR_PULSE, json);
   (void)strnItoa(&strConv, pData->pulseCnt);
+  strn.n += strnCat(&strn, &strConv);
+
+  catId(&strn, -1, STR_CO2, json);
+  (void)strnItoa(&strConv, pData->co2);
   strn.n += strnCat(&strn, &strConv);
 
   /* Terminate with } for JSON and \r\n */

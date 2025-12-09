@@ -65,9 +65,9 @@ void sercomSetupSPI(const Pin_t sel);
  */
 void sercomSetupUART(const UART_Cfg_t *pCfg);
 
-/*! @brief Set I2C address. If dma is 1, then a packet of len bytes is sent
- *         or received.
+/*! @brief Set I2C address.
  *  @param [in] addr : address and RW bit
+ *  @return I2C status
  */
 I2CM_Status_t i2cActivate(uint8_t addr);
 
@@ -92,6 +92,11 @@ void i2cDisable(void);
 
 /*! @brief Enable the I2C interface */
 void i2cEnable(void);
+
+/*! @brief Indicate if the I2C interface is active
+ *  @return true if enabled, false otherwise
+ */
+bool i2cEnabled(void);
 
 /*! @brief Enable smart mode (ACK on read) */
 void i2cEnableSmartMode(void);

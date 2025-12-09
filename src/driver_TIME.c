@@ -51,6 +51,9 @@ static void tcSync(void) {
 }
 
 bool timerDelaySleep_ms(const uint16_t t_ms) {
+  if (0 == t_ms) {
+    return true;
+  }
   if (t_ms < 75) {
     return timerDelaySleep_us((uint32_t)t_ms * 1000);
   } else {
