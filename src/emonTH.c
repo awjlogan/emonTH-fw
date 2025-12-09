@@ -110,7 +110,6 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum) {
   /* Initialise RFM69 into sleep mode, regardless of its future use */
   if (rfmInit(&rfmOpt)) {
     rfmSetAESKey(RFM_AES_DEF);
-    rfmSetAddress(rfmOpt.nodeID);
     rfmSleep();
     spiDisable();
 
@@ -283,8 +282,8 @@ static int tempSetup(void) { return tempSensorsInit(TEMP_INTF_ONEWIRE, 0); }
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer) {
 
-  samlSleepIdle(); /* Require IDLE for DMA rather than standby */
   if (pOpt->logSerial) {
+    samlSleepIdle(); /* Require IDLE for DMA rather than standby */
     uint32_t n = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
     uartPutsNonBlocking(txBuffer, n);
   }

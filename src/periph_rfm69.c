@@ -44,7 +44,6 @@ static uint8_t   spiRx(void);
 static void      spiTx(const uint8_t b);
 static void      timeoutSet(void);
 
-static uint16_t      address          = 0;
 static bool          initDone         = false;
 static int_fast8_t   rfmMode          = 0;
 static RFMRx_t       rfmRx            = {0};
@@ -76,7 +75,7 @@ static void rfmPacketHandler(void) {
     rfmRx.targetID |= (ctl & 0x0C) << 6;
     rfmRx.senderID |= (ctl & 0x03) << 8;
 
-    if (!(address == rfmRx.targetID ||
+    if (!(txPkt.addr == rfmRx.targetID ||
           RFM69_BROADCAST_ADDR == rfmRx.targetID) ||
         (rfmRx.payloadLen < 3)) {
       rfmRx.payloadLen = 0;
@@ -216,7 +215,7 @@ static RFMSend_t rfmSendNoRetry(uint8_t n) {
   spiTx(REG_FIFO | 0x80);
   spiTx(n + 3);
   spiTx(5u); // from OEM Tx
-  spiTx((uint8_t)address);
+  spiTx((uint8_t)txPkt.addr);
   spiTx(0); // CTL byte
   spiSendBuffer(txPkt.data, n);
   spiDeSelect(sel);
@@ -372,6 +371,7 @@ bool rfmInit(RFMOpt_t *pOpt) {
     rfmWriteReg(config[idxCfg][0], config[idxCfg][1]);
   }
 
+  rfmSetAddress(pOpt->nodeID);
   rfmSetAESKey(0);
   rfmWriteReg(REG_PALEVEL, (RFM_PALEVEL_PA0_ON | pOpt->paLevel));
 

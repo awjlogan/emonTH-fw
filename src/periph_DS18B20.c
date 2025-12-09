@@ -381,14 +381,14 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
     return tempRes;
   }
 
-  /* Check for spurious 85ºC reading. This could be caused by e.g. a power
+  /* Check for spurious 85°C reading. This could be caused by e.g. a power
    * glitch after the sample was requested. */
   if ((0x0C == scratch.res_X) && (DS_T85DEG == tempRes.temp)) {
     tempRes.status = TEMP_BAD_SENSOR;
     return tempRes;
   }
 
-  /* Ensure in range: 125ºC >= T >= -55ºC */
+  /* Ensure in range: 125°C >= T >= -55°C */
   if ((DS_TNEG55DEG > scratch.temp) || (DS_T125DEG < scratch.temp)) {
     tempRes.status = TEMP_OUT_OF_RANGE;
     return tempRes;
