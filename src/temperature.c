@@ -83,13 +83,13 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
     ds18b20PowerOn();
     while ((i < numSensors) && presence) {
       DS18B20_Res_t dsbResult = ds18b20ReadSample(i);
-      if (TEMP_NO_SENSORS == dsbResult.status) {
-        pDst[i]  = 4864; /* 304°C */
-        presence = false;
+      if (TEMP_OK == dsbResult.status) {
+        pDst[i] = dsbResult.temp;
       } else if (TEMP_OUT_OF_RANGE == dsbResult.status) {
         pDst[i] = 4832; /* 302°C */
       } else {
-        pDst[i] = dsbResult.temp;
+        pDst[i]  = 4864; /* 304°C */
+        presence = false;
       }
       i++;
     }
