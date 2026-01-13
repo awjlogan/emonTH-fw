@@ -43,12 +43,6 @@ void samlSleepIdle(void) {
     ;
 }
 
-void samlSleepOff(void) {
-  PM->SLEEPCFG.reg = PM_SLEEPCFG_SLEEPMODE_OFF;
-  while (PM->SLEEPCFG.reg != PM_SLEEPCFG_SLEEPMODE_OFF)
-    ;
-}
-
 void samlSleepStandby(void) {
   PM->SLEEPCFG.reg = PM_SLEEPCFG_SLEEPMODE_STANDBY;
   while (PM->SLEEPCFG.reg != PM_SLEEPCFG_SLEEPMODE_STANDBY)

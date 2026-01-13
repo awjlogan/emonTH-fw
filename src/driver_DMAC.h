@@ -49,11 +49,6 @@ void dmacEnableChannelInterrupt(unsigned int ch);
  */
 void dmacClearChannelInterrupt(unsigned int ch);
 
-/*! @brief Indicate if the SPI DMA is complete
- *  @return true if complete, false otherwise
- */
-bool dmacSPIComplete(void);
-
 /*! @brief Indicate if the UART DMA is complete
  *  @return true if complete, false otherwise
  */

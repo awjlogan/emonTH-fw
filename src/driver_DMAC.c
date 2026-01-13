@@ -1,11 +1,8 @@
 #include "driver_DMAC.h"
-#include "driver_ADC.h"
 #include "driver_PORT.h"
 #include "emonTH_saml.h"
 
 #include "emonTH.h"
-
-void irqHandlerADCCommon(void);
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
@@ -29,7 +26,6 @@ void dmacSetup(void) {
   /* Enable the DMAC interrupt in the NVIC, but leave the channel interrupt
    * enable/disable for each channel to the peripheral */
   NVIC_EnableIRQ(DMAC_UART_IRQn);
-  NVIC_EnableIRQ(DMAC_SPI_IRQn);
 }
 
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch) {
@@ -84,18 +80,10 @@ uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n) {
   return DMAC->CRCCHKSUM.reg;
 }
 
-bool dmacSPIComplete(void) { return dmacComplete[1]; }
-
 bool dmacUARTComplete(void) { return dmacComplete[0]; }
 
 /* UART DMA handler */
 void irq_handler_dmac_0(void) {
   dmacClearChannelInterrupt(DMA_CHAN_UART);
   dmacComplete[0] = true;
-}
-
-/* SPI DMA handler */
-void irq_handler_dmac_1(void) {
-  dmacClearChannelInterrupt(DMA_CHAN_SPI);
-  dmacComplete[1] = true;
 }
