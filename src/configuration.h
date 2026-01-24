@@ -31,9 +31,10 @@ typedef struct __attribute__((__packed__)) DataTxCfg_ {
 } DataTxCfg_t;
 
 typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
-  uint8_t timeMask;
-  bool    active;
-  uint8_t res0[2];
+  uint8_t timeMask; /* Minimum time between pulses */
+  bool    active;   /* In use */
+  uint8_t pu;       /* Pull config; 0 : none, 1 : down, 2 : up */
+  uint8_t res0;
 } PulseCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) SCDCfgPacked_ {

@@ -5,7 +5,7 @@
 #include "emonTH_assert.h"
 #include "emonTH_saml.h"
 
-static void tcSync(void);
+static void tcSync(Tc *t);
 static bool timerDelaySleepLP(const uint16_t t_ms);
 static bool timerSleepCommon(const uint32_t t_us);
 
@@ -45,8 +45,8 @@ void timerDelay_us(uint16_t delay) {
   // clang-format on
 }
 
-static void tcSync(void) {
-  while (TIMER_DELAY->COUNT16.SYNCBUSY.reg)
+static void tcSync(Tc *t) {
+  while (t->COUNT16.SYNCBUSY.reg)
     ;
 }
 
@@ -92,11 +92,9 @@ static bool timerDelaySleepLP(const uint16_t t_ms) {
   tdLPMatch   = false;
 
   TIMER_LP->COUNT16.CC[0].reg = cc;
-  while (TIMER_LP->COUNT16.SYNCBUSY.reg & TC_SYNCBUSY_CC0)
-    ;
+  tcSync(TIMER_LP);
   TIMER_LP->COUNT16.COUNT.reg = 0;
-  while (TIMER_LP->COUNT16.SYNCBUSY.reg & TC_SYNCBUSY_COUNT)
-    ;
+  tcSync(TIMER_LP);
   TIMER_LP->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
 
   while (!tdLPMatch) {
@@ -125,7 +123,9 @@ static bool timerSleepCommon(const uint32_t t_us) {
   tdMatch = false;
 
   TIMER_DELAY->COUNT16.CC[0].reg = cc;
+  tcSync(TIMER_DELAY);
   TIMER_DELAY->COUNT16.COUNT.reg = 0;
+  tcSync(TIMER_DELAY);
   TIMER_DELAY->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
 
   return true;
@@ -136,7 +136,12 @@ void timerFlush(void) {
   tcCB      = 0;
   tcEnabled = false;
   TIMER_DELAY->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
-  tcSync();
+  tcSync(TIMER_DELAY);
+}
+
+void timerPulseStart(void) {
+  tcSync(TIMER_PULSE);
+  TIMER_PULSE->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
 }
 
 void timerSetup() {
@@ -178,8 +183,8 @@ void timerSetup() {
                                      TC_CTRLA_PRESCSYNC_RESYNC | t->prescalar;
 
     t->instance->COUNT16.WAVE.reg     = TC_WAVE_WAVEGEN_NFRQ;
-    t->instance->COUNT16.COUNT.reg    = 0;
     t->instance->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
+    t->instance->COUNT16.COUNT.reg    = 0;
 
     NVIC_EnableIRQ(t->irqn);
   }
@@ -208,6 +213,13 @@ void timerSetupLED(void (*cb)()) {
   TIMER_LP->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
 
   NVIC_EnableIRQ(TIMER_LP_IRQn);
+}
+
+void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)()) {
+  EMONTH_ASSERT(cb);
+
+  tcPulseCB                      = cb;
+  TIMER_PULSE->COUNT16.CC[0].reg = (timeMask_ms * 1024 / 1000) - 1;
 }
 
 void TIMER_DELAY_HANDLER(void) {
@@ -258,4 +270,6 @@ void TIMER_LP_HANDLER(void) {
 void TIMER_PULSE_HANDLER(void) {
   TIMER_PULSE->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
   tcPulseCB();
+  tcSync(TIMER_PULSE);
+  TIMER_PULSE->COUNT16.COUNT.reg = 0;
 }

@@ -123,7 +123,7 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum) {
 
   /* Configure the pulse input if in use. */
   if (pCfg->pulseCfg.active) {
-    pulseInit(pCfg->pulseCfg.timeMask);
+    pulseInit(pCfg->pulseCfg.timeMask, pCfg->pulseCfg.pu);
   }
 
   /* Find I2C sensors */

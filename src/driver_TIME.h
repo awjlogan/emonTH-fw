@@ -42,6 +42,9 @@ bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)());
 /*! @brief Disable the timer */
 void timerFlush(void);
 
+/*! @brief Start the timer for pulse masking */
+void timerPulseStart(void);
+
 /*! @brief Sets up the system timer units */
 void timerSetup(void);
 
@@ -50,8 +53,11 @@ void timerSetup(void);
  */
 void timerSetupLED(void (*cb)());
 
-/*! @brief Set up the timer for pulse timing, if enabled */
-void timerSetupPulse(const uint8_t per, void (*cb)());
+/*! @brief Set up the timer for pulse timing
+ *  @param [in] timeMask_ms : pulse counting masked for this period (ms)
+ *  @param [in] cb : pointer to callback function
+ */
+void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)());
 
 /*! @brief Start the timer for pulse masking */
 void timerStartPulse(void);

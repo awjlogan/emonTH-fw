@@ -1,23 +1,14 @@
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
 
-typedef struct PulseCfg_ {
-  int  timeMask;
-  bool active;
-} PulseCfg_t;
-
-/*! Initialise the pulse counter */
-void pulseInit(uint8_t timeMask_ms);
+/*! @brief Initialise the pulse counter
+ *  @param [in] timeMask_ms : time to mask pulse counting (ms)
+ *  @param [in] pullCfg : pull configuration
+ */
+void pulseInit(const uint16_t timeMask_ms, const uint8_t pullCfg);
 
 /*! @brief Get the current pulse count value
  *  @return the current pulse count
  */
-uint32_t pulseGetCount();
-
-/*! @brief Callback function when the external interrupt fires */
-void pulseInterruptCB(void);
-
-/*! @brief Callback function when the masking timer expires */
-void pulseTimerCB(void);
+uint32_t pulseGetCount(void);

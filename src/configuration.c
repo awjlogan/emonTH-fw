@@ -79,6 +79,8 @@ static bool configDatalog(void) {
 
 /*! @brief Set all configuration values to defaults */
 static void configDefault(void) {
+  (void)memset(&config, 0, sizeof(config));
+
   config.baseCfg.nodeID     = NODE_ID_DEF;       // Node ID
   config.baseCfg.dataGrp    = NETWORK_GROUP_DEF; // Group for OEM
   config.baseCfg.reportTime = WAKE_PERIOD_DEF;   // Time between reports
@@ -90,7 +92,8 @@ static void configDefault(void) {
   config.dataTxCfg.rfmFreq = 3;                     // 433.92 MHz
 
   config.pulseCfg.active   = false; // Pulse channel inactive
-  config.pulseCfg.timeMask = 100u;  // 100 ms minimum between pulses
+  config.pulseCfg.pu       = 1;     // Pull down
+  config.pulseCfg.timeMask = 25u;   // 100 ms minimum between pulses
 
   config.scdCfg.altitude       = 0;   // Sea level
   config.scdCfg.sampleInterval = 600; // 10 minute CO2 sampling
@@ -149,12 +152,14 @@ static bool configNodeID(void) {
 
 static bool configPulse(void) {
   /* String format in inBuffer:
-   *      [1] -> active;
-   *      [3] -> NULL: blank time
+   *      [1] -> active
+   *      [3] -> pull configuration
+   *      [5] -> NULL: blank time
    */
   ConvInt_t convI;
   bool      active   = 0;
-  int       timeMask = 0;
+  uint8_t   pu       = 0;
+  uint8_t   timeMask = 0;
 
   convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
@@ -162,19 +167,33 @@ static bool configPulse(void) {
   }
   active = (bool)convI.val;
 
-  convI = utilAtoi(inBuffer + 3, ITOA_BASE10);
+  if (!active) {
+    config.pulseCfg.active = false;
+    return true;
+  }
+
+  switch (inBuffer[3]) {
+  case 'd':
+    pu = 1;
+    break;
+  case 'u':
+    pu = 2;
+    break;
+  case 'n':
+  default:
+    pu = 0;
+  }
+
+  convI = utilAtoi(inBuffer + 5, ITOA_BASE10);
   if (!convI.valid) {
     return false;
   }
-  timeMask = convI.val;
+  timeMask = (uint8_t)convI.val;
 
-  /* If inactive, clear active flag, no decode for the rest */
-  if (!active) {
-    config.pulseCfg.active = false;
-  } else {
-    config.pulseCfg.active   = true;
-    config.pulseCfg.timeMask = timeMask;
-  }
+  config.pulseCfg.active   = true;
+  config.pulseCfg.pu       = pu;
+  config.pulseCfg.timeMask = timeMask;
+
   return true;
 }
 
@@ -299,7 +318,7 @@ static char *getLastReset(void) {
   return "Unknown";
 }
 
-/*! @brief Fetch the SAML's 128bit unique ID
+/*! @brief Fetch part of the SAML's 128bit unique ID
  *  @param [in] idx : index of 32bit word
  *  @return 32bit word from index
  */
@@ -496,30 +515,33 @@ static bool configProcessCmd(void) {
   const char helpText[] =
       "\r\n"
       "emonTH information and configuration commands\r\n\r\n"
-      " - ?           : show this text again\r\n"
-      " - a<n> <m>    : Configure SCD4x CO2 sensor\r\n"
+      " - ?             : show this text again\r\n"
+      " - a<n> <m>      : Configure SCD4x CO2 sensor\r\n"
       "     -  n : sample interval (s)\r\n"
       "     -  m : altitude above sea level (m)\r\n"
-      " - c<n>        : enable UART. n = 0: OFF, n = 1: ON\r\n"
-      " - d<n>        : set the data acquisition period\r\n"
-      " - e<n>        : number of external temperature sensors (0, 1, or 4)\r\n"
-      " - f           : exit, lock, and continue\r\n"
-      " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
-      " - l           : list settings\r\n"
-      " - m <x> <y>   : Pulse counting.\r\n"
-      "     - x = 0: OFF, x = 1, ON.\r\n"
-      "     - y : minimum period (ms). Ignored if x = 0\r\n"
-      " - n<n>        : set node ID [1..60].\r\n"
-      " - p<n>        : set the RF power level\r\n"
-      " - r           : restore defaults\r\n"
-      " - s           : save settings to NVM\r\n"
+      " - c<n>          : enable UART. n = 0: OFF, n = 1: ON\r\n"
+      " - d<n>          : set the data acquisition period\r\n"
+      " - e<n>          : number of external temperature sensors (0, 1, or "
+      "4)\r\n"
+      " - f             : exit, lock, and continue\r\n"
+      " - j<n>          : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
+      " - l             : list settings\r\n"
+      " - m <x> <y> <z> : Pulse counting\r\n"
+      "     - x = 0: OFF, x = 1, ON\r\n"
+      "     - y = n: no pull, y = d : pull down, y = u : pull up. Only for x = "
+      "1\r\n"
+      "     - z : minimum period (ms). Only for x = 1\r\n"
+      " - n<n>          : set node ID [1..60].\r\n"
+      " - p<n>          : set the RF power level\r\n"
+      " - r             : restore defaults\r\n"
+      " - s             : save settings to NVM\r\n"
       " - t<x> <yy> <yy> <yy> <yy> <yy> <yy> <yy> <yy>\r\n"
       "   : change an external sensor's position\r\n"
       "     - x: position of sensor in the list (1-based)\r\n"
       "     - yy : hexadecimal bytes, e.g. 28 81 43 31 07 00 00 D9\r\n"
-      " - v           : firmware and board information\r\n"
-      " - w<n>        : enable wireless. n = 0: OFF, n = 1: ON\r\n"
-      " - x<n>        : 433 MHz compatibility. n = 0: 433.92 MHz, n = 1: "
+      " - v             : firmware and board information\r\n"
+      " - w<n>          : enable wireless. n = 0: OFF, n = 1: ON\r\n"
+      " - x<n>          : 433 MHz compatibility. n = 0: 433.92 MHz, n = 1: "
       "433.00 MHz\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */
