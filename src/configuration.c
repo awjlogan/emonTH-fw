@@ -46,7 +46,15 @@ static bool  configSCD(void);
 static bool  configUART(void);
 static char *getLastReset(void);
 static void  inBufferClear(int n);
+static void  printInvalidVal(void);
+static void  printSettingJSON(void);
+static void  printSettingPeriod(void);
+static void  printSettingPulse(void);
+static void  printSettingRF(void);
+static void  printSettingRFFreq(void);
 static void  printSettings(void);
+static void  printSettingsHR(void);
+static void  printSettingsKV(void);
 static void  putInt(const int i);
 static void  putUniqueID(void);
 static void  sepNullBuffer(void);
@@ -62,17 +70,18 @@ static bool                 cmdPending    = false;
 static EmonTHConfigPacked_t config        = {0};
 static bool                 unsavedChange = false;
 
-/* The NVM page buffer must be 4 byte aligned for allow access from DFLASH */
-// uint8_t pageBuffer[FLASH_PAGE_SIZE] __attribute__((aligned(16))) = {0};
-
 static bool configDatalog(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
   if (convI.val < 5) {
+    uartPuts("> ERROR : sample period must be greater than 4 s\r\n");
     return false;
   }
+
+  printSettingPeriod();
   config.baseCfg.reportTime = convI.val;
   return true;
 }
@@ -102,11 +111,13 @@ static void configDefault(void) {
 static bool configExtTempMax(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
 
   /* Must be 0, 1 or 4 */
   if ((0 != convI.val) && (1 != convI.val) && (4 != convI.val)) {
+    uartPuts("> ERROR : must be in [0,1,4]\r\n");
     return false;
   }
 
@@ -117,10 +128,12 @@ static bool configExtTempMax(void) {
 static bool configJSON(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
 
   config.baseCfg.useJson = (bool)convI.val;
+  printSettingJSON();
   return true;
 }
 
@@ -140,13 +153,17 @@ static bool configOneWire(void) {
 static bool configNodeID(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
   if ((convI.val < 1) || (convI.val > 60)) {
+    uartPuts("> ERROR : ID must be [1..60]\r\n");
     return false;
   }
 
   config.baseCfg.nodeID = convI.val;
+
+  printSettingRF();
   return true;
 }
 
@@ -163,12 +180,14 @@ static bool configPulse(void) {
 
   convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
   active = (bool)convI.val;
 
   if (!active) {
     config.pulseCfg.active = false;
+    printSettingPulse();
     return true;
   }
 
@@ -186,6 +205,7 @@ static bool configPulse(void) {
 
   convI = utilAtoi(inBuffer + 5, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
   timeMask = (uint8_t)convI.val;
@@ -194,6 +214,7 @@ static bool configPulse(void) {
   config.pulseCfg.pu       = pu;
   config.pulseCfg.timeMask = timeMask;
 
+  printSettingPulse();
   return true;
 }
 
@@ -201,11 +222,13 @@ static bool configRF433(void) {
   int val = inBuffer[1] - '0';
 
   if (!((0 == val) || (1 == val))) {
+    printInvalidVal();
     return false;
   }
 
   /* Only applies to 433 MHz ISM band */
   if (!((config.dataTxCfg.rfmFreq == 2) || (config.dataTxCfg.rfmFreq == 3))) {
+    uartPuts("> ERROR : only for 433 MHz ISM\r\n");
     return false;
   }
 
@@ -222,9 +245,11 @@ static bool configRF433(void) {
 static bool configRFM(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
   if ((0 != convI.val) && (1 != convI.val)) {
+    printInvalidVal();
     return false;
   }
   if (convI.val) {
@@ -238,13 +263,17 @@ static bool configRFM(void) {
 static bool configRFPower(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
   if ((convI.val < 0) || (convI.val > 31)) {
+    uartPuts("> ERROR : power must be in range [1..31]\r\n");
     return false;
   }
 
   config.dataTxCfg.rfmPwr = convI.val;
+
+  printSettingRF();
   return true;
 }
 
@@ -277,9 +306,11 @@ static bool configSCD(void) {
 static bool configUART(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
+    printInvalidVal();
     return false;
   }
   if ((convI.val != 0) && (convI.val != 1)) {
+    printInvalidVal();
     return false;
   }
   if (convI.val) {
@@ -334,7 +365,79 @@ static void inBufferClear(int n) {
   (void)memset(inBuffer, 0, n);
 }
 
+static void printInvalidVal(void) { uartPuts("> ERROR : invalid value\r\n"); }
+
+static void printSettingJSON(void) {
+  uartPuts("json = ");
+  uartPuts(config.baseCfg.useJson ? "on" : "off");
+  uartPuts("\r\n");
+}
+
+static void printSettingPeriod(void) {
+  uartPuts("report time = ");
+  putInt(config.baseCfg.reportTime);
+  uartPuts("\r\n");
+}
+
+static void printSettingPulse(void) {
+  uartPuts("pulse = ");
+  uartPuts(config.pulseCfg.active ? "on" : "off");
+
+  const uint8_t pu = config.pulseCfg.pu;
+  uartPuts(", pull = ");
+  uartPuts((0 == pu) ? "none" : (1 == pu ? "down" : "up"));
+  uartPuts(", period = ");
+  putInt(config.pulseCfg.timeMask);
+  uartPuts("\r\n");
+}
+
+static void printSettingRF(void) {
+  uartPuts("RF = ");
+  uartPuts(config.dataTxCfg.txType & 0x01 ? "on" : "off");
+  uartPuts(", rfBand = ");
+  printSettingRFFreq();
+  uartPuts(" MHz, ");
+  uartPuts(", rfGroup = ");
+  putInt(config.baseCfg.dataGrp);
+  uartPuts(", rfNode = ");
+  putInt(config.baseCfg.nodeID);
+  uartPuts(", rfPower = ");
+  putInt(config.dataTxCfg.rfmPwr);
+  uartPuts(", rfFormat = LowPowerLabs\r\n");
+}
+
+static void printSettingRFFreq(void) {
+  switch (config.dataTxCfg.rfmFreq) {
+  case 0:
+    uartPuts("868");
+    break;
+  case 1:
+    uartPuts("915");
+    break;
+  case 2:
+    uartPuts("433.00");
+    break;
+  case 3:
+    uartPuts("433.92");
+    break;
+  }
+}
+
 static void printSettings(void) {
+  if ('h' == inBuffer[1]) {
+    printSettingsHR();
+  } else {
+    printSettingsKV();
+  }
+
+  if (unsavedChange) {
+    uartPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
+  } else {
+    uartPuts("All settings saved.\r\n\r\n");
+  }
+}
+
+static void printSettingsHR(void) {
   uartPuts("\r\n\r\n==== Settings ====\r\n\r\n");
 
   uartPuts("Base Node ID      : ");
@@ -356,20 +459,7 @@ static void printSettings(void) {
   uartPuts("Data transmission :\r\n");
   if (config.dataTxCfg.txType & 0x1) {
     uartPuts("  - RFM69, ");
-    switch (config.dataTxCfg.rfmFreq) {
-    case 0:
-      uartPuts("868");
-      break;
-    case 1:
-      uartPuts("915");
-      break;
-    case 2:
-      uartPuts("433.00");
-      break;
-    case 3:
-      uartPuts("433.92");
-      break;
-    }
+    printSettingRFFreq();
     uartPuts(" MHz @ ");
     putInt(config.dataTxCfg.rfmPwr - 18);
     uartPuts("dB\r\n");
@@ -380,17 +470,23 @@ static void printSettings(void) {
 
   uartPuts("Pulse channel     : ");
   if (config.pulseCfg.active) {
+    const uint8_t pu = config.pulseCfg.pu;
     uartPuts("Enabled\r\n  - Hysteresis (ms): ");
     putInt(config.pulseCfg.timeMask);
     uartPuts("\r\n");
+    uartPuts("  - Pull :");
+    uartPuts((0 == pu) ? "off" : ((1 == pu) ? "down" : "up"));
   } else {
     uartPuts("Disabled");
   }
   uartPuts("\r\n\r\n");
+}
 
-  if (unsavedChange) {
-    uartPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
-  }
+static void printSettingsKV(void) {
+  printSettingPeriod();
+  printSettingRF();
+  printSettingPulse();
+  printSettingJSON();
 }
 
 static void putInt(const int i) {
@@ -525,7 +621,8 @@ static bool configProcessCmd(void) {
       "4)\r\n"
       " - f             : exit, lock, and continue\r\n"
       " - j<n>          : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
-      " - l             : list settings\r\n"
+      " - l             : list settings (key / value)\r\n"
+      " - lh            : list settings (human readable)\r\n"
       " - m <x> <y> <z> : Pulse counting\r\n"
       "     - x = 0: OFF, x = 1, ON\r\n"
       "     - y = n: no pull, y = d : pull down, y = u : pull up. Only for x = "
