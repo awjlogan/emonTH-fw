@@ -62,7 +62,7 @@ typedef struct EmonTHDataset_ {
 typedef struct __attribute__((__packed__)) PackedData_4Ext_ {
   int16_t  tempInternal;
   int16_t  tempExternal[TEMP_MAX_ONEWIRE];
-  int16_t  humidityInternal;
+  uint16_t humidityInternal;
   uint16_t battery;
   uint32_t pulse;
   uint16_t co2;

@@ -5,8 +5,8 @@
 
 /* Packed to ensure the sequential read out from the hardware is correct */
 typedef struct __attribute__((__packed__)) HDCResultInt_ {
-  int16_t temp;
-  int16_t humidity;
+  int16_t  temp;
+  uint16_t humidity;
 } HDCResultRaw_t;
 
 /*! @brief Start a conversion for the HDC2010 */
