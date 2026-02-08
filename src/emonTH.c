@@ -25,6 +25,8 @@
 #include "temperature.h"
 #include "util.h"
 
+#define N_STEPS (32u)
+
 typedef struct TransmitOpt_ {
   bool json;
   bool useRFM;
@@ -37,7 +39,7 @@ typedef struct TransmitOpt_ {
 
 static volatile bool     interactiveUart    = false;
 static volatile bool     interactiveTimeout = false;
-static volatile int      ledPulseOvf        = 0;
+static volatile uint32_t ledPulseOvf        = 0;
 static volatile uint32_t evtPend;
 AssertInfo_t             g_assert_info;
 
@@ -45,21 +47,21 @@ AssertInfo_t             g_assert_info;
  * Static function prototypes
  *************************************/
 
-static void    boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum);
+static void    boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum);
 static void    errorFatal(void);
-static bool    evtPending(EVTSRC_t evt);
-static void    gpioClr(const int gpio);
-static void    gpioSet(const int gpio);
+static bool    evtPending(const EVTSRC_t evt);
+static void    gpioClr(const size_t gpio);
+static void    gpioSet(const size_t gpio);
 static void    ledPulseOvfIncr(void);
-static void    measureExternal(EmonTHDataset_t *pData, int numExt);
+static void    measureExternal(EmonTHDataset_t *pData, const size_t numExt);
 static void    measureInternal(EmonTHDataset_t *pData);
 static uint8_t readSlideSW(void);
-static void    regEnable(bool dly);
+static void    regEnable(const bool dly);
 static void    regDisable(void);
-static int     tempSetup(void);
+static size_t  tempSetup(void);
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer);
-static void txOptions(EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt);
+static void txOptions(const EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt);
 static void ucSetup(void);
 static void interactiveWait(void);
 
@@ -88,7 +90,7 @@ void emonTHEventSet(const EVTSRC_t evt) {
   __enable_irq();
 }
 
-static void boardSetup(EmonTHConfigPacked_t *pCfg, int *tempNum) {
+static void boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum) {
   char strBuffer[8];
 
   uint8_t swVal = readSlideSW();
@@ -160,26 +162,26 @@ static void errorFatal(void) {
  *  @param [in] : event source to check
  *  @return true if pending, false otherwise
  */
-static bool evtPending(EVTSRC_t evt) {
+static bool evtPending(const EVTSRC_t evt) {
   bool ret = (evtPend & (1u << evt)) ? true : false;
   evtPend &= ~(1u << evt);
   return ret;
 }
 
-static void gpioClr(const int gpio) {
-  const int pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
+__attribute__((__unused__)) static void gpioClr(const size_t gpio) {
+  const size_t pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
   portPinDrv(pin, PIN_DRV_CLR);
 }
 
-static void gpioSet(const int gpio) {
-  const int pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
+__attribute__((__unused__)) static void gpioSet(const size_t gpio) {
+  const size_t pin = (0 == gpio) ? PIN_GPIO0 : PIN_GPIO1;
   portPinDrv(pin, PIN_DRV_SET);
 }
 
 static void interactiveWait(void) {
   /* Wait for 5 s with LED flashing @ 2 Hz. Enter configuration mode by pressing
    * any key. */
-  int remain = 4;
+  uint32_t remain = 4;
 
   uartPuts("> Press any key within 5 seconds to enter "
            "configuration.\r\n");
@@ -193,7 +195,7 @@ static void interactiveWait(void) {
 
     if (!(ledPulseOvf % (N_STEPS * 2)) && (0 != remain)) {
       char strbuf[4] = {0};
-      utilItoa(strbuf, remain--, ITOA_BASE10);
+      utilItoa(strbuf, (int32_t)(remain--), ITOA_BASE10);
       uartPuts(strbuf);
     } else if (!(ledPulseOvf % (N_STEPS / 2))) {
       uartPuts(".");
@@ -212,7 +214,7 @@ static void interactiveWait(void) {
 
 static void ledPulseOvfIncr(void) { ledPulseOvf++; }
 
-static void measureExternal(EmonTHDataset_t *pData, int numExt) {
+static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
   /* Only a single external will be reported, use 300°C for OEM */
   if (!numExt) {
     pData->tempExternal[0] = 4800;
@@ -223,12 +225,12 @@ static void measureExternal(EmonTHDataset_t *pData, int numExt) {
   if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
 
     // REVISIT : sleep is not long enough, need to do extra loops.
-    for (int i = 0; i < 2; i++) {
-      timerDelaySleep_ms(800);
+    for (size_t i = 0; i < 2u; i++) {
+      timerDelaySleep_ms(800u);
     }
   }
 
-  for (int i = 0; i < numExt; i++) {
+  for (size_t i = 0; i < numExt; i++) {
     tempSampleRead(TEMP_INTF_ONEWIRE, pData->tempExternal);
   }
 }
@@ -259,7 +261,7 @@ static uint8_t readSlideSW(void) {
 
   /* If the pin has been pulled low, then disable the pull up as the pin already
    * has a defined value. */
-  for (int i = 0; i < 2; i++) {
+  for (size_t i = 0; i < 2u; i++) {
     unsigned int pinVal = portPinValue(swPin[i]);
     swVal |= pinVal << i;
     if (0 == pinVal) {
@@ -275,7 +277,7 @@ static void regDisable(void) { portPinDrv(PIN_REG_EN, PIN_DRV_CLR); }
 /*! @brief Enable the external boost regulator
  *  @param [in] dly : apply 128 us delay to allow 3V3 to settle (Figure 27)
  */
-static void regEnable(bool dly) {
+static void regEnable(const bool dly) {
   portPinDrv(PIN_REG_EN, PIN_DRV_SET);
   if (dly) {
     timerDelay_us(128);
@@ -285,7 +287,7 @@ static void regEnable(bool dly) {
 /*! @brief Initialises the temperature sensors
  *  @return number of temperature sensors found
  */
-static int tempSetup(void) { return tempSensorsInit(TEMP_INTF_ONEWIRE, 0); }
+static size_t tempSetup(void) { return tempSensorsInit(TEMP_INTF_ONEWIRE, 0); }
 
 static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer) {
@@ -311,7 +313,7 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
   samlSleepStandby();
 }
 
-static void txOptions(EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt) {
+static void txOptions(const EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt) {
   pOpt->json = pCfg->baseCfg.useJson;
 
   switch ((TxType_t)pCfg->dataTxCfg.txType) {
@@ -350,7 +352,7 @@ int main(void) {
 
   EmonTHDataset_t       dataset               = {0};
   EmonTHConfigPacked_t *pConfig               = 0;
-  int                   tempExtNum            = 0;
+  size_t                tempExtNum            = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
   TransmitOpt_t         txOpt                 = {0};
 

@@ -27,11 +27,8 @@
  *    Rx (data in):   pin 12, PA09, pad 1 (RXPO = 1)
  */
 
-// static void setupI2C(void);
-// static void setupUart(void);
 static void setupSPI(void);
 static void uartConfigureDMA(void);
-static void spiConfigureDMA(void);
 
 static volatile bool i2cTimeout = false;
 
@@ -97,7 +94,6 @@ static void setupSPI(void) {
    */
   SERCOM_SPI->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_RXEN;
 
-  spiConfigureDMA();
   spiEnable();
 }
 
@@ -262,7 +258,7 @@ void uartInterruptClear(uint32_t interrupt) {
  * I2C Functions
  * =====================================
  */
-I2CM_Status_t i2cActivate(uint8_t addr) {
+I2CM_Status_t i2cActivate(const uint8_t addr) {
   I2CM_Status_t s = I2CM_SUCCESS;
 
   SERCOM_I2CM->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
@@ -287,7 +283,7 @@ void i2cAck(I2CM_Ack_t ack, I2CM_AckCmd_t cmd) {
     ;
 }
 
-void i2cDataWrite(uint8_t data) {
+void i2cDataWrite(const uint8_t data) {
   SERCOM_I2CM->I2CM.DATA.reg = data;
   while (!(SERCOM_I2CM->I2CM.INTFLAG.reg & SERCOM_I2CM_INTFLAG_MB))
     ;
@@ -323,10 +319,6 @@ bool i2cEnabled(void) {
   return SERCOM_I2CM->I2CM.CTRLA.reg & SERCOM_I2CM_CTRLA_ENABLE;
 }
 
-void i2cEnableSmartMode(void) {
-  SERCOM_I2CM->I2CM.CTRLB.reg |= SERCOM_I2CM_CTRLB_SMEN;
-}
-
 void i2cSetTimeout(void) { i2cTimeout = true; }
 
 /*
@@ -334,23 +326,6 @@ void i2cSetTimeout(void) { i2cTimeout = true; }
  * SPI Functions
  * =====================================
  */
-
-static void spiConfigureDMA(void) {
-  volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_SPI);
-  dmacDesc->BTCTRL.reg = DMAC_BTCTRL_BLOCKACT_INT | DMAC_BTCTRL_STEPSIZE_X1 |
-                         DMAC_BTCTRL_STEPSEL_SRC | DMAC_BTCTRL_SRCINC |
-                         DMAC_BTCTRL_BEATSIZE_BYTE;
-
-  dmacDesc->DSTADDR.reg  = (uint32_t)&SERCOM_SPI->SPI.DATA;
-  dmacDesc->DESCADDR.reg = 0u;
-
-  dmacChannelConfigure(DMA_CHAN_SPI,
-                       (DMAC_CHCTRLB_LVL(1u) |
-                        DMAC_CHCTRLB_TRIGSRC(SERCOM_SPI_DMAC_ID_TX) |
-                        DMAC_CHCTRLB_TRIGACT_BEAT));
-
-  dmacEnableChannelInterrupt(DMA_CHAN_SPI);
-}
 
 void spiDeSelect(const Pin_t nSS) { portPinDrv(nSS.pin, PIN_DRV_SET); }
 
@@ -368,24 +343,12 @@ void spiEnable(void) {
 
 void spiSelect(const Pin_t nSS) { portPinDrv(nSS.pin, PIN_DRV_CLR); }
 
-void spiSendBuffer(const void *pSrc, int n) {
+void spiSendBuffer(const void *pSrc, size_t n) {
   uint8_t *pData = (uint8_t *)pSrc;
 
   while (n--) {
     spiSendByte(*pData++);
   }
-}
-
-void spiSendBufferNonBlocking(const void *pSrc, int n) {
-  volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_SPI);
-
-  /* Valid bit is cleared when a channel is complete */
-  dmacDesc->BTCTRL.reg |= DMAC_BTCTRL_VALID;
-  dmacDesc->BTCNT.reg   = n;
-  dmacDesc->SRCADDR.reg = (uint32_t)pSrc + n;
-
-  dmacClearChannelInterrupt(DMA_CHAN_SPI);
-  dmacChannelEnable(DMA_CHAN_SPI);
 }
 
 uint8_t spiSendByte(const uint8_t b) {

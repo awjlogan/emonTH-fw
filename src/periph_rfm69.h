@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 #define RFM_PALEVEL_DEF                                                        \
   0x19 /* Default power level must be below maximum                            \
         * in case there is no antenna - this can                               \
@@ -48,7 +50,7 @@ bool rfmSendComplete(void);
  *  @param [in] : number of bytes to be sent
  *  @return result of the attempt to send
  */
-RFMSend_t rfmSendBuffer(const int_fast8_t n);
+RFMSend_t rfmSendBuffer(const size_t n);
 
 /*! @brief Sets the RFM69's address
  *  @param [in] addr : address to set the RFM69

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "emonTH_saml.h"
 
@@ -9,7 +10,7 @@
  *  @param [in] n : number of bytes in data
  *  @return CRC16 CCITT value
  */
-uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n);
+uint16_t calcCRC16_ccitt(const void *pSrc, size_t n);
 
 /*! @brief Setup the DMAC peripheral */
 void dmacSetup(void);

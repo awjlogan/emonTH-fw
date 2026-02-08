@@ -18,7 +18,7 @@ void portPinDir(unsigned int pin, PINDIR_t mode) {
   }
 }
 
-void portPinDrv(unsigned int pin, PINDRV_t drv) {
+void portPinDrv(size_t pin, PINDRV_t drv) {
   switch (drv) {
   case PIN_DRV_CLR:
     PORT->Group[0].OUTCLR.reg = (1u << pin);

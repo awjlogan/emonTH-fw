@@ -3,11 +3,10 @@
 
 #include "emonTH_assert.h"
 
-#include "driver_ADC.h"
 #include "driver_NVM.h"
 #include "driver_PORT.h"
+#include "driver_SAML.h"
 #include "driver_SERCOM.h"
-#include "driver_TIME.h"
 
 #include "configuration.h"
 #include "emonTH.h"
@@ -45,7 +44,7 @@ static void  configSaveToNVM(void);
 static bool  configSCD(void);
 static bool  configUART(void);
 static char *getLastReset(void);
-static void  inBufferClear(int n);
+static void  inBufferClear(void);
 static void  printInvalidVal(void);
 static void  printSettingJSON(void);
 static void  printSettingPeriod(void);
@@ -63,9 +62,10 @@ static void  sepNullBuffer(void);
  * Local variables
  *************************************/
 
-#define IN_BUFFER_W 16
+#define IN_BUFFER_W (16u)
+
 static char                 inBuffer[IN_BUFFER_W];
-static int                  inBufferIdx   = 0;
+static size_t               inBufferIdx   = 0;
 static bool                 cmdPending    = false;
 static EmonTHConfigPacked_t config        = {0};
 static bool                 unsavedChange = false;
@@ -253,9 +253,9 @@ static bool configRFM(void) {
     return false;
   }
   if (convI.val) {
-    config.dataTxCfg.txType |= (1 << 0);
+    config.dataTxCfg.txType |= (1u << 0);
   } else {
-    config.dataTxCfg.txType &= ~(1 << 0);
+    config.dataTxCfg.txType &= ~(1u << 0);
   }
   return true;
 }
@@ -314,9 +314,9 @@ static bool configUART(void) {
     return false;
   }
   if (convI.val) {
-    config.dataTxCfg.txType |= (1 << 1);
+    config.dataTxCfg.txType |= (1u << 1);
   } else {
-    config.dataTxCfg.txType &= ~(1 << 1);
+    config.dataTxCfg.txType &= ~(1u << 1);
   }
   return true;
 }
@@ -353,16 +353,16 @@ static char *getLastReset(void) {
  *  @param [in] idx : index of 32bit word
  *  @return 32bit word from index
  */
-uint32_t getUniqueID(int idx) {
+uint32_t getUniqueID(const size_t idx) {
   /* Section 10.3 Serial Number */
   const uint32_t id_addr_lut[4] = {0x0080A00C, 0x0080A040, 0x0080A044,
                                    0x0080A048};
   return *(volatile uint32_t *)id_addr_lut[idx];
 }
 
-static void inBufferClear(int n) {
+static void inBufferClear(void) {
   inBufferIdx = 0;
-  (void)memset(inBuffer, 0, n);
+  (void)memset(inBuffer, 0, IN_BUFFER_W);
 }
 
 static void printInvalidVal(void) { uartPuts("> ERROR : invalid value\r\n"); }
@@ -497,14 +497,14 @@ static void putInt(const int i) {
 
 static void putUniqueID(void) {
   char strBuffer[8];
-  for (int i = 0; i < 4; i++) {
-    utilItoa(strBuffer, getUniqueID(i), ITOA_BASE16);
+  for (size_t i = 0; i < 4u; i++) {
+    utilItoa(strBuffer, (int32_t)getUniqueID(i), ITOA_BASE16);
     uartPuts(strBuffer);
   }
 }
 
 static void sepNullBuffer(void) {
-  for (int i = 0; i < IN_BUFFER_W; i++) {
+  for (size_t i = 0; i < IN_BUFFER_W; i++) {
     if (0 == inBuffer[i]) {
       break;
     } else if (' ' == inBuffer[i]) {
@@ -528,7 +528,7 @@ void configCmdChar(const uint8_t c) {
   } else if ((inBufferIdx < (IN_BUFFER_W - 1)) && utilCharPrintable(c)) {
     inBuffer[inBufferIdx++] = c;
   } else {
-    inBufferClear(IN_BUFFER_W);
+    inBufferClear();
     uartPuts("\r\n");
   }
 }
@@ -536,7 +536,7 @@ void configCmdChar(const uint8_t c) {
 void configEnter(void) {
 
   portPinDrv(PIN_LED, PIN_DRV_SET);
-  inBufferClear(IN_BUFFER_W);
+  inBufferClear();
 
   uartPuts("\033c==== emonTH3 Configuration ====\r\n\r\n");
   uartPuts("'?' to list commands\r\n\r\n");
@@ -608,7 +608,7 @@ static bool configProcessCmd(void) {
   bool         cmdUnsaved = false;
 
   /* Help text - serves as documentation interally as well */
-  const char helpText[] =
+  static const char helpText[] =
       "\r\n"
       "emonTH information and configuration commands\r\n\r\n"
       " - ?             : show this text again\r\n"
@@ -717,7 +717,7 @@ static bool configProcessCmd(void) {
     unsavedChange = cmdUnsaved;
   }
   cmdPending = false;
-  inBufferClear(arglen + 1);
+  inBufferClear();
   return exitConfig;
 }
 

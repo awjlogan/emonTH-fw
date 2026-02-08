@@ -2,22 +2,12 @@
 
 #include <stdint.h>
 
-#include "board_def.h"
-#include "emonTH_saml.h"
-
 typedef enum Calibration_ {
   CAL_ADC_BIASREFBUF,
   CAL_ADC_BIASCOMP,
   CAL_DFLLULP_PL0,
   CAL_DFLLULP_PL1,
 } Calibration_t;
-
-typedef enum SleepMode_t {
-  SLEEP_MODE_ACTIVE  = 0,                             /* No sleep mode  */
-  SLEEP_MODE_IDLE    = PM_SLEEPCFG_SLEEPMODE_IDLE,    /* CPU clock gated */
-  SLEEP_MODE_STANDBY = PM_SLEEPCFG_SLEEPMODE_STANDBY, /* Only OSCULP32K */
-  SLEEP_MODE_OFF     = PM_SLEEPCFG_SLEEPMODE_OFF
-} SleepMode_t;
 
 /*! @brief Return the calibration value from the NVM Calibration Row, described
  *         in Table 9-4

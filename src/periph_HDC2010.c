@@ -1,11 +1,13 @@
-#include "periph_HDC2010.h"
+#include <stddef.h>
+
 #include "board_def.h"
 #include "driver_EIC.h"
 #include "driver_SAML.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
+#include "periph_HDC2010.h"
 
-#define HDC_ADDR 0x40 /* ADDR tied LOW */
+#define HDC_ADDR (0x40) /* ADDR tied LOW */
 
 static const uint8_t HDC2010_TEMP_LSB        = 0x00u;
 static const uint8_t HDC2010_INT_CFG         = 0x07u;
@@ -16,7 +18,7 @@ static volatile bool sampleStarted = false;
 static volatile bool sampleReady   = false;
 
 static void hdc2010Interrupt(void);
-static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n);
+static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const size_t n);
 static bool hdc2010RegWrite(const uint8_t reg, const uint8_t data);
 
 void hdc2010ConversionStart(void) {
@@ -28,16 +30,17 @@ bool hdc2010ConversionStarted(void) { return sampleStarted; }
 
 static void hdc2010Interrupt(void) { sampleReady = true; }
 
-static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst, const int n) {
+static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst,
+                            const size_t n) {
   uint8_t *buffer = (uint8_t *)pDst;
   if (I2CM_SUCCESS == i2cActivate((HDC_ADDR << 1))) {
     i2cDataWrite(ptrStart);
     i2cAck(I2CM_ACK, I2CM_ACK_CMD_STOP);
   }
-  if (I2CM_SUCCESS == (i2cActivate(((HDC_ADDR << 1) + 1)))) {
-    for (int i = 0; i < n; i++) {
+  if (I2CM_SUCCESS == (i2cActivate(((HDC_ADDR << 1) + 1u)))) {
+    for (size_t i = 0; i < n; i++) {
       *buffer++ = i2cDataRead();
-      if (i < (n - 1)) {
+      if (i < (n - 1u)) {
         i2cAck(I2CM_ACK, I2CM_ACK_CMD_CONTINUE);
       }
     }
@@ -68,9 +71,9 @@ bool hdc2010Setup(void) {
                                .pin   = PIN_HDC_DRDY,
                                .sense = EIC_SENSE_HDC});
 
-  if (!hdc2010RegWrite(HDC2010_INT_CFG, (1 << 7))) {
+  if (!hdc2010RegWrite(HDC2010_INT_CFG, (1u << 7))) {
     return false;
   }
   /* Interrupt output enabled, active HIGH */
-  return hdc2010RegWrite(HDC2010_DRDYINT_CFG, ((1 << 2) | (1 << 1)));
+  return hdc2010RegWrite(HDC2010_DRDYINT_CFG, ((1u << 2) | (1u << 1)));
 }

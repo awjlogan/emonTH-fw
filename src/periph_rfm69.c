@@ -36,7 +36,7 @@ static uint8_t   rfmReadReg(const uint8_t addr);
 static int16_t   rfmReadRSSI(void);
 static void      rfmRxBegin(void);
 static bool      rfmRxDone(void);
-static RFMSend_t rfmSendNoRetry(uint8_t n);
+static RFMSend_t rfmSendNoRetry(const size_t n);
 static void      rfmSetMode(int_fast8_t mode);
 static bool      rfmTxAvailable(void);
 static void      rfmWriteReg(const uint8_t addr, const uint8_t data);
@@ -186,7 +186,7 @@ static bool rfmRxDone(void) {
   return false;
 }
 
-static RFMSend_t rfmSendNoRetry(uint8_t n) {
+static RFMSend_t rfmSendNoRetry(const size_t n) {
   sendComplete = false;
 
   // "send" in LPL
@@ -386,7 +386,7 @@ bool rfmInit(RFMOpt_t *pOpt) {
   return true;
 }
 
-RFMSend_t rfmSendBuffer(const int_fast8_t n) {
+RFMSend_t rfmSendBuffer(const size_t n) {
   if (n > 61) {
     return RFM_N_TOO_LARGE;
   }

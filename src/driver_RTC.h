@@ -1,15 +1,19 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "emonTH.h"
 #include "emonTH_saml.h"
 
 typedef struct RTC_Evt_ {
-  int      smpInterval; /* Sample interval (s) */
+  uint16_t smpInterval; /* Sample interval (s) */
   EVTSRC_t evt;         /* Event ID */
 } RTC_Evt_t;
 
-/*! @brief Enable the RTC counter with interrupt on overflow */
-void rtcEnable(int period);
+/*! @brief Enable the RTC counter with interrupt on overflow
+ *  @param [in] period : RTC overflow period (s)
+ */
+void rtcEnable(const uint16_t period);
 
 /*! @brief Register a periodic event with the RTC
  *  @param [in] rtcevt : event to be registered

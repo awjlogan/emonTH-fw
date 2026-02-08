@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "emonTH.h"
 
@@ -23,5 +24,5 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
  *  @param [in] json : select JSON output (true), or K:V (false)
  *  @return the number of the characters that would be packed
  */
-int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
-                   int m, bool json);
+size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
+                      char *restrict pDst, const size_t m, const bool json);

@@ -7,7 +7,7 @@
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
 
-static volatile bool dmacComplete[2] = {0};
+static volatile bool dmacComplete[NUM_CHAN_DMA] = {false};
 
 /* Useful ref: https://aykevl.nl/2019/09/samd21-dma */
 
@@ -21,7 +21,6 @@ void dmacSetup(void) {
   DMAC->CRCCTRL.reg = DMAC_CRCCTRL_CRCSRC_IO;
 
   dmacComplete[0] = true;
-  dmacComplete[1] = true;
 
   /* Enable the DMAC interrupt in the NVIC, but leave the channel interrupt
    * enable/disable for each channel to the peripheral */
@@ -58,7 +57,7 @@ void dmacChannelConfigure(unsigned int ch, const uint32_t ctrlb) {
   DMAC->CHCTRLB.reg = ctrlb;
 }
 
-uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n) {
+uint16_t calcCRC16_ccitt(const void *pSrc, size_t n) {
   const uint8_t *pData = (uint8_t *)pSrc;
 
   /* CCITT is 0xFFFF initial value */

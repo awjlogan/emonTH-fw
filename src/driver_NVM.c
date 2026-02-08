@@ -47,7 +47,7 @@ NVMStatus_t nvmDataFlashRead(const NVMPage_t page) {
   return status;
 }
 
-void nvmDataFlashWrite(const NVMPage_t page, const int n) {
+void nvmDataFlashWrite(const NVMPage_t page, const size_t n) {
   const uint32_t    *pBuf       = (const uint32_t *)pageBuffer;
   volatile uint32_t *nvmAddress = (volatile uint32_t *)NVMCTRL_DATAFLASH;
 

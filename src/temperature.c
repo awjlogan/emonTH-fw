@@ -11,28 +11,28 @@
 
 static volatile bool tempSampleReadyFlag = false;
 static bool          tempSampled         = false;
-static int           numSensors          = 0;
+static size_t        numSensors          = 0;
 
-void printOneWireDetails(DS18B20_Slot_t *pSlot, int numOneWire);
+void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire);
 void tempPowerOff(void);
 void tempPowerOn(void);
 
-void printOneWireDetails(DS18B20_Slot_t *pSlot, int numOneWire) {
+void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire) {
   uartPuts("  - DS18B20... ");
   if (numOneWire) {
     char s[4] = {0};
     uartPuts("\r\n");
-    for (int i = 0; i < numOneWire; i++) {
+    for (size_t i = 0; i < numOneWire; i++) {
       /*    > 1. xx xx xx xx xx xx xx xx */
       uartPuts("    > ");
-      utilItoa(s, (i + 1), ITOA_BASE10);
+      utilItoa(s, (i + 1u), ITOA_BASE10);
       uartPuts(s);
       uartPuts(". ");
-      for (int j = 0; j < 8; j++) {
+      for (size_t j = 0; j < 8u; j++) {
         int32_t a = (pSlot[i].address >> (8 * j)) & 0xFF;
         utilItoa(s, a, ITOA_BASE16);
         uartPuts(s);
-        uartPuts((j == 7) ? "\r\n" : " ");
+        uartPuts((j == 7u) ? "\r\n" : " ");
       }
     }
   } else {
@@ -46,11 +46,11 @@ void tempPowerOff(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR); }
 /*! @brief Apply power to temperature sensors */
 void tempPowerOn(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET); }
 
-int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
+size_t tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   (void)pParams;
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    int            numOneWire          = 0;
+    size_t         numOneWire          = 0;
     DS18B20_Slot_t oneWireAddresses[4] = {0};
 
     numOneWire += ds18b20InitSensors(oneWireAddresses);
@@ -78,8 +78,8 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
   }
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    bool presence = true;
-    int  i        = 0;
+    bool   presence = true;
+    size_t i        = 0;
     ds18b20PowerOn();
     while ((i < numSensors) && presence) {
       DS18B20_Res_t dsbResult = ds18b20ReadSample(i);
@@ -112,7 +112,7 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
   return TEMP_OK;
 }
 
-TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev) {
+TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const size_t dev) {
 
   if (0 == numSensors) {
     return TEMP_NO_SENSORS;

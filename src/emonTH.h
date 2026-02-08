@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "board_def.h"
@@ -52,7 +53,7 @@ typedef struct EmonTHDataset_ {
   int16_t        tempExternal[TEMP_MAX_ONEWIRE];
   uint32_t       battery;
   uint32_t       pulseCnt;
-  int            numExtMax;
+  size_t         numExtMax;
   uint16_t       co2;
 } EmonTHDataset_t;
 
@@ -71,7 +72,7 @@ typedef struct __attribute__((__packed__)) PackedData_4Ext_ {
 typedef struct __attribute__((__packed__)) PackedData_1Ext_ {
   int16_t  tempInternal;
   int16_t  tempExternal;
-  int16_t  humidityInternal;
+  uint16_t humidityInternal;
   uint16_t battery;
   uint32_t pulse;
   uint16_t co2;
@@ -85,27 +86,7 @@ _Static_assert((sizeof(PackedData_4Ext_t) + 4) < 62,
 /* EVTSRC_t contains all the event/interrupts sources. This value is shifted
  * to provide a vector of set events as bits.
  */
-typedef enum EVTSRC_ {
-  EVT_DMA             = 0u,
-  EVT_TICK_1kHz       = 1u,
-  EVT_WAKE_SAMPLE_INT = 2u,
-  EVT_UART            = 3u,
-  EVT_ADC             = 4u,
-  EVT_DMAC_UART_CMPL  = 5u,
-  EVT_WAKE_TIMER      = 6u,
-  EVT_SAVE_RESET      = 7u,
-  EVT_WAKE_SAMPLE_EXT = 8u,
-  EVT_TIMER_MC        = 9u,
-  EVT_EIC_PULSE       = 10u,
-  EVT_TH_SAMPLE_RD    = 12u,
-  EVT_SAMPLE_PROCESS  = 13u,
-  EVT_ONEWIRE_SAMPLE  = 14u,
-  EVT_ONEWIRE_READ    = 15u,
-  EVT_ENTER_CONFIG    = 19u,
-  EVT_SEND_DATA_RFM   = 20u,
-  EVT_SEND_DATA_UART  = 21u,
-  EVT_SCD4x_SAMPLE    = 22u
-} EVTSRC_t;
+typedef enum EVTSRC_ { EVT_WAKE_TIMER = 0u, EVT_SCD4x_SAMPLE = 1u } EVTSRC_t;
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
  *  @param [in] Event source in enum

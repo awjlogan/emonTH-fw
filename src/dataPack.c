@@ -6,32 +6,35 @@
 #include "emonTH_assert.h"
 #include "util.h"
 
-#define CONV_STR_W 16
-#define STR_TEMPEX 0
-#define STR_BATT   1
-#define STR_HUMID  2
-#define STR_PERIOD 3
-#define STR_PULSE  4
-#define STR_TEMP   5
-#define STR_COLON  6
-#define STR_CRLF   7
-#define STR_DQUOTE 8
-#define STR_LCURL  9
-#define STR_RCURL  10
-#define STR_COMMA  11
-#define STR_CO2    12
+#define CONV_STR_W (16u)
+
+enum {
+  STR_TEMPEX = 0,
+  STR_BATT   = 1,
+  STR_HUMID  = 2,
+  STR_PERIOD = 3,
+  STR_PULSE  = 4,
+  STR_TEMP   = 5,
+  STR_COLON  = 6,
+  STR_CRLF   = 7,
+  STR_DQUOTE = 8,
+  STR_LCURL  = 9,
+  STR_RCURL  = 10,
+  STR_COMMA  = 11,
+  STR_CO2    = 12
+};
 
 /* "Fat" string with current length and buffer size. */
 typedef struct StrN {
-  char *str; /* Pointer to the string */
-  int   n;   /* Length of the string  */
-  int   m;   /* Buffer length */
+  char  *str; /* Pointer to the string */
+  size_t n;   /* Length of the string  */
+  size_t m;   /* Buffer length */
 } StrN_t;
 
-static void catId(StrN_t *strD, int id, int field, bool json);
-static void initFields(StrN_t *pD, char *pS, const int m);
-static int  strnItoa(StrN_t *strD, const uint32_t v);
-static int  strnCat(StrN_t *strD, const StrN_t *strS);
+static void   catId(StrN_t *strD, int id, const size_t field, const bool json);
+static void   initFields(StrN_t *pD, char *pS, const size_t m);
+static size_t strnItoa(StrN_t *strD, const int32_t v);
+static size_t strnCat(StrN_t *strD, const StrN_t *strS);
 
 static char   tmpStr[CONV_STR_W] = {0};
 static StrN_t strConv; /* Fat string for conversions */
@@ -50,8 +53,9 @@ const StrN_t baseStr[] = {
  *  @param [out] strD : pointer to the fat string
  *  @param [in] id : numeric index
  *  @param [in] field : field name index, e.g. "STR_V"
+ *  @param [in] json : output in JSON format
  */
-static void catId(StrN_t *strD, int id, int field, bool json) {
+static void catId(StrN_t *strD, int id, const size_t field, const bool json) {
 
   /* No comma for the 1st field */
   if (field != STR_TEMP) {
@@ -73,7 +77,7 @@ static void catId(StrN_t *strD, int id, int field, bool json) {
   strD->n += strnCat(strD, &baseStr[STR_COLON]);
 }
 
-static void initFields(StrN_t *pD, char *pS, const int m) {
+static void initFields(StrN_t *pD, char *pS, const size_t m) {
   /* Setup destination string */
   pD->str = pS;
   pD->n   = 0;
@@ -86,7 +90,7 @@ static void initFields(StrN_t *pD, char *pS, const int m) {
   strConv.m   = CONV_STR_W;
 }
 
-static int strnItoa(StrN_t *strD, const uint32_t v) {
+static size_t strnItoa(StrN_t *strD, const int32_t v) {
   /* Zero the destination buffer then convert */
   memset(strD->str, 0, strD->m);
 
@@ -94,12 +98,12 @@ static int strnItoa(StrN_t *strD, const uint32_t v) {
   return strD->n;
 }
 
-static int strnCat(StrN_t *strD, const StrN_t *strS) {
+static size_t strnCat(StrN_t *strD, const StrN_t *strS) {
   /* Check bounds to make sure it won't go over the end. If so, return the
    * actual number of bytes that are copied.
    */
-  int newLen;
-  int bytesToCopy;
+  size_t newLen;
+  size_t bytesToCopy;
 
   bytesToCopy = strS->n;
   newLen      = strS->n + strD->n;
@@ -142,8 +146,8 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
   }
 }
 
-int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
-                   int m, bool json) {
+size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
+                      char *restrict pDst, const size_t m, const bool json) {
   EMONTH_ASSERT(pData);
   EMONTH_ASSERT(pDst);
 
@@ -179,25 +183,25 @@ int dataPackSerial(const EmonTHDataset_t *restrict pData, char *restrict pDst,
   }
 
   catId(&strn, -1, STR_HUMID, json);
-  (void)strnItoa(&strConv, humInt / 10);
+  (void)strnItoa(&strConv, (int32_t)(humInt / 10u));
   strn.n += strnCat(&strn, &strConv);
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-  (void)strnItoa(&strConv, humInt % 10);
+  (void)strnItoa(&strConv, (int32_t)(humInt % 10u));
   strn.n += strnCat(&strn, &strConv);
 
   catId(&strn, -1, STR_BATT, json);
-  (void)strnItoa(&strConv, (battery / 1000000));
+  (void)strnItoa(&strConv, (int32_t)(battery / 1000000u));
   strn.n += strnCat(&strn, &strConv);
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-  (void)strnItoa(&strConv, ((battery % 1000000) / 1000));
+  (void)strnItoa(&strConv, (int32_t)((battery % 1000000u) / 1000u));
   strn.n += strnCat(&strn, &strConv);
 
   catId(&strn, -1, STR_PULSE, json);
-  (void)strnItoa(&strConv, pData->pulseCnt);
+  (void)strnItoa(&strConv, (int32_t)pData->pulseCnt);
   strn.n += strnCat(&strn, &strConv);
 
   catId(&strn, -1, STR_CO2, json);
-  (void)strnItoa(&strConv, pData->co2);
+  (void)strnItoa(&strConv, (int32_t)pData->co2);
   strn.n += strnCat(&strn, &strConv);
 
   /* Terminate with } for JSON and \r\n */

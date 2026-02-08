@@ -1,6 +1,4 @@
-#include "driver_SAML.h"
 #include "emonTH_saml.h"
-#include "fuses.h"
 
 void clkSetup(void) {
   /* Set 1WS in PL0 at 8 MHz, 3V3 (Table 46-40) */

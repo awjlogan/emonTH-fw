@@ -3,15 +3,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define N_STEPS 32
-
-#include "driver_SAML.h"
-
 /*! @brief  Blocking delay, only used for short delays where enabling and
  *          configuring the timer has excessive overhead.
  *  @param [in] delay : period in us
  */
-void timerDelay_us(uint16_t delay);
+void timerDelay_us(const uint16_t delay);
 
 /*! @brief Blocking delay in sleep mode
  *  @param [in] t_ms : delay in milliseconds

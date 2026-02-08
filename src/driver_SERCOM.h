@@ -22,54 +22,17 @@ typedef enum I2CM_Status_ {
   I2CM_NOACK
 } I2CM_Status_t;
 
-typedef struct Sercom_Cfg_ {
-  Sercom *sercomExtI2C;
-  Sercom *sercomExtSPI;
-} SercomCfg_t;
-
-typedef enum UART_BAUD_ {
-  UART_BAUD_9600   = 9600,
-  UART_BAUD_19200  = 19200,
-  UART_BAUD_28800  = 28800,
-  UART_BAUD_38400  = 38400,
-  UART_BAUD_57600  = 57600,
-  UART_BAUD_76800  = 76800,
-  UART_BAUD_115200 = 115200
-} UART_BAUD_t;
-
-typedef struct UART_Cfg_ {
-  Sercom     *sercom;
-  UART_BAUD_t baud;
-  int         apbc_mask;
-  int         gclk_id;
-  int         gclk_gen;
-  int         pad_tx;
-  int         pad_rx;
-  int         port_grp;
-  int         pin_tx;
-  int         pin_rx;
-  int         pmux;
-  int         dmaChannel;
-  uint32_t    dmaCfg;
-} UART_Cfg_t;
-
-/*! @brief Configure the serial communication modules
- */
+/*! @brief Configure the serial communication modules */
 void sercomSetup(void);
 
 /*! @brief Configure a SERCOM module for SPI */
 void sercomSetupSPI(const Pin_t sel);
 
-/*! @brief Configure a SERCOM module for UART functions.
- *  @param [in] pCfg : pointer to configuration struct
- */
-void sercomSetupUART(const UART_Cfg_t *pCfg);
-
 /*! @brief Set I2C address.
  *  @param [in] addr : address and RW bit
  *  @return I2C status
  */
-I2CM_Status_t i2cActivate(uint8_t addr);
+I2CM_Status_t i2cActivate(const uint8_t addr);
 
 /*! @brief Requester acknowledge command
  *  @param [in] ack : 0: ACK, 1: NACK
@@ -80,7 +43,7 @@ void i2cAck(I2CM_Ack_t ack, I2CM_AckCmd_t cmd);
 /*! @brief Write to completer
  *  @param [in] data : data byte
  */
-void i2cDataWrite(uint8_t data);
+void i2cDataWrite(const uint8_t data);
 
 /*! @brief Read byte from I2C completer
  *  @return read data
@@ -97,9 +60,6 @@ void i2cEnable(void);
  *  @return true if enabled, false otherwise
  */
 bool i2cEnabled(void);
-
-/*! @brief Enable smart mode (ACK on read) */
-void i2cEnableSmartMode(void);
 
 /*! @brief Set timeout flag */
 void i2cSetTimeout(void);
@@ -124,13 +84,7 @@ void spiSelect(const Pin_t nSS);
  *  @param [in] pSrc : pointer to the source buffer
  *  @param [in] n : number of bytes to send
  */
-void spiSendBuffer(const void *pSrc, int n);
-
-/*! @brief Send a buffer using DMA on the SPI channel
- *  @param [in] pSrc : pointer to the source buffer
- *  @param [in] n : number of bytes to send
- */
-void spiSendBufferNonBlocking(const void *pSrc, int n);
+void spiSendBuffer(const void *pSrc, size_t n);
 
 /*! @brief Send a byte on the configured SPI channel
  *  @param [in] b : byte to send

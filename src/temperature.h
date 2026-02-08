@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 typedef enum TEMP_INTF_ { TEMP_INTF_ONEWIRE, TEMP_INTF_I2C } TEMP_INTF_t;
@@ -38,7 +39,7 @@ void tempPowerOn(void);
  *  @param [in] pParams : parameters for given interface type
  *  @return number of sensors found
  */
-int tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
+size_t tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
 
 /*! @brief Read temperature samples from all monitors
  *  @param [in] intf : interface type
@@ -58,4 +59,4 @@ void tempSampleReadySet(void);
     @param [in] intf : interface type
  *  @param [in] dev : device index
  */
-TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const uint32_t dev);
+TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const size_t dev);

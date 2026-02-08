@@ -39,21 +39,21 @@ static bool         oneWireNext(void);
 static void         oneWirePwrOff(void);
 static void         oneWirePwrOn(void);
 static unsigned int oneWireReadBit(void);
-static void         oneWireReadBytes(void *pDst, const uint8_t n);
+static void         oneWireReadBytes(void *pDst, const size_t n);
 static bool         oneWireReset(void);
 static bool         oneWireSearch(void);
 static void         oneWireWriteBit(unsigned int bit);
-static void         oneWireWriteBytes(const void *pSrc, const uint8_t n);
+static void         oneWireWriteBytes(const void *pSrc, const size_t n);
 static void         setRstPulseComplete(void);
 
-uint64_t ROM_NO;
-uint8_t  crc8;
-int      lastDiscrepancy;
-int      lastFamilyDiscrepancy;
-bool     lastDeviceFlag;
+static uint64_t ROM_NO;
+static uint8_t  crc8;
+static int32_t  lastDiscrepancy;
+static int32_t  lastFamilyDiscrepancy;
+static bool     lastDeviceFlag;
 
 static uint8_t calcCRC8(const uint8_t crc, const uint8_t value) {
-  const uint8_t dscrc_table[] = {
+  static const uint8_t dscrc_table[] = {
       0,   94,  188, 226, 97,  63,  221, 131, 194, 156, 126, 32,  163, 253, 31,
       65,  157, 195, 33,  127, 252, 162, 64,  30,  95,  1,   227, 189, 62,  96,
       130, 220, 35,  125, 159, 193, 66,  28,  254, 160, 225, 191, 93,  3,   128,
@@ -120,13 +120,13 @@ static unsigned int oneWireReadBit(void) {
   return result;
 }
 
-static void oneWireReadBytes(void *pDst, const uint8_t n) {
+static void oneWireReadBytes(void *pDst, const size_t n) {
   EMONTH_ASSERT(pDst);
 
   uint8_t *pData = (uint8_t *)pDst;
 
-  for (uint8_t i = 0; i < n; i++) {
-    for (uint8_t j = 0; j < 8; j++) {
+  for (size_t i = 0; i < n; i++) {
+    for (size_t j = 0; j < 8; j++) {
       /* Data received LSB first */
       *pData |= (oneWireReadBit() << j);
     }
@@ -169,13 +169,13 @@ static bool oneWireReset(void) {
 static bool oneWireSearch(void) {
   /* Initialise for search */
   const uint8_t cmdSearchRom    = 0xF0u;
-  int           searchDirection = 0;
-  int           idBitNumber     = 1;
-  int           lastZero        = 0;
+  uint32_t      searchDirection = 0;
+  int32_t       idBitNumber     = 1;
+  int32_t       lastZero        = 0;
   uint8_t       romByteMask     = 1;
   bool          searchResult    = false;
-  int           idBit           = 0;
-  int           cmpidBit        = 0;
+  uint8_t       idBit           = 0;
+  uint8_t       cmpidBit        = 0;
   uint8_t      *romBuffer       = (uint8_t *)&ROM_NO;
 
   /* If the last call was not the last one... */
@@ -190,10 +190,10 @@ static bool oneWireSearch(void) {
     }
 
     /* ...issue the search command...*/
-    oneWireWriteBytes(&cmdSearchRom, 1);
+    oneWireWriteBytes(&cmdSearchRom, 1u);
 
     /* ...and commence the search! */
-    for (unsigned int i = 0; i < 64; i++) {
+    for (size_t i = 0; i < 64; i++) {
       idBit    = oneWireReadBit();
       cmpidBit = oneWireReadBit();
 
@@ -276,21 +276,21 @@ static void oneWireWriteBit(unsigned int bit) {
   timerDelay_us(5u);
 }
 
-static void oneWireWriteBytes(const void *pSrc, const uint8_t n) {
+static void oneWireWriteBytes(const void *pSrc, const size_t n) {
   uint8_t *pData = (uint8_t *)pSrc;
-  for (uint8_t i = 0; i < n; i++) {
+  for (size_t i = 0; i < n; i++) {
     uint8_t byte = *pData++;
-    for (uint8_t j = 0; j < 8; j++) {
+    for (size_t j = 0; j < 8; j++) {
       oneWireWriteBit((byte & 0x1));
       byte >>= 1;
     }
   }
 }
 
-int ds18b20InitSensors(DS18B20_Slot_t *pSlot) {
+size_t ds18b20InitSensors(DS18B20_Slot_t *pSlot) {
 
-  int deviceCount  = 0;
-  int searchResult = 0;
+  size_t deviceCount  = 0;
+  bool   searchResult = false;
 
   oneWirePwrOn();
 
@@ -305,11 +305,11 @@ int ds18b20InitSensors(DS18B20_Slot_t *pSlot) {
   }
 
   /* REVISIT assign addresses from NVM to slots */
-  for (unsigned int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+  for (size_t i = 0; i < TEMP_MAX_ONEWIRE; i++) {
     addressRemap[i] = i;
   }
 
-  for (int i = 0; i < deviceCount; i++) {
+  for (size_t i = 0; i < deviceCount; i++) {
     slots[i].active  = true;
     slots[i].address = pSlot[i].address;
   }
@@ -359,13 +359,13 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
     return tempRes;
   }
 
-  oneWireWriteBytes(&CMD_MATCH_ROM, 1);
-  oneWireWriteBytes(addrDev, 8);
-  oneWireWriteBytes(&CMD_SCRATCH_READ, 1);
+  oneWireWriteBytes(&CMD_MATCH_ROM, 1u);
+  oneWireWriteBytes(addrDev, 8u);
+  oneWireWriteBytes(&CMD_SCRATCH_READ, 1u);
   oneWireReadBytes(&scratch, sizeof(scratch));
 
   /* Check CRC for received data */
-  for (unsigned int i = 0; i < (sizeof(scratch) - 1); i++) {
+  for (size_t i = 0; i < (sizeof(scratch) - 1); i++) {
     calcCRC8(crcDS, si[i]);
   }
 

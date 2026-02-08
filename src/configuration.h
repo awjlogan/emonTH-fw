@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "board_def.h"
@@ -9,9 +10,9 @@
  * EEPROM as a contiguous set.
  */
 typedef enum DataTx_ {
-  DATATX_RFM69 = 1,
-  DATATX_UART  = 2,
-  DATATX_BOTH  = 3
+  DATATX_RFM69 = 1u,
+  DATATX_UART  = 2u,
+  DATATX_BOTH  = 3u
 } TxType_t;
 
 typedef struct __attribute__((__packed__)) BaseCfg_ {
@@ -72,4 +73,4 @@ EmonTHConfigPacked_t *configLoadFromNVM(void);
  *  @param[in] idx : index of the word to fetch
  *  @return word idx from the unique ID
  */
-uint32_t getUniqueID(int idx);
+uint32_t getUniqueID(const size_t idx);

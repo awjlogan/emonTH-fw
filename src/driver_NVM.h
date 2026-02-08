@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 typedef enum NVMStatus_ {
@@ -20,7 +21,7 @@ NVMStatus_t nvmDataFlashRead(const NVMPage_t page);
  *  @param [in] page : page to write to
  *  @param [in] n : number of data bytes
  */
-void nvmDataFlashWrite(const NVMPage_t page, const int n);
+void nvmDataFlashWrite(const NVMPage_t page, const size_t n);
 
 /*! @brief Get the NVM page buffer address
  *  @return : pointer to the data in the page buffer

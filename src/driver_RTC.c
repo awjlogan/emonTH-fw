@@ -1,35 +1,36 @@
+#include <stddef.h>
 
 #include "driver_RTC.h"
 #include "emonTH_assert.h"
 
-#define EVT_MAX 4
+#define EVT_MAX 4u
 
-static int intervalToRatio(const int smpIntTime);
+static uint32_t intervalToRatio(const uint32_t smpIntTime);
 
-static int       evtDivCnt[EVT_MAX] = {0};
-static int       evtIdx             = 0;
+static uint32_t  evtDivCnt[EVT_MAX] = {0};
+static size_t    evtIdx             = 0;
 static RTC_Evt_t rtcEvt[EVT_MAX]    = {0};
 
-static int rtcPeriod = 0;
+static uint16_t rtcPeriod = 0;
 
-static int intervalToRatio(const int smpIntTime) {
-  int rem = smpIntTime % rtcPeriod;
-  int div = smpIntTime / rtcPeriod;
-  if (rem > (rtcPeriod / 2)) {
+static uint32_t intervalToRatio(const uint32_t smpIntTime) {
+  uint32_t rem = smpIntTime % rtcPeriod;
+  uint32_t div = smpIntTime / rtcPeriod;
+  if (rem > (rtcPeriod / 2u)) {
     div++;
   }
   return div;
 }
 
-void rtcEnable(int period) {
+void rtcEnable(const uint16_t period) {
   rtcPeriod = period;
 
   /* Convert sample intervals in seconds to ratio of report times */
-  for (int i = 0; i < evtIdx; i++) {
+  for (size_t i = 0; i < evtIdx; i++) {
     rtcEvt[i].smpInterval = intervalToRatio(rtcEvt[i].smpInterval);
   }
 
-  RTC->MODE1.PER.reg = (period * 4) - 1;
+  RTC->MODE1.PER.reg = (period * 4u) - 1u;
   while (RTC->MODE1.SYNCBUSY.reg & RTC_MODE1_SYNCBUSY_PER)
     ;
   RTC->MODE1.CTRLA.reg |= RTC_MODE1_CTRLA_ENABLE;
@@ -62,7 +63,7 @@ void irq_handler_rtc(void) {
   emonTHEventSet(EVT_WAKE_TIMER);
 
   /* Set any lower cadence events */
-  for (int i = 0; i < evtIdx; i++) {
+  for (size_t i = 0; i < evtIdx; i++) {
     evtDivCnt[i]++;
     if (evtDivCnt[i] == rtcEvt[i].smpInterval) {
       emonTHEventSet(rtcEvt[i].evt);

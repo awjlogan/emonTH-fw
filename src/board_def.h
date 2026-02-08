@@ -5,34 +5,10 @@
  */
 #define RAMFUNC __attribute__((section(".ramfunc")))
 
-/* Board identification number. If a custom board is used, this should be
- * added to "dbgPutBoard" in emonTH.c
- */
-#define BOARD_ID_LC       0
-#define BOARD_ID_STANDARD 1
-#define BOARD_ID_EMONPI   2
-#define BOARD_ID_EMONTH3  16
-#define BOARD_ID_DEV      255
-#define BOARD_ID          BOARD_ID_EMONTH3
-
-/* Define the peripherals by index for use in power reduction */
-#define NUM_PERIPHERALS 7
-typedef enum PeriphIndex_ {
-  PERIPH_IDX_CORE = 0,
-  PERIPH_IDX_I2CM = 1,
-  PERIPH_IDX_SPI  = 2,
-  PERIPH_IDX_UART = 3,
-  PERIPH_IDX_DMAC = 4,
-  PERIPH_IDX_ADC  = 5,
-  PERIPH_IDX_TC   = 6
-} PeriphIndex_t;
-
 /* Clock frequencies
  *  - Core is on OSC16M @ 8 MHz
- *  - Peripherals are on the OSC16M / 8 -> 1 MHz
  */
-#define F_CORE   8000000ul
-#define F_PERIPH 1000000ul
+#define F_CORE 8000000ul
 
 /* Maximum number of OneWire DS18B20 sensors that can be used */
 #define TEMP_MAX_ONEWIRE 4
@@ -53,7 +29,6 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define SERCOM_SPI_GCLK_ID       SERCOM1_GCLK_ID_CORE
 #define SERCOM_UART_GCLK_ID      SERCOM2_GCLK_ID_CORE
 
-#define SERCOM_SPI_DMAC_ID_TX  SERCOM1_DMAC_ID_TX
 #define SERCOM_UART_DMAC_ID_TX SERCOM2_DMAC_ID_TX
 
 #define SERCOM_UART_HANDLER_RXC irq_handler_sercom2_2()
@@ -61,7 +36,6 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define SERCOM_UART_RXC_IRQn    SERCOM2_2_IRQn /* RXC interrupt */
 
 #define DMAC_UART_IRQn DMAC_0_IRQn
-#define DMAC_SPI_IRQn  DMAC_1_IRQn
 
 /* Timer configurations
  * TC0/1 share the same GCLK source, so group on same low power oscillator.
@@ -159,6 +133,5 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define PMUX_I2CM    PORT_PMUX_PMUXE(2) /* SERCOM */
 
 /* DMA defines */
-#define NUM_CHAN_DMA  2u
-#define DMA_CHAN_SPI  1u
+#define NUM_CHAN_DMA  1u
 #define DMA_CHAN_UART 0u

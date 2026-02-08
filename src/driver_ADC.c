@@ -1,11 +1,10 @@
 #include <stdbool.h>
 
+#include "board_def.h"
 #include "driver_ADC.h"
 #include "driver_PORT.h"
 #include "driver_SAML.h"
 #include "emonTH_saml.h"
-
-#include "emonTH.h"
 
 static void adcSync(void);
 

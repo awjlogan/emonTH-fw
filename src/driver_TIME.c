@@ -1,6 +1,7 @@
 #include <stdbool.h>
 
 #include "board_def.h"
+#include "driver_SAML.h"
 #include "driver_TIME.h"
 #include "emonTH_assert.h"
 #include "emonTH_saml.h"
@@ -35,7 +36,7 @@ typedef struct tcCfg_ {
   uint8_t  irqn;
 } tcCfg_t;
 
-void timerDelay_us(uint16_t delay) {
+void timerDelay_us(const uint16_t delay) {
   // clang-format off
   __asm volatile (	"MOV R0,%[loops]\n\t"
       "1: \n\t"
@@ -54,21 +55,21 @@ bool timerDelaySleep_ms(const uint16_t t_ms) {
   if (0 == t_ms) {
     return true;
   }
-  if (t_ms < 75) {
-    return timerDelaySleep_us((uint32_t)t_ms * 1000);
+  if (t_ms < 75u) {
+    return timerDelaySleep_us((uint32_t)t_ms * 1000u);
   } else {
     return timerDelaySleepLP(t_ms);
   }
 }
 
 bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)()) {
-  return timerDelaySleepAsync_us((uint32_t)t_ms * 1000, cb);
+  return timerDelaySleepAsync_us((uint32_t)t_ms * 1000u, cb);
 }
 
 bool timerDelaySleep_us(const uint32_t t_us) {
   /* For short delays, the entry/exit delay is a significant fraction, so just
    * do blocking delay in this case. */
-  if (t_us < 64) {
+  if (t_us < 64u) {
     timerDelay_us(t_us);
     return true;
   }
@@ -88,7 +89,7 @@ bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
 }
 
 static bool timerDelaySleepLP(const uint16_t t_ms) {
-  uint32_t cc = ((t_ms * 1024) / 1000) - 1;
+  uint32_t cc = ((t_ms * 1024u) / 1000u) - 1u;
   tdLPMatch   = false;
 
   TIMER_LP->COUNT16.CC[0].reg = cc;
@@ -219,7 +220,7 @@ void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)()) {
   EMONTH_ASSERT(cb);
 
   tcPulseCB                      = cb;
-  TIMER_PULSE->COUNT16.CC[0].reg = (timeMask_ms * 1024 / 1000) - 1;
+  TIMER_PULSE->COUNT16.CC[0].reg = (timeMask_ms * 1024u / 1000u) - 1u;
 }
 
 void TIMER_DELAY_HANDLER(void) {
@@ -248,7 +249,6 @@ void TIMER_LP_HANDLER(void) {
   /* Pulsed LED at startup + configuration */
   if ((TIMER_LP->COUNT16.INTFLAG.reg & TC_INTFLAG_OVF)) {
     TIMER_LP->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
-    // TIMER_LP->COUNT16.
     if (false == ledPulseDown) {
       ledPulseIdx++;
       if (32 == ledPulseIdx) {

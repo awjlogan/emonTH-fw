@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "emonTH_saml.h"
 
 #include "board_def.h"
@@ -5,21 +7,21 @@
 #include "driver_PORT.h"
 #include "emonTH.h"
 
-#define INT_EXTINT(ch) (1 << ch)
+#define INT_EXTINT(ch) (1u << ch)
 
 static void (*eicCB[8])(void);
 
-void eicCallbackSet(const int ch, void (*cb)()) { eicCB[ch] = cb; }
+void eicCallbackSet(const size_t ch, void (*cb)()) { eicCB[ch] = cb; }
 
-void eicChannelDisable(const int ch) {
+void eicChannelDisable(const size_t ch) {
   EIC->INTENCLR.reg = ~INT_EXTINT(ch);
-  EIC->CONFIG[0].reg &= ~(0xF << (ch * 4));
+  EIC->CONFIG[0].reg &= ~(0xFu << (ch * 4u));
 
   /* Channels 0-3 have individual NVIC lines, starting from 3 */
-  if (ch < 4) {
-    NVIC_DisableIRQ(3 + ch);
+  if (ch < 4u) {
+    NVIC_DisableIRQ(3u + ch);
   } else {
-    NVIC_DisableIRQ(7);
+    NVIC_DisableIRQ(7u);
   }
 }
 
@@ -33,16 +35,16 @@ void eicChannelEnable(const EIC_Cfg_t eiccfg) {
   }
 
   uint32_t config = EIC->CONFIG[0].reg;
-  config &= ~(0xF << (eiccfg.ch * 4));
-  config |= eiccfg.sense << (eiccfg.ch * 4);
+  config &= ~(0xFu << (eiccfg.ch * 4u));
+  config |= eiccfg.sense << (eiccfg.ch * 4u);
   EIC->CONFIG[0].reg = config;
   EIC->INTENSET.reg  = INT_EXTINT(eiccfg.ch);
 
   /* Channels 0-3 have individual NVIC lines, starting from 3 */
-  if (eiccfg.ch < 4) {
-    NVIC_EnableIRQ(3 + eiccfg.ch);
+  if (eiccfg.ch < 4u) {
+    NVIC_EnableIRQ(3u + eiccfg.ch);
   } else {
-    NVIC_EnableIRQ(7);
+    NVIC_EnableIRQ(7u);
   };
 
   portPinMux(eiccfg.pin, PORT_PMUX_PMUXE(0));
