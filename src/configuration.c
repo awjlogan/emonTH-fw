@@ -608,7 +608,7 @@ static bool configProcessCmd(void) {
   bool         cmdUnsaved = false;
 
   /* Help text - serves as documentation interally as well */
-  const char helpText[] =
+  static const char helpText[] =
       "\r\n"
       "emonTH information and configuration commands\r\n\r\n"
       " - ?             : show this text again\r\n"
