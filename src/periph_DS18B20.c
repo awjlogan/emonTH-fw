@@ -168,15 +168,16 @@ static bool oneWireReset(void) {
 
 static bool oneWireSearch(void) {
   /* Initialise for search */
-  const uint8_t cmdSearchRom    = 0xF0u;
-  uint32_t      searchDirection = 0;
-  int32_t       idBitNumber     = 1;
-  int32_t       lastZero        = 0;
-  uint8_t       romByteMask     = 1;
-  bool          searchResult    = false;
-  uint8_t       idBit           = 0;
-  uint8_t       cmpidBit        = 0;
-  uint8_t      *romBuffer       = (uint8_t *)&ROM_NO;
+  static const uint8_t cmdSearchRom = 0xF0u;
+
+  uint32_t searchDirection = 0;
+  int32_t  idBitNumber     = 1;
+  int32_t  lastZero        = 0;
+  uint8_t  romByteMask     = 1;
+  bool     searchResult    = false;
+  uint8_t  idBit           = 0;
+  uint8_t  cmpidBit        = 0;
+  uint8_t *romBuffer       = (uint8_t *)&ROM_NO;
 
   /* If the last call was not the last one... */
   if (!lastDeviceFlag) {
@@ -323,7 +324,7 @@ void ds18b20PowerOff(void) { oneWirePwrOff(); }
 void ds18b20PowerOn(void) { oneWirePwrOn(); }
 
 TempStatus_t ds18b20StartSample(void) {
-  const uint8_t cmds[2] = {0xCC, 0x44};
+  static const uint8_t cmds[2] = {0xCC, 0x44};
 
   oneWirePwrOn();
 
@@ -337,11 +338,11 @@ TempStatus_t ds18b20StartSample(void) {
 }
 
 DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
-  const uint8_t CMD_MATCH_ROM    = 0x55;
-  const uint8_t CMD_SCRATCH_READ = 0xBE;
-  const int16_t DS_T85DEG        = 1360;
-  const int16_t DS_TNEG55DEG     = -880;
-  const int16_t DS_T125DEG       = 2000;
+  static const uint8_t CMD_MATCH_ROM    = 0x55;
+  static const uint8_t CMD_SCRATCH_READ = 0xBE;
+  static const int16_t DS_T85DEG        = 1360;
+  static const int16_t DS_TNEG55DEG     = -880;
+  static const int16_t DS_T125DEG       = 2000;
 
   const uint64_t *addrDev = &slots[addressRemap[dev]].address;
   Scratch_t       scratch = {0};
