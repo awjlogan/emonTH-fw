@@ -51,6 +51,7 @@ static void  printSettingPeriod(void);
 static void  printSettingPulse(void);
 static void  printSettingRF(void);
 static void  printSettingRFFreq(void);
+static void  printSettingUART(void);
 static void  printSettings(void);
 static void  printSettingsHR(void);
 static void  printSettingsKV(void);
@@ -232,13 +233,7 @@ static bool configRF433(void) {
     return false;
   }
 
-  if (val) {
-    config.dataTxCfg.rfmFreq = 2;
-    uartPuts("> 433.00 MHz (backwards compatible, illegal).\r\n");
-  } else {
-    config.dataTxCfg.rfmFreq = 3;
-    uartPuts("> 433.92 MHz (check Rx frequency).\r\n");
-  }
+  printSettingRF();
   return true;
 }
 
@@ -257,6 +252,8 @@ static bool configRFM(void) {
   } else {
     config.dataTxCfg.txType &= ~(1u << 0);
   }
+
+  printSettingRF();
   return true;
 }
 
@@ -318,6 +315,8 @@ static bool configUART(void) {
   } else {
     config.dataTxCfg.txType &= ~(1u << 1);
   }
+
+  printSettingUART();
   return true;
 }
 
@@ -423,6 +422,12 @@ static void printSettingRFFreq(void) {
   }
 }
 
+static void printSettingUART(void) {
+  uartPuts("serial = ");
+  uartPuts((config.dataTxCfg.txType & 0x2u) ? "on" : "off");
+  uartPuts("\r\n");
+}
+
 static void printSettings(void) {
   if ('h' == inBuffer[1]) {
     printSettingsHR();
@@ -486,6 +491,7 @@ static void printSettingsKV(void) {
   printSettingPeriod();
   printSettingRF();
   printSettingPulse();
+  printSettingUART();
   printSettingJSON();
 }
 
@@ -659,34 +665,50 @@ static bool configProcessCmd(void) {
     uartPuts(helpText);
     break;
   case 'a':
-    cmdUnsaved = configSCD();
+    if (configSCD()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'c':
-    cmdUnsaved = configUART();
+    if (configUART()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'd':
-    cmdUnsaved = configDatalog();
+    if (configDatalog()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'e':
-    cmdUnsaved = configExtTempMax();
+    if (configExtTempMax()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'f':
     exitConfig = true;
     break;
   case 'j':
-    cmdUnsaved = configJSON();
+    if (configJSON()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'l':
     printSettings();
     break;
   case 'm':
-    cmdUnsaved = configPulse();
+    if (configPulse()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'n':
-    cmdUnsaved = configNodeID();
+    if (configNodeID()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'p':
-    cmdUnsaved = configRFPower();
+    if (configRFPower()) {
+      cmdUnsaved = true;
+    }
     break;
   case 'r':
     configDefault();
