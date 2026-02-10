@@ -101,7 +101,7 @@ static void rfmPacketHandler(void) {
 static uint8_t rfmReadReg(const uint8_t addr) {
   uint8_t rdByte;
   spiSelect(sel);
-  spiTx((uint8_t)addr);
+  spiTx(addr);
   rdByte = spiRx();
   spiDeSelect(sel);
   return rdByte;
@@ -122,7 +122,7 @@ static bool rfmTxAvailable(void) {
 static void rfmWriteReg(const uint8_t addr, const uint8_t data) {
   spiSelect(sel);
   /* Datasheet 5.2.1, Figure 24: "wnr is 1 for write" */
-  spiTx((uint8_t)addr | 0x80);
+  spiTx(addr | 0x80u);
   spiTx(data);
   spiDeSelect(sel);
 }
@@ -215,7 +215,7 @@ static RFMSend_t rfmSendNoRetry(const size_t n) {
   spiTx(REG_FIFO | 0x80);
   spiTx(n + 3);
   spiTx(5u); // from OEM Tx
-  spiTx((uint8_t)txPkt.addr);
+  spiTx(txPkt.addr);
   spiTx(0); // CTL byte
   spiSendBuffer(txPkt.data, n);
   spiDeSelect(sel);

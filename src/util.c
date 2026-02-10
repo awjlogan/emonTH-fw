@@ -12,113 +12,100 @@ static bool isnumeric(const char c) {
   return false;
 }
 
-void utilStrReverse(char *pBuf, unsigned int len) {
-  char         tmp;
-  unsigned int idxEnd = len - 1u;
-  for (unsigned int idx = 0; idx < (len / 2); idx++) {
-    tmp          = pBuf[idx];
-    pBuf[idx]    = pBuf[idxEnd];
-    pBuf[idxEnd] = tmp;
-    idxEnd--;
+size_t utilItoa(char *pBuf, int32_t val, const ITOA_BASE_t base) {
+  if ((ITOA_BASE10 == base) && (val < 0)) {
+    *pBuf = '-';
+    return 1u + utilUtoa(pBuf + 1, (uint32_t)(-val), base);
   }
+  return utilUtoa(pBuf, (uint32_t)val, base);
 }
 
-unsigned int utilStrlen(const char *pBuf) {
-  unsigned int charCnt = 0;
-  while (*pBuf++) {
-    charCnt++;
-  }
-  return charCnt;
-}
+size_t utilUtoa(char *pBuf, uint32_t val, const ITOA_BASE_t base) {
+  char  buf[11]; /* 4294967295 = 10 chars + null */
+  char *p = &buf[10];
 
-unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base) {
-  unsigned int charCnt    = 0;
-  bool         isNegative = false;
-  char *const  pBase      = pBuf;
+  *p = '\0';
 
   /* Handle 0 explicitly */
   if (0 == val) {
-    *pBuf++ = '0';
-    *pBuf   = '\0';
+    pBuf[0] = '0';
+    pBuf[1] = '\0';
     return 2u;
   }
 
-  /* Base 10 can be signed, and has a divide in */
   if (ITOA_BASE10 == base) {
-    if (val < 0) {
-      isNegative = true;
-      val        = -val;
-    }
-
-    while (0 != val) {
-      *pBuf++ = (val % 10u) + '0';
-      val     = val / 10u;
-      charCnt++;
-    }
-
-    if (isNegative) {
-      *pBuf++ = '-';
-      charCnt++;
+    while (val != 0) {
+      uint32_t q = val / 10u;
+      *--p       = (char)('0' + (val - q * 10));
+      val        = q;
     }
   } else {
-    const char itohex[] = "0123456789abcdef";
-    uint32_t   val_u    = (uint32_t)val;
+    static const char itohex[] = "0123456789abcdef";
 
-    while (0 != val_u) {
-      *pBuf++ = itohex[(val_u & 0xFu)];
-      val_u >>= 4;
-      charCnt++;
+    while (0 != val) {
+      *--p = itohex[val & 0xFu];
+      val >>= 4;
     }
   }
 
-  /* Terminate and return */
-  *pBuf = '\0';
-  charCnt++;
+  /* Copy to output buffer */
+  char  *dst = pBuf;
+  size_t len = 0;
+  while (*p) {
+    *dst++ = *p++;
+    len++;
+  }
+  *dst = '\0';
 
-  utilStrReverse(pBase, charCnt - 1u);
-  return charCnt;
+  return len + 1u;
 }
 
-ConvInt_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
-  bool         isNegative = false;
-  unsigned int len;
-  unsigned int mulCnt = 1;
-  ConvInt_t    conv   = {false, 0};
-
-  if ('-' == *pBuf) {
-    isNegative = true;
+ConvInt_t utilAtoi(const char *pBuf, ITOA_BASE_t base) {
+  bool isNegative = ('-' == *pBuf);
+  if (isNegative) {
     pBuf++;
   }
 
-  /* Reverse string and convert */
-  len = utilStrlen(pBuf);
-  utilStrReverse(pBuf, len);
+  ConvUint_t u    = utilAtoui(pBuf, base);
+  ConvInt_t  conv = {u.valid,
+                     {isNegative ? -(int32_t)u.val.u32 : (int32_t)u.val.u32}};
+  return conv;
+}
 
+ConvUint_t utilAtoui(const char *pBuf, ITOA_BASE_t base) {
+  uint32_t   result = 0;
+  ConvUint_t conv   = {false, {0}};
+
+  /* Process left-to-right, no string reversal needed */
   if (ITOA_BASE10 == base) {
     while (*pBuf) {
-      if (!isnumeric(*pBuf))
+      if (!isnumeric(*pBuf)) {
         return conv;
-      conv.val += ((*pBuf++) - '0') * mulCnt;
-      mulCnt *= 10;
-    }
-    if (isNegative) {
-      conv.val = -conv.val;
+      }
+      result = result * 10 + (uint32_t)(*pBuf - '0');
+      pBuf++;
     }
   } else {
     while (*pBuf) {
-      if (('a' <= *pBuf) && ('f' >= *pBuf)) {
-        conv.val += ((*pBuf) - 'a' + 10u) * mulCnt;
-      } else if (isnumeric(*pBuf)) {
-        conv.val += ((*pBuf) - '0') * mulCnt;
+      char     c = *pBuf;
+      uint32_t digit;
+      if (('a' <= c) && ('f' >= c)) {
+        digit = (uint32_t)(c - 'a' + 10);
+      } else if (('A' <= c) && ('F' >= c)) {
+        digit = (uint32_t)(c - 'A' + 10);
+      } else if (isnumeric(c)) {
+        digit = (uint32_t)(c - '0');
       } else {
         return conv;
       }
+      /* result = result * 16 + digit */
+      result = (result << 4) + digit;
       pBuf++;
-      mulCnt *= 16;
     }
   }
 
-  conv.valid = true;
+  conv.val.u32 = result;
+  conv.valid   = true;
   return conv;
 }
 

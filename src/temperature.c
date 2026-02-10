@@ -25,12 +25,12 @@ void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire) {
     for (size_t i = 0; i < numOneWire; i++) {
       /*    > 1. xx xx xx xx xx xx xx xx */
       uartPuts("    > ");
-      utilItoa(s, (i + 1u), ITOA_BASE10);
+      utilUtoa(s, (i + 1u), ITOA_BASE10);
       uartPuts(s);
       uartPuts(". ");
       for (size_t j = 0; j < 8u; j++) {
-        int32_t a = (pSlot[i].address >> (8 * j)) & 0xFF;
-        utilItoa(s, a, ITOA_BASE16);
+        uint32_t a = (pSlot[i].address >> (8 * j)) & 0xFF;
+        utilUtoa(s, a, ITOA_BASE16);
         uartPuts(s);
         uartPuts((j == 7u) ? "\r\n" : " ");
       }

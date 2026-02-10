@@ -33,11 +33,11 @@ typedef struct StrN {
 
 static void   catId(StrN_t *strD, int id, const size_t field, const bool json);
 static void   initFields(StrN_t *pD, char *pS, const size_t m);
-static size_t strnItoa(StrN_t *strD, const int32_t v);
 static size_t strnCat(StrN_t *strD, const StrN_t *strS);
+static size_t strnCatInt(StrN_t *strD, const int32_t v);
+static size_t strnCatUint(StrN_t *strD, const uint32_t v);
 
-static char   tmpStr[CONV_STR_W] = {0};
-static StrN_t strConv; /* Fat string for conversions */
+static char tmpStr[CONV_STR_W] = {0};
 
 /* Strings that are inserted in the transmitted message */
 const StrN_t baseStr[] = {
@@ -68,8 +68,7 @@ static void catId(StrN_t *strD, int id, const size_t field, const bool json) {
   strD->n += strnCat(strD, &baseStr[field]);
 
   if (id > -1) {
-    (void)strnItoa(&strConv, id);
-    strD->n += strnCat(strD, &strConv);
+    strD->n += strnCatInt(strD, id);
   }
   if (json) {
     strD->n += strnCat(strD, &baseStr[STR_DQUOTE]);
@@ -83,19 +82,22 @@ static void initFields(StrN_t *pD, char *pS, const size_t m) {
   pD->n   = 0;
   pD->m   = m;
   memset(pD->str, 0, m);
-
-  /* Setup conversion string */
-  strConv.str = tmpStr;
-  strConv.n   = 0;
-  strConv.m   = CONV_STR_W;
 }
 
-static size_t strnItoa(StrN_t *strD, const int32_t v) {
-  /* Zero the destination buffer then convert */
-  memset(strD->str, 0, strD->m);
+static size_t strnCatFromTmp(StrN_t *strD, const size_t len) {
+  const size_t space  = strD->m - strD->n;
+  const size_t toCopy = (len < space) ? len : space;
 
-  strD->n = utilItoa(strD->str, v, ITOA_BASE10);
-  return strD->n;
+  memcpy(strD->str + strD->n, tmpStr, toCopy);
+  return toCopy;
+}
+
+static size_t strnCatInt(StrN_t *strD, const int32_t v) {
+  return strnCatFromTmp(strD, utilItoa(tmpStr, v, ITOA_BASE10) - 1u);
+}
+
+static size_t strnCatUint(StrN_t *strD, const uint32_t v) {
+  return strnCatFromTmp(strD, utilUtoa(tmpStr, v, ITOA_BASE10) - 1u);
 }
 
 static size_t strnCat(StrN_t *strD, const StrN_t *strS) {
@@ -121,8 +123,8 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
   const int16_t tInt =
       (int16_t)((int32_t)pData->hdcResRaw.temp * 1650 / (1 << 16) - 400);
   const uint16_t hInt =
-      (uint16_t)((uint32_t)pData->hdcResRaw.humidity * 1000 / (1 << 16));
-  const uint16_t bInt = (uint16_t)((pData->battery * 3226) / 10000);
+      (uint16_t)((uint32_t)pData->hdcResRaw.humidity * 1000u / (1u << 16));
+  const uint16_t bInt = (uint16_t)((pData->battery * 3226u) / 10000u);
 
   /* T/H 10x value, e.g. 261 = 26.1ºC */
   if (4 == pData->numExtMax) {
@@ -164,45 +166,35 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
   }
 
   catId(&strn, -1, STR_TEMP, json);
-  (void)strnItoa(&strConv, tempInt / 10);
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatInt(&strn, tempInt / 10);
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-  (void)strnItoa(&strConv, tempInt % 10);
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatInt(&strn, tempInt % 10);
 
   for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
     tempInt = pData->tempExternal[i] * 62500; /* micro-degrees */
     tempInt = tempInt / 100000;               /* deci-degrees */
     catId(&strn, (i + 1), STR_TEMPEX, json);
 
-    (void)strnItoa(&strConv, tempInt / 10);
-    strn.n += strnCat(&strn, &strConv);
+    strn.n += strnCatInt(&strn, tempInt / 10);
     strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-    (void)strnItoa(&strConv, tempInt % 10);
-    strn.n += strnCat(&strn, &strConv);
+    strn.n += strnCatInt(&strn, tempInt % 10);
   }
 
   catId(&strn, -1, STR_HUMID, json);
-  (void)strnItoa(&strConv, (int32_t)(humInt / 10u));
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatUint(&strn, (humInt / 10u));
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-  (void)strnItoa(&strConv, (int32_t)(humInt % 10u));
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatUint(&strn, (humInt % 10u));
 
   catId(&strn, -1, STR_BATT, json);
-  (void)strnItoa(&strConv, (int32_t)(battery / 1000000u));
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatUint(&strn, (battery / 1000000u));
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-  (void)strnItoa(&strConv, (int32_t)((battery % 1000000u) / 1000u));
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatUint(&strn, ((battery % 1000000u) / 1000u));
 
   catId(&strn, -1, STR_PULSE, json);
-  (void)strnItoa(&strConv, (int32_t)pData->pulseCnt);
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatUint(&strn, pData->pulseCnt);
 
   catId(&strn, -1, STR_CO2, json);
-  (void)strnItoa(&strConv, (int32_t)pData->co2);
-  strn.n += strnCat(&strn, &strConv);
+  strn.n += strnCatUint(&strn, pData->co2);
 
   /* Terminate with } for JSON and \r\n */
   if (json) {

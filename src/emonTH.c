@@ -95,12 +95,12 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum) {
 
   uint8_t swVal = readSlideSW();
   uartPuts("> Node ID: ");
-  utilItoa(strBuffer, (swVal + pCfg->baseCfg.nodeID), ITOA_BASE10);
+  utilUtoa(strBuffer, (swVal + pCfg->baseCfg.nodeID), ITOA_BASE10);
   uartPuts(strBuffer);
   uartPuts("\r\n");
 
   uartPuts("> Sample time: ");
-  utilItoa(strBuffer, pCfg->baseCfg.reportTime, ITOA_BASE10);
+  utilUtoa(strBuffer, pCfg->baseCfg.reportTime, ITOA_BASE10);
   uartPuts(strBuffer);
   uartPuts("\r\n");
 
@@ -195,7 +195,7 @@ static void interactiveWait(void) {
 
     if (!(ledPulseOvf % (N_STEPS * 2)) && (0 != remain)) {
       char strbuf[4] = {0};
-      utilItoa(strbuf, (int32_t)(remain--), ITOA_BASE10);
+      utilUtoa(strbuf, remain--, ITOA_BASE10);
       uartPuts(strbuf);
     } else if (!(ledPulseOvf % (N_STEPS / 2))) {
       uartPuts(".");

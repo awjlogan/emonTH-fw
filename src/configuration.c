@@ -54,7 +54,7 @@ static void  printSettingRFFreq(void);
 static void  printSettings(void);
 static void  printSettingsHR(void);
 static void  printSettingsKV(void);
-static void  putInt(const int i);
+static void  putUint(const uint32_t u);
 static void  putUniqueID(void);
 static void  sepNullBuffer(void);
 
@@ -71,18 +71,18 @@ static EmonTHConfigPacked_t config        = {0};
 static bool                 unsavedChange = false;
 
 static bool configDatalog(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
-  if (convI.val < 5) {
+  if (convI.val.u16 < 5u) {
     uartPuts("> ERROR : sample period must be greater than 4 s\r\n");
     return false;
   }
 
   printSettingPeriod();
-  config.baseCfg.reportTime = convI.val;
+  config.baseCfg.reportTime = convI.val.u16;
   return true;
 }
 
@@ -109,30 +109,30 @@ static void configDefault(void) {
 }
 
 static bool configExtTempMax(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
 
   /* Must be 0, 1 or 4 */
-  if ((0 != convI.val) && (1 != convI.val) && (4 != convI.val)) {
+  if ((0 != convI.val.u8) && (1u != convI.val.u8) && (4u != convI.val.u8)) {
     uartPuts("> ERROR : must be in [0,1,4]\r\n");
     return false;
   }
 
-  config.baseCfg.extTempEn = convI.val;
+  config.baseCfg.extTempEn = convI.val.u8;
   return true;
 }
 
 static bool configJSON(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
 
-  config.baseCfg.useJson = (bool)convI.val;
+  config.baseCfg.useJson = (bool)convI.val.u8;
   printSettingJSON();
   return true;
 }
@@ -151,17 +151,17 @@ static bool configOneWire(void) {
 }
 
 static bool configNodeID(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
-  if ((convI.val < 1) || (convI.val > 60)) {
+  if ((convI.val.u8 < 1u) || (convI.val.u8 > 60u)) {
     uartPuts("> ERROR : ID must be [1..60]\r\n");
     return false;
   }
 
-  config.baseCfg.nodeID = convI.val;
+  config.baseCfg.nodeID = convI.val.u8;
 
   printSettingRF();
   return true;
@@ -173,17 +173,17 @@ static bool configPulse(void) {
    *      [3] -> pull configuration
    *      [5] -> NULL: blank time
    */
-  ConvInt_t convI;
-  bool      active   = 0;
-  uint8_t   pu       = 0;
-  uint8_t   timeMask = 0;
+  ConvUint_t convI;
+  bool       active   = 0;
+  uint8_t    pu       = 0;
+  uint8_t    timeMask = 0;
 
-  convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
-  active = (bool)convI.val;
+  active = (bool)convI.val.u8;
 
   if (!active) {
     config.pulseCfg.active = false;
@@ -193,22 +193,22 @@ static bool configPulse(void) {
 
   switch (inBuffer[3]) {
   case 'd':
-    pu = 1;
+    pu = 1u;
     break;
   case 'u':
-    pu = 2;
+    pu = 2u;
     break;
   case 'n':
   default:
     pu = 0;
   }
 
-  convI = utilAtoi(inBuffer + 5, ITOA_BASE10);
+  convI = utilAtoui(inBuffer + 5, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
-  timeMask = (uint8_t)convI.val;
+  timeMask = convI.val.u8;
 
   config.pulseCfg.active   = true;
   config.pulseCfg.pu       = pu;
@@ -243,16 +243,16 @@ static bool configRF433(void) {
 }
 
 static bool configRFM(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
-  if ((0 != convI.val) && (1 != convI.val)) {
+  if (convI.val.u8 > 1u) {
     printInvalidVal();
     return false;
   }
-  if (convI.val) {
+  if (convI.val.u8) {
     config.dataTxCfg.txType |= (1u << 0);
   } else {
     config.dataTxCfg.txType &= ~(1u << 0);
@@ -261,17 +261,17 @@ static bool configRFM(void) {
 }
 
 static bool configRFPower(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
-  if ((convI.val < 0) || (convI.val > 31)) {
+  if ((convI.val.u8 == 0) || (convI.val.u8 > 31)) {
     uartPuts("> ERROR : power must be in range [1..31]\r\n");
     return false;
   }
 
-  config.dataTxCfg.rfmPwr = convI.val;
+  config.dataTxCfg.rfmPwr = convI.val.u8;
 
   printSettingRF();
   return true;
@@ -280,12 +280,12 @@ static bool configRFPower(void) {
 static bool configSCD(void) {
 
   sepNullBuffer();
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     return false;
   }
 
-  config.scdCfg.sampleInterval = convI.val;
+  config.scdCfg.sampleInterval = convI.val.u16;
 
   size_t i;
   for (i = 0; i < IN_BUFFER_W; i++) {
@@ -294,26 +294,26 @@ static bool configSCD(void) {
     }
   }
 
-  convI = utilAtoi(inBuffer + i, ITOA_BASE10);
+  convI = utilAtoui(inBuffer + i, ITOA_BASE10);
   if (!convI.valid) {
     return false;
   }
-  config.scdCfg.altitude = convI.val;
+  config.scdCfg.altitude = convI.val.u16;
 
   return true;
 }
 
 static bool configUART(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
     printInvalidVal();
     return false;
   }
-  if ((convI.val != 0) && (convI.val != 1)) {
+  if (convI.val.u8 > 8u) {
     printInvalidVal();
     return false;
   }
-  if (convI.val) {
+  if (convI.val.u8) {
     config.dataTxCfg.txType |= (1u << 1);
   } else {
     config.dataTxCfg.txType &= ~(1u << 1);
@@ -375,7 +375,7 @@ static void printSettingJSON(void) {
 
 static void printSettingPeriod(void) {
   uartPuts("report time = ");
-  putInt(config.baseCfg.reportTime);
+  putUint(config.baseCfg.reportTime);
   uartPuts("\r\n");
 }
 
@@ -387,7 +387,7 @@ static void printSettingPulse(void) {
   uartPuts(", pull = ");
   uartPuts((0 == pu) ? "none" : (1 == pu ? "down" : "up"));
   uartPuts(", period = ");
-  putInt(config.pulseCfg.timeMask);
+  putUint(config.pulseCfg.timeMask);
   uartPuts("\r\n");
 }
 
@@ -398,11 +398,11 @@ static void printSettingRF(void) {
   printSettingRFFreq();
   uartPuts(" MHz, ");
   uartPuts(", rfGroup = ");
-  putInt(config.baseCfg.dataGrp);
+  putUint(config.baseCfg.dataGrp);
   uartPuts(", rfNode = ");
-  putInt(config.baseCfg.nodeID);
+  putUint(config.baseCfg.nodeID);
   uartPuts(", rfPower = ");
-  putInt(config.dataTxCfg.rfmPwr);
+  putUint(config.dataTxCfg.rfmPwr);
   uartPuts(", rfFormat = LowPowerLabs\r\n");
 }
 
@@ -441,11 +441,11 @@ static void printSettingsHR(void) {
   uartPuts("\r\n\r\n==== Settings ====\r\n\r\n");
 
   uartPuts("Base Node ID      : ");
-  putInt(config.baseCfg.nodeID);
+  putUint(config.baseCfg.nodeID);
   uartPuts("\r\n");
 
   uartPuts("Report time (s)   : ");
-  putInt(config.baseCfg.reportTime);
+  putUint(config.baseCfg.reportTime);
   uartPuts("\r\n");
 
   uartPuts("OneWire interface : ");
@@ -461,7 +461,7 @@ static void printSettingsHR(void) {
     uartPuts("  - RFM69, ");
     printSettingRFFreq();
     uartPuts(" MHz @ ");
-    putInt(config.dataTxCfg.rfmPwr - 18);
+    putUint(config.dataTxCfg.rfmPwr - 18u);
     uartPuts("dB\r\n");
   }
   if (config.dataTxCfg.txType & 0x2) {
@@ -472,7 +472,7 @@ static void printSettingsHR(void) {
   if (config.pulseCfg.active) {
     const uint8_t pu = config.pulseCfg.pu;
     uartPuts("Enabled\r\n  - Hysteresis (ms): ");
-    putInt(config.pulseCfg.timeMask);
+    putUint(config.pulseCfg.timeMask);
     uartPuts("\r\n");
     uartPuts("  - Pull :");
     uartPuts((0 == pu) ? "off" : ((1 == pu) ? "down" : "up"));
@@ -489,16 +489,16 @@ static void printSettingsKV(void) {
   printSettingJSON();
 }
 
-static void putInt(const int i) {
+static void putUint(const uint32_t u) {
   char strBuffer[8];
-  (void)utilItoa(strBuffer, i, ITOA_BASE10);
+  (void)utilUtoa(strBuffer, u, ITOA_BASE10);
   uartPuts(strBuffer);
 }
 
 static void putUniqueID(void) {
   char strBuffer[8];
   for (size_t i = 0; i < 4u; i++) {
-    utilItoa(strBuffer, (int32_t)getUniqueID(i), ITOA_BASE16);
+    utilUtoa(strBuffer, getUniqueID(i), ITOA_BASE16);
     uartPuts(strBuffer);
   }
 }
@@ -534,7 +534,6 @@ void configCmdChar(const uint8_t c) {
 }
 
 void configEnter(void) {
-
   portPinDrv(PIN_LED, PIN_DRV_SET);
   inBufferClear();
 
@@ -570,22 +569,21 @@ void configFirmwareBoardInfo(void) {
 
   uartPuts("> Firmware:\r\n");
   uartPuts("  - Version:    ");
-  putInt(VERSION_FW_MAJ);
+  putUint(VERSION_FW_MAJ);
   uartPuts(".");
-  putInt(VERSION_FW_MIN);
+  putUint(VERSION_FW_MIN);
   uartPuts(".");
-  putInt(VERSION_FW_REV);
+  putUint(VERSION_FW_REV);
   uartPuts("\r\n");
   uartPuts("  - Build:      ");
   uartPuts(emonTH_build_info_string());
   uartPuts("\r\n\r\n");
   uartPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
-  uartPuts("  - emonTH Copyright (C) 2024-25 Angus Logan\r\n");
+  uartPuts("  - emonTH Copyright (C) 2024-26 Angus Logan\r\n");
   uartPuts("  - For Bear and Moose\r\n\r\n");
 }
 
 EmonTHConfigPacked_t *configLoadFromNVM(void) {
-
   EmonTHConfigPacked_t *pCfg = (EmonTHConfigPacked_t *)nvmPageBuffer();
 
   NVMStatus_t nvm = nvmDataFlashRead(NVM_PAGE_CONFIG);

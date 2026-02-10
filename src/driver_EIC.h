@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct EIC_Cfg_ {
   size_t  ch;    /* Channel index */

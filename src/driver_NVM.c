@@ -70,8 +70,9 @@ void nvmDataFlashWrite(const NVMPage_t page, const size_t n) {
     ;
 
   /* Set the correct address in DFLASH region */
-  NVMCTRL->ADDR.reg = NVMCTRL_ADDR_ARRAY_DATAFLASH |
-                      NVMCTRL_ADDR_AOFFSET(page * FLASH_PAGE_SIZE);
+  const uint16_t aoffset = page * FLASH_PAGE_SIZE;
+  NVMCTRL->ADDR.reg =
+      NVMCTRL_ADDR_ARRAY_DATAFLASH | NVMCTRL_ADDR_AOFFSET(aoffset);
 
   /* Delete the row */
   NVMCTRL->CTRLA.reg = NVMCTRL_CTRLA_CMDEX_KEY | NVMCTRL_CTRLA_CMD_ER;
