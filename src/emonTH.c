@@ -233,6 +233,11 @@ static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
   for (size_t i = 0; i < numExt; i++) {
     tempSampleRead(TEMP_INTF_ONEWIRE, pData->tempExternal);
   }
+
+  /* Mark unused slots as 300°C */
+  for (size_t i = numExt; i < TEMP_MAX_ONEWIRE; i++) {
+    pData->tempExternal[i] = 4800;
+  }
 }
 
 static void measureInternal(EmonTHDataset_t *pData) {
