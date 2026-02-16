@@ -1,1 +1,1 @@
-elf-size-analyze
+elf-size-analyze==0.3.1
