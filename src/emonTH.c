@@ -159,7 +159,7 @@ static void errorFatal(void) {
 }
 
 /*! @brief Check if an event source is active. Clear on read.
- *  @param [in] : event source to check
+ *  @param [in] evt : event source to check
  *  @return true if pending, false otherwise
  */
 static bool evtPending(const EVTSRC_t evt) {

@@ -124,7 +124,7 @@ void uartInterruptDisable(uint32_t interrupt);
 void uartInterruptEnable(uint32_t interrupt);
 
 /*! @brief Return the interrupt status for the UART instance
- *  @return INTFLAG for UART§
+ *  @return INTFLAG for UART
  */
 uint32_t uartInterruptStatus(void);
 
@@ -144,5 +144,8 @@ void uartPutsBlocking(const char *s);
  */
 void uartPutsNonBlocking(const char *const s, uint32_t len);
 
+/*! @brief Configure the UART peripheral */
 void setupUart(void);
+
+/*! @brief Configure the I2C peripheral */
 void setupI2C(void);

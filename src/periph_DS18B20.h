@@ -15,6 +15,7 @@ typedef struct DS18B20_Res_ {
 } DS18B20_Res_t;
 
 /*! @brief Configure the OneWire port and initialise
+ *  @param [in] pSlot : pointer to device slot array
  *  @return the number of sensors found
  */
 size_t ds18b20InitSensors(DS18B20_Slot_t *pSlot);

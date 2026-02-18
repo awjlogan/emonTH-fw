@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/*! @brief Get the last ADC value */
+/*! @brief Get the last ADC value
+ *  @return last ADC result
+ */
 uint16_t adcGetResult(void);
 
 /*! @brief Get the status of the ADC conversion

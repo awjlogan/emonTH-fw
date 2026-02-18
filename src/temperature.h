@@ -23,6 +23,7 @@ typedef struct TempRead_ {
 } TempRead_t;
 
 /*! @brief Return the temperature as a float
+ *  @param [in] intf : interface type
  *  @param [in] tFixed : fixed point temperature
  *  @return the temperature as a float
  */
@@ -56,7 +57,7 @@ bool tempSampleReady(void);
 void tempSampleReadySet(void);
 
 /*! @brief Start a temperature sample
-    @param [in] intf : interface type
+ *  @param [in] intf : interface type
  *  @param [in] dev : device index
  */
 TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const size_t dev);

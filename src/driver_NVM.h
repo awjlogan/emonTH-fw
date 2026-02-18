@@ -24,7 +24,7 @@ NVMStatus_t nvmDataFlashRead(const NVMPage_t page);
 void nvmDataFlashWrite(const NVMPage_t page, const size_t n);
 
 /*! @brief Get the NVM page buffer address
- *  @return : pointer to the data in the page buffer
+ *  @return pointer to the data in the page buffer
  */
 uint8_t *nvmPageBuffer(void);
 

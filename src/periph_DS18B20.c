@@ -76,7 +76,7 @@ static uint8_t calcCRC8(const uint8_t crc, const uint8_t value) {
   return dscrc_table[crc ^ value];
 }
 
-/*! @brief: Find the first device on the 1-Wire bus
+/*! @brief Find the first device on the 1-Wire bus
  *  @return true: device found, ROM number in ROM_NO buffer
  *          false: no devices present
  */
@@ -96,7 +96,7 @@ static void oneWirePwrOn(void) {
   timerDelaySleep_us(250);
 }
 
-/*! @brief: Find the next device on the 1-Wire bus
+/*! @brief Find the next device on the 1-Wire bus
  *  @return true: device found, ROM number in ROM_NO buffer
  *          false: device not found, end of search
  */

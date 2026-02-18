@@ -70,7 +70,7 @@ void configFirmwareBoardInfo(void);
 EmonTHConfigPacked_t *configLoadFromNVM(void);
 
 /*! @brief Return one word from the SAML's unique ID
- *  @param[in] idx : index of the word to fetch
+ *  @param [in] idx : index of the word to fetch
  *  @return word idx from the unique ID
  */
 uint32_t getUniqueID(const size_t idx);

@@ -44,10 +44,13 @@ bool rfmInit(RFMOpt_t *pOpt);
 /*! @brief The interrupt handler for RFM69 receive */
 void rfmInterrupt(void);
 
+/*! @brief Indicate if the RFM69 send is complete
+ *  @return true if complete, false otherwise
+ */
 bool rfmSendComplete(void);
 
 /*! @brief Send data through the RFM69
- *  @param [in] : number of bytes to be sent
+ *  @param [in] n : number of bytes to be sent
  *  @return result of the attempt to send
  */
 RFMSend_t rfmSendBuffer(const size_t n);

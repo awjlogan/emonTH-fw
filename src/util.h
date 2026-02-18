@@ -49,6 +49,7 @@ bool utilCharPrintable(const char c);
  *  @param [in] pBuf : pointer to string buffer, at least 11 characters
  *  @param [in] val : value to convert
  *  @param [in] base : select base 10 or base 16 conversion
+ *  @return number of bytes including NULL
  */
 size_t utilItoa(char *pBuf, int32_t val, const ITOA_BASE_t base);
 
@@ -58,4 +59,4 @@ size_t utilItoa(char *pBuf, int32_t val, const ITOA_BASE_t base);
  *  @param [in] base : select base 10 or base 16 conversion
  *  @return number of bytes including NULL
  */
-size_t utilUtoa(char *pBuf, uint32_t val, const ITOA_BASE_t base);
+size_t utilUtoa(char *pBuf, uint32_t uval, const ITOA_BASE_t base);

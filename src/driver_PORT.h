@@ -50,6 +50,7 @@ void portPinMuxClear(size_t pin);
 
 /*! @brief Returns the pin value
  *  @param [in] pin : Pin number
+ *  @return current pin value
  */
 unsigned int portPinValue(size_t pin);
 

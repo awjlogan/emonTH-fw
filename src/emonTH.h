@@ -89,7 +89,7 @@ _Static_assert((sizeof(PackedData_4Ext_t) + 4) < 62,
 typedef enum EVTSRC_ { EVT_WAKE_TIMER = 0u, EVT_SCD4x_SAMPLE = 1u } EVTSRC_t;
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
- *  @param [in] Event source in enum
+ *  @param [in] evt : event source in enum
  */
 void emonTHEventClr(const EVTSRC_t evt);
 
@@ -103,6 +103,6 @@ void emonTHEventSet(const EVTSRC_t evt);
 void emonTHInteractiveUartSet(void);
 
 /*! @brief Blocking write of a string to UART.
- *  @param [in] s: pointer to null terminated string
+ *  @param [in] s : pointer to null terminated string
  */
 void uartPuts(const char *s);

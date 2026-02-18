@@ -20,31 +20,31 @@ size_t utilItoa(char *pBuf, int32_t val, const ITOA_BASE_t base) {
   return utilUtoa(pBuf, (uint32_t)val, base);
 }
 
-size_t utilUtoa(char *pBuf, uint32_t val, const ITOA_BASE_t base) {
+size_t utilUtoa(char *pBuf, uint32_t uval, const ITOA_BASE_t base) {
   char  buf[11]; /* 4294967295 = 10 chars + null */
   char *p = &buf[10];
 
   *p = '\0';
 
   /* Handle 0 explicitly */
-  if (0 == val) {
+  if (0 == uval) {
     pBuf[0] = '0';
     pBuf[1] = '\0';
     return 2u;
   }
 
   if (ITOA_BASE10 == base) {
-    while (val != 0) {
-      uint32_t q = val / 10u;
-      *--p       = (char)('0' + (val - q * 10));
-      val        = q;
+    while (uval != 0) {
+      uint32_t q = uval / 10u;
+      *--p       = (char)('0' + (uval - q * 10));
+      uval        = q;
     }
   } else {
     static const char itohex[] = "0123456789abcdef";
 
-    while (0 != val) {
-      *--p = itohex[val & 0xFu];
-      val >>= 4;
+    while (0 != uval) {
+      *--p = itohex[uval & 0xFu];
+      uval >>= 4;
     }
   }
 
