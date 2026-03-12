@@ -82,8 +82,8 @@ static bool configDatalog(void) {
     return false;
   }
 
-  printSettingPeriod();
   config.baseCfg.reportTime = convI.val.u16;
+  printSettingPeriod();
   return true;
 }
 
