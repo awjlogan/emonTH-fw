@@ -276,10 +276,10 @@ static uint8_t readSlideSW(void) {
   return swVal;
 }
 
-/*! @brief Disable the external boost regulator */
+/*! @brief Disable the external boost regulator. */
 static void regDisable(void) { portPinDrv(PIN_REG_EN, PIN_DRV_CLR); }
 
-/*! @brief Enable the external boost regulator
+/*! @brief Enable the external boost regulator.
  *  @param [in] dly : apply 128 us delay to allow 3V3 to settle (Figure 27)
  */
 static void regEnable(const bool dly) {
@@ -289,7 +289,7 @@ static void regEnable(const bool dly) {
   }
 }
 
-/*! @brief Initialises the temperature sensors
+/*! @brief Initialise temperature sensors (OneWire).
  *  @return number of temperature sensors found
  */
 static size_t tempSetup(void) { return tempSensorsInit(TEMP_INTF_ONEWIRE, 0); }
@@ -339,7 +339,7 @@ static void txOptions(const EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt) {
   }
 }
 
-/*! @brief Setup the microcontroller. This function must be called first. */
+/*! @brief Setup the microcontroller. Must be called once at startup. */
 static void ucSetup(void) {
   clkSetup();
   portSetup();

@@ -14,9 +14,9 @@ typedef struct DS18B20_Res_ {
   int16_t      temp;
 } DS18B20_Res_t;
 
-/*! @brief Configure the OneWire port and initialise
- *  @param [in] pSlot : pointer to device slot array
- *  @return the number of sensors found
+/*! @brief Configure the OneWire port and initialise device discovery.
+ *  @param [in] pSlot : pointer to device slot array (size TEMP_MAX_ONEWIRE)
+ *  @return number of sensors found
  */
 size_t ds18b20InitSensors(DS18B20_Slot_t *pSlot);
 
@@ -26,13 +26,14 @@ void ds18b20PowerOff(void);
 /*! @brief Power on OneWire interface */
 void ds18b20PowerOn(void);
 
-/*! @brief Start a temperature conversion on all OneWire devices
- *  @return Status of the start
+/*! @brief Start a temperature conversion on all OneWire devices.
+ *  @return status of the start command
  */
 TempStatus_t ds18b20StartSample(void);
 
-/*! @brief Read the temperature data from a OneWire device
+/*! @brief Read temperature data from a OneWire device.
+ *         Returned temperature is fixed-point in 1/16 °C.
  *  @param [in] dev : index of OneWire device
- *  @return Status and temperature data
+ *  @return status and temperature data
  */
 DS18B20_Res_t ds18b20ReadSample(const unsigned int dev);

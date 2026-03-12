@@ -348,9 +348,9 @@ static char *getLastReset(void) {
   return "Unknown";
 }
 
-/*! @brief Fetch part of the SAML's 128bit unique ID
- *  @param [in] idx : index of 32bit word
- *  @return 32bit word from index
+/*! @brief Fetch part of the SAML's 128-bit unique ID.
+ *  @param [in] idx : index of 32-bit word (0..3)
+ *  @return 32-bit word from index
  */
 uint32_t getUniqueID(const size_t idx) {
   /* Section 10.3 Serial Number */

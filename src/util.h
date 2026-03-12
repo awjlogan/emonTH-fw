@@ -24,17 +24,21 @@ typedef struct ConvUint_ {
   } val;
 } ConvUint_t;
 
-/*! @brief Convert null terminated string to integer, returns the value.
- *  @param [in] pBuf : pointer to string buffer
+/*! @brief Convert a null-terminated string to a signed integer.
+ *         No leading whitespace is skipped. For base-16, no "0x" prefix
+ *         is accepted. Overflow is not detected.
+ *  @param [in] pBuf : pointer to string buffer (entire string is parsed)
  *  @param [in] base : select base 10 or base 16 conversion
- *  @return valid and value
+ *  @return validity flag and parsed value
  */
 ConvInt_t utilAtoi(const char *pBuf, ITOA_BASE_t base);
 
-/*! @brief Convert null terminated string to unsigned integer
- *  @param [in] pBuf : pointer to string buffer
+/*! @brief Convert a null-terminated string to an unsigned integer.
+ *         No leading whitespace is skipped. For base-16, no "0x" prefix
+ *         is accepted. Overflow is not detected.
+ *  @param [in] pBuf : pointer to string buffer (entire string is parsed)
  *  @param [in] base : select base 10 or base 16 conversion
- *  @return valid and value
+ *  @return validity flag and parsed value
  */
 ConvUint_t utilAtoui(const char *pBuf, ITOA_BASE_t base);
 
@@ -44,19 +48,19 @@ ConvUint_t utilAtoui(const char *pBuf, ITOA_BASE_t base);
  */
 bool utilCharPrintable(const char c);
 
-/*! @brief Convert integer to null terminated string. Returns the number of
- *         characters (including NULL).
- *  @param [in] pBuf : pointer to string buffer, at least 11 characters
+/*! @brief Convert integer to a null-terminated string.
+ *  @param [in] pBuf : pointer to string buffer, at least 12 characters
+ *                    for base-10 with sign, 11 for base-16.
  *  @param [in] val : value to convert
  *  @param [in] base : select base 10 or base 16 conversion
- *  @return number of bytes including NULL
+ *  @return number of bytes including NULL terminator
  */
 size_t utilItoa(char *pBuf, int32_t val, const ITOA_BASE_t base);
 
-/*! @brief Convert unsigned integer to null terminated string.
+/*! @brief Convert unsigned integer to a null-terminated string.
  *  @param [in] pBuf : pointer to string buffer, at least 11 characters
  *  @param [in] uval : value to convert
  *  @param [in] base : select base 10 or base 16 conversion
- *  @return number of bytes including NULL
+ *  @return number of bytes including NULL terminator
  */
 size_t utilUtoa(char *pBuf, uint32_t uval, const ITOA_BASE_t base);

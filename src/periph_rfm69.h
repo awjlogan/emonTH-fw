@@ -30,12 +30,12 @@ typedef enum RFMSend_ {
   RFM_N_TOO_LARGE
 } RFMSend_t;
 
-/*! @brief Get a pointer to the RFM69's data buffer
- *  @return pointer to RFM69 buffer
+/*! @brief Get a pointer to the RFM69 transmit buffer.
+ *  @return pointer to RFM69 buffer (maximum payload 61 bytes)
  */
 uint8_t *rfmGetBuffer(void);
 
-/*! @brief Initialise the RFM69 module
+/*! @brief Initialise the RFM69 module.
  *  @param [in] pOpt : pointer to RFM options
  *  @return true if successful, false otherwise
  */
@@ -49,8 +49,9 @@ void rfmInterrupt(void);
  */
 bool rfmSendComplete(void);
 
-/*! @brief Send data through the RFM69
- *  @param [in] n : number of bytes to be sent
+/*! @brief Send data through the RFM69.
+ *         Payload is taken from rfmGetBuffer().
+ *  @param [in] n : number of bytes to be sent (max 61)
  *  @return result of the attempt to send
  */
 RFMSend_t rfmSendBuffer(const size_t n);
@@ -60,8 +61,8 @@ RFMSend_t rfmSendBuffer(const size_t n);
  */
 void rfmSetAddress(const uint8_t addr);
 
-/*! @brief Set the AES key for encryption
- *  @param [in] aes : 16 character AES key. 0 disables encryption.
+/*! @brief Set the AES key for encryption.
+ *  @param [in] aes : 16 character AES key; NULL disables encryption.
  */
 void rfmSetAESKey(const char *aes);
 

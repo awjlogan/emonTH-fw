@@ -28,24 +28,24 @@ void sercomSetup(void);
 /*! @brief Configure a SERCOM module for SPI */
 void sercomSetupSPI(const Pin_t sel);
 
-/*! @brief Set I2C address.
- *  @param [in] addr : address and RW bit
- *  @return I2C status
+/*! @brief Send I2C address byte (address + R/W bit) and wait for response.
+ *  @param [in] addr : 8-bit address byte (7-bit address << 1 | R/W bit)
+ *  @return I2C status (success, timeout, or NACK)
  */
 I2CM_Status_t i2cActivate(const uint8_t addr);
 
-/*! @brief Requester acknowledge command
+/*! @brief Issue I2C ACK/NACK and optional bus command.
  *  @param [in] ack : 0: ACK, 1: NACK
- *  @param [in] cmd : command
+ *  @param [in] cmd : ACK command (none/continue/stop)
  */
 void i2cAck(I2CM_Ack_t ack, I2CM_AckCmd_t cmd);
 
-/*! @brief Write to completer
+/*! @brief Write a data byte to the I2C bus (blocking).
  *  @param [in] data : data byte
  */
 void i2cDataWrite(const uint8_t data);
 
-/*! @brief Read byte from I2C completer
+/*! @brief Read a data byte from the I2C bus (blocking).
  *  @return read data
  */
 uint8_t i2cDataRead(void);
@@ -80,7 +80,7 @@ void spiEnable(void);
  */
 void spiSelect(const Pin_t nSS);
 
-/*! @brief Send a buffer on the configured SPI channel
+/*! @brief Send a buffer on the configured SPI channel (blocking).
  *  @param [in] pSrc : pointer to the source buffer
  *  @param [in] n : number of bytes to send
  */
@@ -138,9 +138,10 @@ void uartPutcBlocking(const char c);
  */
 void uartPutsBlocking(const char *s);
 
-/*! @brief Send a string (non-blocking) on UART by DMA
- *  @param [in] s : Pointer to the string
- *  @param [in] len : Length of the string (not including NULL)
+/*! @brief Send a string (non-blocking) on UART via DMA.
+ *         The source buffer must remain valid until dmacUARTComplete() is true.
+ *  @param [in] s : pointer to the string
+ *  @param [in] len : length of the string (not including NULL)
  */
 void uartPutsNonBlocking(const char *const s, uint32_t len);
 

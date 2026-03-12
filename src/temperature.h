@@ -22,10 +22,10 @@ typedef struct TempRead_ {
   int16_t      result;
 } TempRead_t;
 
-/*! @brief Return the temperature as a float
- *  @param [in] intf : interface type
- *  @param [in] tFixed : fixed point temperature
- *  @return the temperature as a float
+/*! @brief Convert a fixed-point temperature to float.
+ *  @param [in] intf : interface type (scaling depends on interface)
+ *  @param [in] tFixed : fixed point temperature value
+ *  @return temperature as a float
  */
 float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed);
 
@@ -35,16 +35,18 @@ void tempPowerOff(void);
 /*! @brief Apply power to temperature sensors */
 void tempPowerOn(void);
 
-/*! @brief Find and initialise sensors
+/*! @brief Find and initialise sensors.
  *  @param [in] intf : interface type
- *  @param [in] pParams : parameters for given interface type
+ *  @param [in] pParams : parameters for given interface type (NULL if unused)
  *  @return number of sensors found
  */
 size_t tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
 
-/*! @brief Read temperature samples from all monitors
+/*! @brief Read temperature samples from all monitors.
+ *         For TEMP_INTF_ONEWIRE, values are fixed-point in 1/16 °C.
  *  @param [in] intf : interface type
- *  @param [out] pDst : pointer to array for output
+ *  @param [out] pDst : pointer to output array, at least TEMP_MAX_ONEWIRE
+ *                     entries for OneWire.
  */
 TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst);
 
@@ -56,8 +58,8 @@ bool tempSampleReady(void);
 /*! @brief Sets the status of the sample ready */
 void tempSampleReadySet(void);
 
-/*! @brief Start a temperature sample
+/*! @brief Start a temperature sample.
  *  @param [in] intf : interface type
- *  @param [in] dev : device index
+ *  @param [in] dev : device index (ignored for OneWire global convert)
  */
 TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const size_t dev);

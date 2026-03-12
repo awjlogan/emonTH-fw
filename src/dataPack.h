@@ -5,8 +5,9 @@
 
 #include "emonTH.h"
 
-/*! @brief Pack the temperature (internal and external), humidity, battery level
- * and pulse count into a packed structure for transmission over RFM link
+/*! @brief Pack the sample data into a packed structure for RFM transmission.
+ *         Output type is PackedData_1Ext_t or PackedData_4Ext_t depending on
+ *         pData->numExtMax.
  *  @param [in] pData : pointer to the raw data
  *  @param [out] pPacked : pointer to the destination packet
  */

@@ -54,7 +54,8 @@ typedef struct __attribute__((__packed__)) EmonTHConfigPacked_ {
 _Static_assert(sizeof(EmonTHConfigPacked_t) < 57,
                "EmonTHConfigPacked_t bigger than 56 bytes");
 
-/*! @brief Add a character to the command stream
+/*! @brief Add a character to the command stream.
+ *         Input is buffered until a command terminator is received.
  *  @param [in] c : character to add
  */
 void configCmdChar(const uint8_t c);
@@ -65,7 +66,8 @@ void configEnter(void);
 /*! @brief Print the board and firmware information to serial */
 void configFirmwareBoardInfo(void);
 
-/*! @brief This functions loads the default configuration and from NVM
+/*! @brief Load configuration from NVM, falling back to defaults.
+ *  @return pointer to current configuration (static storage)
  */
 EmonTHConfigPacked_t *configLoadFromNVM(void);
 

@@ -88,14 +88,13 @@ _Static_assert((sizeof(PackedData_4Ext_t) + 4) < 62,
  */
 typedef enum EVTSRC_ { EVT_WAKE_TIMER = 0u, EVT_SCD4x_SAMPLE = 1u } EVTSRC_t;
 
-/*! @brief Clear a pending event/interrupt flag after the task has been handled
+/*! @brief Clear a pending event/interrupt flag after the task has been handled.
  *  @param [in] evt : event source in enum
  */
 void emonTHEventClr(const EVTSRC_t evt);
 
-/*! @brief Set the pending event/interrupt flag for tasks that are not handled
- *         within an ISR
- *  @param [in] evt : Event source in enum
+/*! @brief Set the pending event/interrupt flag for tasks not handled in ISR.
+ *  @param [in] evt : event source in enum
  */
 void emonTHEventSet(const EVTSRC_t evt);
 

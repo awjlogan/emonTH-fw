@@ -3,8 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/*! @brief Get the last ADC value
- *  @return last ADC result
+/*! @brief Get the last ADC value.
+ *  @return last ADC result (raw ADC counts)
  */
 uint16_t adcGetResult(void);
 
@@ -13,7 +13,8 @@ uint16_t adcGetResult(void);
  */
 bool adcSampleReady(void);
 
-/*! @brief Start the ADC conversion for battery sensing. Clears the ready flag.
+/*! @brief Start the ADC conversion for battery sensing.
+ *         Clears the ready flag; use adcSampleReady() to poll completion.
  */
 void adcSampleTrigger(void);
 

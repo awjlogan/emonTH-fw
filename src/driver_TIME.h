@@ -3,57 +3,66 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/*! @brief  Blocking delay, only used for short delays where enabling and
- *          configuring the timer has excessive overhead.
- *  @param [in] delay : period in us
+/*! @brief Busy-wait delay for very short intervals.
+ *         Does not configure hardware timers; CPU remains active.
+ *  @param [in] delay : delay in microseconds (coarse, use only for short waits)
  */
 void timerDelay_us(const uint16_t delay);
 
-/*! @brief Blocking delay in sleep mode
+/*! @brief Blocking delay in sleep mode.
+ *         Requires timerSetup() to have been called.
  *  @param [in] t_ms : delay in milliseconds
- *  @return true if successful, false otherwise.
+ *  @return true if the delay completed, false otherwise.
  */
 bool timerDelaySleep_ms(const uint16_t t_ms);
 
-/*! @brief Async delay in sleep mode with optional call back
+/*! @brief Non-blocking delay in sleep mode with optional callback.
+ *         Requires timerSetup() to have been called. Callback runs in
+ *         TIMER_DELAY ISR context and must be ISR-safe.
  *  @param [in] t_ms : delay in milliseconds
- *  @param [in] cb : pointer to call back function
- *  @return true if successful, false otherwise.
+ *  @param [in] cb : callback function pointer (NULL permitted)
+ *  @return true if successfully started, false otherwise.
  */
 bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)());
 
-/*! @brief Blocking delay in sleep mode
+/*! @brief Blocking delay in sleep mode.
+ *         Very short delays may busy-wait instead of sleeping.
+ *         Requires timerSetup() to have been called.
  *  @param [in] t_us : delay in microseconds
- *  @return true if successful, false otherwise.
+ *  @return true if the delay completed, false otherwise.
  */
 bool timerDelaySleep_us(const uint32_t t_us);
 
-/*! @brief Async delay in sleep mode with optional call back
+/*! @brief Non-blocking delay in sleep mode with optional callback.
+ *         Requires timerSetup() to have been called. Callback runs in
+ *         TIMER_DELAY ISR context and must be ISR-safe.
  *  @param [in] t_us : delay in microseconds
- *  @param [in] cb : pointer to call back function
- *  @return true if successful, false otherwise.
+ *  @param [in] cb : callback function pointer (NULL permitted)
+ *  @return true if successfully started, false otherwise.
  */
 bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)());
 
-/*! @brief Disable the timer */
+/*! @brief Disable the delay timer and clear any pending callbacks. */
 void timerFlush(void);
 
-/*! @brief Start the timer for pulse masking */
+/*! @brief Start the pulse timer for masking. */
 void timerPulseStart(void);
 
-/*! @brief Sets up the system timer units */
+/*! @brief Configure system timer units for delay/pulse timing. */
 void timerSetup(void);
 
-/*! @brief Set up the timer for LED pulse at startup
+/*! @brief Set up the timer for LED pulse at startup.
+ *         Callback runs in TIMER_LP ISR context and must be ISR-safe.
  *  @param [in] cb : pointer to callback on overflow
  */
 void timerSetupLED(void (*cb)());
 
-/*! @brief Set up the timer for pulse timing
+/*! @brief Set up the timer for pulse timing.
+ *         Callback runs in TIMER_PULSE ISR context and must be ISR-safe.
  *  @param [in] timeMask_ms : pulse counting masked for this period (ms)
  *  @param [in] cb : pointer to callback function
  */
 void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)());
 
-/*! @brief Start the timer for pulse masking */
+/*! @brief Start the pulse timer (masking window). */
 void timerStartPulse(void);

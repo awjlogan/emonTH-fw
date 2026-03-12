@@ -11,20 +11,20 @@ typedef enum NVMStatus_ {
 
 typedef enum NVMPage_ { NVM_PAGE_CONFIG = 0 } NVMPage_t;
 
-/*! @brief Read a page from the Data Flash region
+/*! @brief Read a page from the Data Flash region into the page buffer.
  *  @param [in] page : the page to read
  *  @return status of the read
  */
 NVMStatus_t nvmDataFlashRead(const NVMPage_t page);
 
-/*! @brief Write a page to the Data Flash region
+/*! @brief Write a page to the Data Flash region from the page buffer.
  *  @param [in] page : page to write to
- *  @param [in] n : number of data bytes
+ *  @param [in] n : number of data bytes (excluding header)
  */
 void nvmDataFlashWrite(const NVMPage_t page, const size_t n);
 
-/*! @brief Get the NVM page buffer address
- *  @return pointer to the data in the page buffer
+/*! @brief Get the NVM page buffer address.
+ *  @return pointer to the data region within the page buffer
  */
 uint8_t *nvmPageBuffer(void);
 

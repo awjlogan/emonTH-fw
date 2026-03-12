@@ -10,7 +10,8 @@ typedef struct EIC_Cfg_ {
   void (*cb)();  /* Callback on interrupt */
 } EIC_Cfg_t;
 
-/*! @brief Set the callback function for an EIC channel
+/*! @brief Set the callback function for an EIC channel.
+ *         Callback runs in EIC ISR context and must be ISR-safe.
  *  @param [in] ch : EIC channel
  *  @param [in] cb : callback function pointer
  */
@@ -21,7 +22,7 @@ void eicCallbackSet(const size_t ch, void (*cb)());
  */
 void eicChannelDisable(const size_t ch);
 
-/*! @brief Enable EIC level line with optional callback
+/*! @brief Enable EIC level line with optional callback.
  *  @param [in] eiccfg : EIC channel configuration
  */
 void eicChannelEnable(const EIC_Cfg_t eiccfg);
@@ -35,8 +36,8 @@ void eicEnable(void);
 /*! @brief Setup the External Interrupt Controller */
 void eicSetup(void);
 
-/*! @brief Setup a pin for EIC function
- *  @param [in] pin : (logical) pin to configure
+/*! @brief Setup a pin for EIC function.
+ *  @param [in] pin : logical pin to configure (PORT group 0 index)
  */
 void eicPinSetup(const size_t pin);
 

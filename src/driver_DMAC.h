@@ -5,7 +5,7 @@
 
 #include "emonTH_saml.h"
 
-/*! @brief Calculate the CRC16 (CCITT - 0x1021)
+/*! @brief Calculate the CRC16 (CCITT - 0x1021, init 0xFFFF)
  *  @param [in] pSrc : pointer to data
  *  @param [in] n : number of bytes in data
  *  @return CRC16 CCITT value
@@ -16,13 +16,10 @@ uint16_t calcCRC16_ccitt(const void *pSrc, size_t n);
 void dmacSetup(void);
 
 /*! @brief Returns a pointer to DMA descriptor for the channel.
- *  @param [in] ch : channel
- *  @return Pointer to the DmacDescriptor struct
+ *  @param [in] ch : channel index
+ *  @return pointer to the DmacDescriptor struct
  */
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch);
-
-/*! @brief Set the callback when the DMA has filled the sample buffer */
-void dmacCallbackBufferFill(void (*cb)(void));
 
 /*! @brief Disable a DMAC channel
  *  @param [in] ch : channel number

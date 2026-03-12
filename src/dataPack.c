@@ -49,9 +49,9 @@ const StrN_t baseStr[] = {
     {.str = "}", .n = 1, .m = 2},        {.str = ",", .n = 1, .m = 2},
     {.str = "co2", .n = 3, .m = 4}};
 
-/*! @brief "Append <field><id>:" to the string
+/*! @brief Append "<field><id>:" to the string.
  *  @param [out] strD : pointer to the fat string
- *  @param [in] id : numeric index
+ *  @param [in] id : numeric index (-1 to omit index)
  *  @param [in] field : field name index, e.g. "STR_V"
  *  @param [in] json : output in JSON format
  */

@@ -16,14 +16,14 @@ typedef enum Calibration_ {
  */
 uint32_t samlCalibration(const Calibration_t cal);
 
-/*! @brief Configure sleep controller */
+/*! @brief Configure sleep controller (generic). */
 void samlSleepConfigure();
 
-/*! @brief Enter sleep state with data flush */
+/*! @brief Enter sleep state with data flush (blocking). */
 void samlSleepEnter(void);
 
-/*! @brief Configure shallow sleep state */
+/*! @brief Configure shallow sleep state. */
 void samlSleepIdle(void);
 
-/*! @brief Configure deep sleep state */
+/*! @brief Configure deep sleep state. */
 void samlSleepStandby(void);
