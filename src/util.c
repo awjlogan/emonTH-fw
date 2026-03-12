@@ -37,7 +37,7 @@ size_t utilUtoa(char *pBuf, uint32_t uval, const ITOA_BASE_t base) {
     while (uval != 0) {
       uint32_t q = uval / 10u;
       *--p       = (char)('0' + (uval - q * 10));
-      uval        = q;
+      uval       = q;
     }
   } else {
     static const char itohex[] = "0123456789abcdef";

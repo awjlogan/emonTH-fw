@@ -55,12 +55,12 @@ void nvmDataFlashWrite(const NVMPage_t page, const size_t n) {
 
   if (CONFIG_NVM_KEY != header->watermark) {
     header->watermark  = CONFIG_NVM_KEY;
-    header->crc16      = calcCRC16_ccitt(pageBuffer + sizeof(*header), n);
     header->writeCount = 1;
-    header->n          = n;
   } else {
     header->writeCount++;
   }
+  header->crc16 = calcCRC16_ccitt(pageBuffer + sizeof(*header), n);
+  header->n     = n;
 
   /* Flush anything outstanding in the page buffer */
   if (NVMCTRL->STATUS.reg & NVMCTRL_STATUS_LOAD) {
