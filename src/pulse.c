@@ -19,7 +19,7 @@ void pulseInit(const uint16_t timeMask_ms, const uint8_t pullCfg) {
     portPinDrv(PIN_PULSE, (1u == pullCfg) ? PIN_DRV_CLR : PIN_DRV_SET);
   }
 
-  eicCallbackSet(EIC_CH_PULSE, &pulseEICCB);
+  eicSetupPulse(&pulseEICCB);
   timerSetupPulse(timeMask_ms, &pulseTimerCB);
 }
 

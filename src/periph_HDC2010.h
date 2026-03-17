@@ -12,11 +12,6 @@ typedef struct __attribute__((__packed__)) HDCResultInt_ {
 /*! @brief Start a conversion for the HDC2010. */
 void hdc2010ConversionStart(void);
 
-/*! @brief Indicates if a sample is in progress
- *  @return true if in progress, false otherwise
- */
-bool hdc2010ConversionStarted(void);
-
 /*! @brief Fetch the readings from the HDC2010.
  *         Results are raw register values, little-endian as read from device.
  *  @param [out] pRes : pointer to the result structure (raw values)

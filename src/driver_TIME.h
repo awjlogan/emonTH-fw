@@ -63,6 +63,3 @@ void timerSetupLED(void (*cb)());
  *  @param [in] cb : pointer to callback function
  */
 void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)());
-
-/*! @brief Start the pulse timer (masking window). */
-void timerStartPulse(void);

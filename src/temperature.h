@@ -22,13 +22,6 @@ typedef struct TempRead_ {
   int16_t      result;
 } TempRead_t;
 
-/*! @brief Convert a fixed-point temperature to float.
- *  @param [in] intf : interface type (scaling depends on interface)
- *  @param [in] tFixed : fixed point temperature value
- *  @return temperature as a float
- */
-float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed);
-
 /*! @brief Remove power from temperature sensors */
 void tempPowerOff(void);
 
@@ -49,11 +42,6 @@ size_t tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
  *                     entries for OneWire.
  */
 TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst);
-
-/*! @brief Get the status of the sample ready.
- *  @return true if the sample is ready
- */
-bool tempSampleReady(void);
 
 /*! @brief Sets the status of the sample ready */
 void tempSampleReadySet(void);

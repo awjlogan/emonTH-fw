@@ -62,24 +62,7 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define TIMER_DELAY_HANDLER  irq_handler_tc2
 
 /* EIC channels */
-#define EIC_RISE EIC_CONFIG_SENSE0_RISE
-#define EIC_FALL EIC_CONFIG_SENSE0_FALL
-#define EIC_BOTH EIC_CONFIG_SENSE0_BOTH
-#define EIC_HIGH EIC_CONFIG_SENSE0_HIGH
-#define EIC_LOW  EIC_CONFIG_SENSE0_LOW
-
-#define EIC_CH_HDC            1
-#define EIC_CH_RFM            3
-#define EIC_CH_PULSE          4
-#define EIC_IRQ_HANDLER_HDC   irq_handler_eic_1
-#define EIC_SENSE_HDC         EIC_RISE
-#define EIC_FILTEN_HDC        0
-#define EIC_IRQ_HANDLER_RFM   irq_handler_eic_3
-#define EIC_SENSE_RFM         EIC_RISE
-#define EIC_FILTEN_RFM        0
-#define EIC_IRQ_HANDLER_PULSE irq_handler_eic_4
-#define EIC_SENSE_PULSE       EIC_RISE
-#define EIC_FILTEN_PULSE      1
+#define EIC_IRQ_HANDLER irq_handler_eic_4
 
 /* Regulator enable */
 #define PIN_REG_EN 0u

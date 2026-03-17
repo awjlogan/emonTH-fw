@@ -41,9 +41,6 @@ uint8_t *rfmGetBuffer(void);
  */
 bool rfmInit(RFMOpt_t *pOpt);
 
-/*! @brief The interrupt handler for RFM69 receive */
-void rfmInterrupt(void);
-
 /*! @brief Indicate if the RFM69 send is complete
  *  @return true if complete, false otherwise
  */
@@ -68,11 +65,6 @@ void rfmSetAESKey(const char *aes);
 
 /*! @brief Put the RFM into retention sleep mode */
 void rfmSleep(void);
-
-/*! @brief Return the status of the RFM Tx send
- *  @return true if the Tx FIFO has been drained, false otherwise
- */
-bool rfmTxFifoDrained(void);
 
 /*! @brief Finish Tx sequence, putting RFM to sleep */
 void rfmTxFinish(void);

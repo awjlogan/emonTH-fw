@@ -25,9 +25,6 @@ typedef enum I2CM_Status_ {
 /*! @brief Configure the serial communication modules */
 void sercomSetup(void);
 
-/*! @brief Configure a SERCOM module for SPI */
-void sercomSetupSPI(const Pin_t sel);
-
 /*! @brief Send I2C address byte (address + R/W bit) and wait for response.
  *  @param [in] addr : 8-bit address byte (7-bit address << 1 | R/W bit)
  *  @return I2C status (success, timeout, or NACK)
@@ -60,9 +57,6 @@ void i2cEnable(void);
  *  @return true if enabled, false otherwise
  */
 bool i2cEnabled(void);
-
-/*! @brief Set timeout flag */
-void i2cSetTimeout(void);
 
 /*! @brief Select an SPI peripheral
  *  @param [in] nSS : grp+pin of chip select line
@@ -107,26 +101,6 @@ char uartGetc(void);
  *  @return true if waiting, false otherwise
  */
 bool uartGetcReady(void);
-
-/*! @brief Clear the interrupt status for the UART instance
- *  @param [in] interrupt : interrupt to clear
- */
-void uartInterruptClear(uint32_t interrupt);
-
-/*! @brief Disable the an interrupt for the UART instance
- *  @param [in] interrupt : interrupt to disable
- */
-void uartInterruptDisable(uint32_t interrupt);
-
-/*! @brief Enable the an interrupt for the UART instance
- *  @param [in] interrupt : interrupt to enable
- */
-void uartInterruptEnable(uint32_t interrupt);
-
-/*! @brief Return the interrupt status for the UART instance
- *  @return INTFLAG for UART
- */
-uint32_t uartInterruptStatus(void);
 
 /*! @brief Send a single character (blocking) on UART
  *  @param [in] c : Single character
