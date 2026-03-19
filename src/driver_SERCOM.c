@@ -30,8 +30,6 @@
 static void setupSPI(void);
 static void uartConfigureDMA(void);
 
-static volatile bool i2cTimeout = false;
-
 void setupI2C(void) {
   portPinMux(PIN_I2CM_SDA, PMUX_I2CM);
   portPinMux(PIN_I2CM_SCL, PMUX_I2CM);
@@ -239,20 +237,6 @@ bool uartGetcReady(void) {
   return (bool)(SERCOM_UART->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_RXC);
 }
 
-void uartInterruptEnable(const uint32_t interrupt) {
-  SERCOM_UART->USART.INTENSET.reg = interrupt;
-}
-
-void uartInterruptDisable(const uint32_t interrupt) {
-  SERCOM_UART->USART.INTENCLR.reg = interrupt;
-}
-
-uint32_t uartInterruptStatus(void) { return SERCOM_UART->USART.INTFLAG.reg; }
-
-void uartInterruptClear(uint32_t interrupt) {
-  SERCOM_UART->USART.INTFLAG.reg = interrupt;
-}
-
 /*
  * =====================================
  * I2C Functions
@@ -318,8 +302,6 @@ void i2cEnable(void) {
 bool i2cEnabled(void) {
   return SERCOM_I2CM->I2CM.CTRLA.reg & SERCOM_I2CM_CTRLA_ENABLE;
 }
-
-void i2cSetTimeout(void) { i2cTimeout = true; }
 
 /*
  * =====================================

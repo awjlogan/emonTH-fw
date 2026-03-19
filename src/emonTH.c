@@ -37,9 +37,8 @@ typedef struct TransmitOpt_ {
  * Persistent state variables
  *************************************/
 
-static volatile bool     interactiveUart    = false;
-static volatile bool     interactiveTimeout = false;
-static volatile uint32_t ledPulseOvf        = 0;
+static volatile bool     interactiveUart = false;
+static volatile uint32_t ledPulseOvf     = 0;
 static volatile uint32_t evtPend;
 AssertInfo_t             g_assert_info;
 
@@ -421,5 +420,3 @@ int main(void) {
 }
 
 void emonTHInteractiveUartSet(void) { interactiveUart = true; }
-
-void emonTHInteractiveTimeout(void) { interactiveTimeout = true; }
