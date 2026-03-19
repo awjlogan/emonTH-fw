@@ -222,11 +222,7 @@ static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
 
   /* DS18B20 conversion takes 750 ms @ 12 bit resolution */
   if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
-
-    // REVISIT : sleep is not long enough, need to do extra loops.
-    for (size_t i = 0; i < 2u; i++) {
-      timerDelaySleep_ms(800u);
-    }
+    timerDelaySleep_ms(800u);
   }
 
   for (size_t i = 0; i < numExt; i++) {
