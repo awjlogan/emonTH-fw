@@ -1,6 +1,5 @@
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "board_def.h"
 #include "driver_EIC.h"
@@ -12,16 +11,6 @@
 
 #include "RFM69.h"
 
-typedef struct RFMRx_ {
-  uint16_t targetID;
-  uint16_t senderID;
-  int16_t  rxRSSI;
-  uint8_t  payloadLen;
-  uint8_t  dataLen;
-  bool     ackRecv;
-  bool     ackReq;
-} RFMRx_t;
-
 typedef struct __attribute__((__packed__)) TxPkt_ {
   uint8_t cmd;
   uint8_t n;
@@ -31,7 +20,6 @@ typedef struct __attribute__((__packed__)) TxPkt_ {
   uint8_t data[64];
 } TxPkt_t;
 
-static void      rfmPacketHandler(void);
 static uint8_t   rfmReadReg(const uint8_t addr);
 static int16_t   rfmReadRSSI(void);
 static void      rfmRxBegin(void);
@@ -46,57 +34,11 @@ static void      timeoutSet(void);
 
 static bool          initDone         = false;
 static int_fast8_t   rfmMode          = 0;
-static RFMRx_t       rfmRx            = {0};
 static volatile bool rfmSendInterrupt = false;
-static uint8_t       rxData[64]       = {0};
-static volatile bool rxRdy            = false;
 static const Pin_t   sel              = {PIN_SPI_RFM_SS};
 static bool          sendComplete     = false;
 static volatile bool timeoutFlag      = false;
 static TxPkt_t       txPkt            = {0};
-
-static void rfmPacketHandler(void) {
-  if ((RFM69_MODE_RX == rfmMode) &&
-      (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PAYLOADREADY)) {
-
-    uint16_t ctl = 0;
-    rfmSetMode(RFM69_MODE_STANDBY);
-    spiSelect(sel);
-    spiTx(REG_FIFO & 0x7F);
-    rfmRx.payloadLen = spiRx();
-    /* Prevent any overflow */
-    if (rfmRx.payloadLen > 66) {
-      rfmRx.payloadLen = 66;
-    }
-    rfmRx.targetID = spiRx();
-    rfmRx.senderID = spiRx();
-    ctl            = spiRx();
-
-    rfmRx.targetID |= (ctl & 0x0C) << 6;
-    rfmRx.senderID |= (ctl & 0x03) << 8;
-
-    if (!(txPkt.addr == rfmRx.targetID ||
-          RFM69_BROADCAST_ADDR == rfmRx.targetID) ||
-        (rfmRx.payloadLen < 3)) {
-      rfmRx.payloadLen = 0;
-      spiDeSelect(sel);
-      rfmRxBegin();
-      return;
-    }
-
-    rfmRx.dataLen = rfmRx.payloadLen - 3;
-    rfmRx.ackRecv = ctl & RFM69_CTL_SENDACK;
-    rfmRx.ackReq  = ctl & RFM69_CTL_REQACK;
-
-    for (int i = 0; i < rfmRx.dataLen; i++) {
-      rxData[i] = spiRx();
-    }
-    rxData[rfmRx.dataLen] = 0;
-    spiDeSelect(sel);
-    rfmSetMode(RFM69_MODE_RX);
-  }
-  rfmRx.rxRSSI = rfmReadRSSI();
-}
 
 static uint8_t rfmReadReg(const uint8_t addr) {
   uint8_t rdByte;
@@ -109,9 +51,8 @@ static uint8_t rfmReadReg(const uint8_t addr) {
 
 static bool rfmTxAvailable(void) {
   bool mode    = (RFM69_MODE_RX == rfmMode);
-  bool len     = (0 == rfmRx.payloadLen);
   bool rssi    = (rfmReadRSSI() < RFM69_CSMA_LIMIT);
-  bool canSend = mode && len && rssi;
+  bool canSend = mode && rssi;
 
   if (canSend) {
     rfmSetMode(RFM69_MODE_STANDBY);
@@ -156,7 +97,7 @@ static int16_t rfmReadRSSI(void) {
 }
 
 static void rfmRxBegin(void) {
-  memset(&rfmRx, 0, sizeof(rfmRx));
+
   // Avoids Rx deadlocks
   if (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PAYLOADREADY) {
     rfmWriteReg(REG_PACKETCONFIG2, ((rfmReadReg(REG_PACKETCONFIG2) & 0xFB) |
@@ -168,19 +109,8 @@ static void rfmRxBegin(void) {
 }
 
 static bool rfmRxDone(void) {
-  if (rxRdy) {
-    rxRdy = false;
-    rfmPacketHandler();
-  }
-
   if (RFM69_MODE_RX == rfmMode) {
-    if (rfmRx.payloadLen > 0) {
-      rfmSetMode(RFM69_MODE_STANDBY);
-      return true;
-    } else {
-      /* Already in Rx, waiting for packet(s) */
-      return false;
-    }
+    return false;
   }
   rfmRxBegin();
   return false;
@@ -283,8 +213,6 @@ void rfmTxFinish(void) {
 }
 
 uint8_t *rfmGetBuffer(void) { return txPkt.data; }
-
-void rfmInterrupt(void) { rxRdy = true; }
 
 bool rfmInit(RFMOpt_t *pOpt) {
 
