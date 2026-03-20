@@ -19,7 +19,7 @@
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
 #include "periph_HDC2010.h"
-#include "periph_SCD4x.h"
+#include "periph_SensirionCO2.h"
 #include "periph_rfm69.h"
 #include "pulse.h"
 #include "temperature.h"
@@ -141,6 +141,7 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum) {
   }
 
   scd4xDiscover(pCfg->scdCfg.altitude);
+  stcc4Discover(pCfg->scdCfg.altitude);
 
   i2cDisable();
 
@@ -214,6 +215,11 @@ static void interactiveWait(void) {
 static void ledPulseOvfIncr(void) { ledPulseOvf++; }
 
 static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
+
+  if (stcc4Present()) {
+    pData->co2 = stcc4MeasureCO2();
+  }
+
   /* Only a single external will be reported, use 300°C for OEM */
   if (!numExt) {
     pData->tempExternal[0] = 4800;
@@ -222,11 +228,7 @@ static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
 
   /* DS18B20 conversion takes 750 ms @ 12 bit resolution */
   if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
-
-    // REVISIT : sleep is not long enough, need to do extra loops.
-    for (size_t i = 0; i < 2u; i++) {
-      timerDelaySleep_ms(800u);
-    }
+    timerDelaySleep_ms(800u);
   }
 
   for (size_t i = 0; i < numExt; i++) {
@@ -248,7 +250,7 @@ static void measureInternal(EmonTHDataset_t *pData) {
 
   adcSampleTrigger();
 
-  while (!hdc2010SampleReady() || !adcSampleReady()) {
+  while (!hdc2010SampleReady() && !adcSampleReady()) {
     samlSleepEnter();
   }
 

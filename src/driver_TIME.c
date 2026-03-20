@@ -89,7 +89,7 @@ bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
 }
 
 static bool timerDelaySleepLP(const uint16_t t_ms) {
-  uint32_t cc = ((t_ms * 1024u) / 1000u) - 1u;
+  uint32_t cc = (((uint32_t)t_ms * 1024u) / 1000u) - 1u;
   tdLPMatch   = false;
 
   TIMER_LP->COUNT16.CC[0].reg = cc;
