@@ -745,6 +745,8 @@ void configSaveToNVM(void) {
   nvmPageBufferClear();
   memcpy(nvmPageBuffer(), &config, sizeof(config));
   nvmDataFlashWrite(NVM_PAGE_CONFIG, sizeof(config));
+
+  uartPuts("> All settings saved.\r\n");
 }
 
 /* =======================
