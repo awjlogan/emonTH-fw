@@ -1,8 +1,5 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
-
 /*! @brief Disable EIC */
 void eicDisable(void);
 

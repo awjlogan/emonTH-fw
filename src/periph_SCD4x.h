@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
+
 /*! @brief Discover any SCD4x devices and apply configuration.
  *         May power-cycle the sensor during discovery.
  *  @param [in] altitude : height above sea level (meters, written to device)

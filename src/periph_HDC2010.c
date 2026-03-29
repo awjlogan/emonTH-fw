@@ -1,10 +1,7 @@
 #include <stddef.h>
 
-#include "board_def.h"
 #include "driver_EIC.h"
-#include "driver_SAML.h"
 #include "driver_SERCOM.h"
-#include "driver_TIME.h"
 #include "periph_HDC2010.h"
 
 #define HDC_ADDR (0x40) /* ADDR tied LOW */

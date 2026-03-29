@@ -2,11 +2,8 @@
 #include <stdint.h>
 
 #include "board_def.h"
-#include "driver_EIC.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
-#include "emonTH.h"
-#include "emonTH_saml.h"
 #include "periph_rfm69.h"
 
 #include "RFM69.h"

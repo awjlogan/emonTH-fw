@@ -1,6 +1,8 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define RFM_PALEVEL_DEF                                                        \
   0x19 /* Default power level must be below maximum                            \

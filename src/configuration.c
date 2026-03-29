@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "emonTH_assert.h"
+#include "emonTH_saml.h"
 
 #include "driver_NVM.h"
 #include "driver_PORT.h"

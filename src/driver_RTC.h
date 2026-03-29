@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 #include "emonTH.h"
-#include "emonTH_saml.h"
 
 typedef struct RTC_Evt_ {
   uint16_t smpInterval; /* Sample interval (s) */
