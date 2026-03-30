@@ -88,7 +88,6 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
       } else if (TEMP_OUT_OF_RANGE == dsbResult.status) {
         pDst[i] = 4832; /* 302°C */
       } else {
-        pDst[i]  = 4864; /* 304°C */
         presence = false;
       }
       i++;
@@ -97,9 +96,6 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
 
     /* No presence pulse detected, scrub and exit */
     if (!presence) {
-      for (i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-        pDst[i] = INT16_MIN;
-      }
       return TEMP_NO_SENSORS;
     }
 
