@@ -62,7 +62,7 @@ bool timerDelaySleep_ms(const uint16_t t_ms) {
   }
 }
 
-bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)()) {
+bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)(void)) {
   return timerDelaySleepAsync_us((uint32_t)t_ms * 1000u, cb);
 }
 
@@ -83,7 +83,7 @@ bool timerDelaySleep_us(const uint32_t t_us) {
   return true;
 }
 
-bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
+bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)(void)) {
   tcCB = cb;
   return timerSleepCommon(t_us);
 }
@@ -191,7 +191,7 @@ void timerSetup() {
   }
 }
 
-void timerSetupLED(void (*cb)()) {
+void timerSetupLED(void (*cb)(void)) {
   EMONTH_ASSERT(cb);
   ovfCB = cb;
 
@@ -216,7 +216,7 @@ void timerSetupLED(void (*cb)()) {
   NVIC_EnableIRQ(TIMER_LP_IRQn);
 }
 
-void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)()) {
+void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)(void)) {
   EMONTH_ASSERT(cb);
 
   tcPulseCB                      = cb;

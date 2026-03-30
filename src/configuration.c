@@ -31,34 +31,34 @@ typedef enum {
  * Prototypes
  *************************************/
 
-static bool  configDatalog(void);
-static void  configDefault(void);
-static bool  configExtTempMax(void);
-static bool  configJSON(void);
-static bool  configOneWire(void);
-static bool  configProcessCmd(void);
-static bool  configPulse(void);
-static bool  configRF433(void);
-static bool  configRFM(void);
-static bool  configRFPower(void);
-static void  configSaveToNVM(void);
-static bool  configSCD(void);
-static bool  configUART(void);
-static char *getLastReset(void);
-static void  inBufferClear(void);
-static void  printInvalidVal(void);
-static void  printSettingJSON(void);
-static void  printSettingPeriod(void);
-static void  printSettingPulse(void);
-static void  printSettingRF(void);
-static void  printSettingRFFreq(void);
-static void  printSettingUART(void);
-static void  printSettings(void);
-static void  printSettingsHR(void);
-static void  printSettingsKV(void);
-static void  putUint(const uint32_t u);
-static void  putUniqueID(void);
-static void  sepNullBuffer(void);
+static bool        configDatalog(void);
+static void        configDefault(void);
+static bool        configExtTempMax(void);
+static bool        configJSON(void);
+static bool        configOneWire(void);
+static bool        configProcessCmd(void);
+static bool        configPulse(void);
+static bool        configRF433(void);
+static bool        configRFM(void);
+static bool        configRFPower(void);
+static void        configSaveToNVM(void);
+static bool        configSCD(void);
+static bool        configUART(void);
+static const char *getLastReset(void);
+static void        inBufferClear(void);
+static void        printInvalidVal(void);
+static void        printSettingJSON(void);
+static void        printSettingPeriod(void);
+static void        printSettingPulse(void);
+static void        printSettingRF(void);
+static void        printSettingRFFreq(void);
+static void        printSettingUART(void);
+static void        printSettings(void);
+static void        printSettingsHR(void);
+static void        printSettingsKV(void);
+static void        putUint(const uint32_t u);
+static void        putUniqueID(void);
+static void        sepNullBuffer(void);
 
 /*************************************
  * Local variables
@@ -328,7 +328,7 @@ static bool configUART(void) {
 /*! @brief Get the last reset cause (21.8.1)
  *  @return null-terminated string with the last cause.
  */
-static char *getLastReset(void) {
+static const char *getLastReset(void) {
   const RCAUSE_t lastReset = (RCAUSE_t)RSTC->RCAUSE.reg;
   switch (lastReset) {
   case RCAUSE_SYST:

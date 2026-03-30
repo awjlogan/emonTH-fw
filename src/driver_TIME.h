@@ -23,7 +23,7 @@ bool timerDelaySleep_ms(const uint16_t t_ms);
  *  @param [in] cb : callback function pointer (NULL permitted)
  *  @return true if successfully started, false otherwise.
  */
-bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)());
+bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)(void));
 
 /*! @brief Blocking delay in sleep mode.
  *         Very short delays may busy-wait instead of sleeping.
@@ -40,7 +40,7 @@ bool timerDelaySleep_us(const uint32_t t_us);
  *  @param [in] cb : callback function pointer (NULL permitted)
  *  @return true if successfully started, false otherwise.
  */
-bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)());
+bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)(void));
 
 /*! @brief Disable the delay timer and clear any pending callbacks. */
 void timerFlush(void);
@@ -55,11 +55,11 @@ void timerSetup(void);
  *         Callback runs in TIMER_LP ISR context and must be ISR-safe.
  *  @param [in] cb : pointer to callback on overflow
  */
-void timerSetupLED(void (*cb)());
+void timerSetupLED(void (*cb)(void));
 
 /*! @brief Set up the timer for pulse timing.
  *         Callback runs in TIMER_PULSE ISR context and must be ISR-safe.
  *  @param [in] timeMask_ms : pulse counting masked for this period (ms)
  *  @param [in] cb : pointer to callback function
  */
-void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)());
+void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)(void));

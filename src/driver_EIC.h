@@ -12,9 +12,9 @@ void eicSetup(void);
 /*! @brief Setup the EIC for the HDC interrupt
  *  @param [in] cb : callback function for pulse edge
  */
-void eicSetupHDC(void (*cb)());
+void eicSetupHDC(void (*cb)(void));
 
 /*! @brief Setup the EIC for the pulse controller
  *  @param [in] cb : callback function for pulse edge
  */
-void eicSetupPulse(void (*cb)());
+void eicSetupPulse(void (*cb)(void));
