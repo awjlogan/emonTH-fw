@@ -66,9 +66,11 @@ static void  sepNullBuffer(void);
 
 #define IN_BUFFER_W (16u)
 
-static char                 inBuffer[IN_BUFFER_W];
-static size_t               inBufferIdx   = 0;
-static bool                 cmdPending    = false;
+static char            inBuffer[IN_BUFFER_W];
+static volatile char   inBufferVolatile[IN_BUFFER_W];
+static volatile size_t inBufferIdx = 0;
+static volatile bool   cmdPending  = false;
+
 static EmonTHConfigPacked_t config        = {0};
 static bool                 unsavedChange = false;
 
@@ -99,15 +101,15 @@ static void configDefault(void) {
   config.baseCfg.extTempEn  = TEMP_NUM_DEF;      // Max num external sensors
 
   config.dataTxCfg.txType  = (uint8_t)DATATX_RFM69; // RFM only
-  config.dataTxCfg.rfmPwr  = 0x18;                  // +12 dBm
-  config.dataTxCfg.rfmFreq = 3;                     // 433.92 MHz
+  config.dataTxCfg.rfmPwr  = 0x18u;                 // +12 dBm
+  config.dataTxCfg.rfmFreq = 3u;                    // 433.92 MHz
 
   config.pulseCfg.active   = false; // Pulse channel inactive
   config.pulseCfg.pu       = 1;     // Pull down
   config.pulseCfg.timeMask = 25u;   // 100 ms minimum between pulses
 
-  config.scdCfg.altitude       = 0;   // Sea level
-  config.scdCfg.sampleInterval = 600; // 10 minute CO2 sampling
+  config.scdCfg.altitude       = 0u;   // Sea level
+  config.scdCfg.sampleInterval = 600u; // 10 minute CO2 sampling
 }
 
 static bool configExtTempMax(void) {
@@ -229,10 +231,12 @@ static bool configRF433(void) {
   }
 
   /* Only applies to 433 MHz ISM band */
-  if (!((config.dataTxCfg.rfmFreq == 2) || (config.dataTxCfg.rfmFreq == 3))) {
+  if (!((config.dataTxCfg.rfmFreq == 2u) || (config.dataTxCfg.rfmFreq == 3u))) {
     uartPuts("> ERROR : only for 433 MHz ISM\r\n");
     return false;
   }
+
+  config.dataTxCfg.rfmFreq = (0 == val) ? 3u : 2u;
 
   printSettingRF();
   return true;
@@ -362,7 +366,11 @@ uint32_t getUniqueID(const size_t idx) {
 
 static void inBufferClear(void) {
   inBufferIdx = 0;
-  (void)memset(inBuffer, 0, IN_BUFFER_W);
+
+  for (size_t i = 0; i < IN_BUFFER_W; i++) {
+    inBufferVolatile[i] = 0;
+    inBuffer[i]         = 0;
+  }
 }
 
 static void printInvalidVal(void) { uartPuts("> ERROR : invalid value\r\n"); }
@@ -530,10 +538,10 @@ void configCmdChar(const uint8_t c) {
     uartPuts("\b \b");
     if (0 != inBufferIdx) {
       inBufferIdx--;
-      inBuffer[inBufferIdx] = 0;
+      inBufferVolatile[inBufferIdx] = 0;
     }
   } else if ((inBufferIdx < (IN_BUFFER_W - 1)) && utilCharPrintable(c)) {
-    inBuffer[inBufferIdx++] = c;
+    inBufferVolatile[inBufferIdx++] = c;
   } else {
     inBufferClear();
     uartPuts("\r\n");
@@ -645,6 +653,11 @@ static bool configProcessCmd(void) {
       " - w<n>          : enable wireless. n = 0: OFF, n = 1: ON\r\n"
       " - x<n>          : 433 MHz compatibility. n = 0: 433.92 MHz, n = 1: "
       "433.00 MHz\r\n";
+
+  /* Copy volatile input buffer into command buffer */
+  for (size_t i = 0; i < IN_BUFFER_W; i++) {
+    inBuffer[i] = inBufferVolatile[i];
+  }
 
   /* Convert \r or \n to 0, and get the length until then. */
   while (!termFound && (arglen < IN_BUFFER_W)) {
