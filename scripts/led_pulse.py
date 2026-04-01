@@ -1,14 +1,12 @@
 """Calculate intensity array for LED pulse effect at startup"""
 
-import math
-
 T_TIMER = 8e-6
 N_STEPS = 32
 
 top_val = 1 / (N_STEPS * 2) / T_TIMER
 
 # Approach maximum value as square
-scaleSqr = top_val / 32**2
+scaleSqr = top_val / N_STEPS**2
 
 intensities = [int(scaleSqr * i**2) for i in range(1, N_STEPS + 1)]
 
