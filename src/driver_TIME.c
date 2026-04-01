@@ -15,7 +15,6 @@ static void (*ovfCB)(void);
 static void (*tcLPCB)(void);
 static void (*tcPulseCB)(void);
 
-static volatile bool tcEnabled = false;
 static volatile bool tdMatch   = false;
 static volatile bool tdLPMatch = false;
 
@@ -134,8 +133,7 @@ static bool timerSleepCommon(const uint32_t t_us) {
 
 void timerFlush(void) {
   /* Flush internal flags and values */
-  tcCB      = 0;
-  tcEnabled = false;
+  tcCB = 0;
   TIMER_DELAY->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
   tcSync(TIMER_DELAY);
 }

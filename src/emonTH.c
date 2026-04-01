@@ -212,6 +212,9 @@ static void interactiveWait(void) {
 static void ledPulseOvfIncr(void) { ledPulseOvf++; }
 
 static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
+
+  pData->pulseCnt = pulseGetCount();
+
   /* Only a single external will be reported, use 300°C for OEM */
   if (!numExt) {
     pData->tempExternal[0] = 4800;

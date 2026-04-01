@@ -31,11 +31,6 @@ volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch) {
   return &dmacs[ch];
 }
 
-void dmacChannelDisable(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHCTRLA.reg &= ~DMAC_CHCTRLA_ENABLE;
-}
-
 void dmacChannelEnable(unsigned int ch) {
   DMAC->CHID.reg = ch;
   DMAC->CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;

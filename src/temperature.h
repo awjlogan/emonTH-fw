@@ -22,12 +22,6 @@ typedef struct TempRead_ {
   int16_t      result;
 } TempRead_t;
 
-/*! @brief Remove power from temperature sensors */
-void tempPowerOff(void);
-
-/*! @brief Apply power to temperature sensors */
-void tempPowerOn(void);
-
 /*! @brief Find and initialise sensors.
  *  @param [in] intf : interface type
  *  @param [in] pParams : parameters for given interface type (NULL if unused)
@@ -42,9 +36,6 @@ size_t tempSensorsInit(const TEMP_INTF_t intf, const void *pParams);
  *                     entries for OneWire.
  */
 TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst);
-
-/*! @brief Sets the status of the sample ready */
-void tempSampleReadySet(void);
 
 /*! @brief Start a temperature sample.
  *  @param [in] intf : interface type

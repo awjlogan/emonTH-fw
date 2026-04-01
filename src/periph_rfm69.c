@@ -29,13 +29,11 @@ static uint8_t   spiRx(void);
 static void      spiTx(const uint8_t b);
 static void      timeoutSet(void);
 
-static bool          initDone         = false;
-static int_fast8_t   rfmMode          = 0;
-static volatile bool rfmSendInterrupt = false;
-static const Pin_t   sel              = {PIN_SPI_RFM_SS};
-static bool          sendComplete     = false;
-static volatile bool timeoutFlag      = false;
-static TxPkt_t       txPkt            = {0};
+static bool          initDone    = false;
+static int_fast8_t   rfmMode     = 0;
+static const Pin_t   sel         = {PIN_SPI_RFM_SS};
+static volatile bool timeoutFlag = false;
+static TxPkt_t       txPkt       = {0};
 
 static uint8_t rfmReadReg(const uint8_t addr) {
   uint8_t rdByte;
@@ -114,7 +112,6 @@ static bool rfmRxDone(void) {
 }
 
 static RFMSend_t rfmSendNoRetry(const size_t n) {
-  sendComplete = false;
 
   // "send" in LPL
   rfmWriteReg(REG_PACKETCONFIG2,
@@ -152,13 +149,10 @@ static RFMSend_t rfmSendNoRetry(const size_t n) {
   while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT))
     ;
 
-  sendComplete = true;
   rfmSetMode(RFM69_MODE_SLEEP);
 
   return RFM_SUCCESS;
 }
-
-bool rfmSendComplete(void) { return sendComplete; }
 
 static void rfmSetMode(int_fast8_t mode) {
   if (rfmMode == mode) {
@@ -197,17 +191,6 @@ static void rfmSetMode(int_fast8_t mode) {
 }
 
 void rfmSleep(void) { rfmSetMode(RFM69_MODE_SLEEP); }
-
-void rfmTxFinish(void) {
-  spiDeSelect(sel);
-
-  rfmSetMode(RFM69_MODE_TX);
-  /* Can use the interrupt to sleep in standby here - cleared on Tx exit */
-  while (0 == (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PACKETSENT))
-    ;
-  sendComplete = true;
-  rfmSetMode(RFM69_MODE_SLEEP);
-}
 
 uint8_t *rfmGetBuffer(void) { return txPkt.data; }
 
@@ -306,8 +289,7 @@ bool rfmInit(RFMOpt_t *pOpt) {
   txPkt.tgt    = 5;
   txPkt.ackReq = 0;
 
-  initDone     = true;
-  sendComplete = true;
+  initDone = true;
   return true;
 }
 

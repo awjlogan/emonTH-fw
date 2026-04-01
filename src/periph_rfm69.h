@@ -67,6 +67,3 @@ void rfmSetAESKey(const char *aes);
 
 /*! @brief Put the RFM into retention sleep mode */
 void rfmSleep(void);
-
-/*! @brief Finish Tx sequence, putting RFM to sleep */
-void rfmTxFinish(void);
