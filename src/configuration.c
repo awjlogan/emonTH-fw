@@ -58,6 +58,7 @@ static void        printSettingsKV(void);
 static void        putUint(const uint32_t u);
 static void        putUniqueID(void);
 static void        sepNullBuffer(void);
+static void        uartPutsError(const char *msg);
 
 /*************************************
  * Local variables
@@ -74,17 +75,17 @@ static EmonTHConfigPacked_t config        = {0};
 static bool                 unsavedChange = false;
 
 static bool configDatalog(void) {
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
-  if (convI.val.u16 < 5u) {
-    uartPuts("> ERROR : sample period must be greater than 4 s\r\n");
+  if (convU.val.u16 < 5u) {
+    uartPutsError("sample period must be greater than 4 s\r\n");
     return false;
   }
 
-  config.baseCfg.reportTime = convI.val.u16;
+  config.baseCfg.reportTime = convU.val.u16;
   printSettingPeriod();
   return true;
 }
@@ -112,30 +113,30 @@ static void configDefault(void) {
 }
 
 static bool configExtTempMax(void) {
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
 
   /* Must be 0, 1 or 4 */
-  if ((0 != convI.val.u8) && (1u != convI.val.u8) && (4u != convI.val.u8)) {
-    uartPuts("> ERROR : must be in [0,1,4]\r\n");
+  if ((0 != convU.val.u8) && (1u != convU.val.u8) && (4u != convU.val.u8)) {
+    uartPutsError("must be in [0,1,4]\r\n");
     return false;
   }
 
-  config.baseCfg.extTempEn = convI.val.u8;
+  config.baseCfg.extTempEn = convU.val.u8;
   return true;
 }
 
 static bool configJSON(void) {
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
 
-  config.baseCfg.useJson = (bool)convI.val.u8;
+  config.baseCfg.useJson = (bool)convU.val.u8;
   printSettingJSON();
   return true;
 }
@@ -154,17 +155,17 @@ static bool configOneWire(void) {
 }
 
 static bool configNodeID(void) {
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
-  if ((convI.val.u8 < 1u) || (convI.val.u8 > 60u)) {
-    uartPuts("> ERROR : ID must be [1..60]\r\n");
+  if ((convU.val.u8 < 1u) || (convU.val.u8 > 60u)) {
+    uartPutsError("ID must be [1..60]\r\n");
     return false;
   }
 
-  config.baseCfg.nodeID = convI.val.u8;
+  config.baseCfg.nodeID = convU.val.u8;
 
   printSettingRF();
   return true;
@@ -176,17 +177,17 @@ static bool configPulse(void) {
    *      [3] -> pull configuration
    *      [5] -> NULL: blank time
    */
-  ConvUint_t convI;
+  ConvUint_t convU;
   bool       active   = 0;
   uint8_t    pu       = 0;
   uint8_t    timeMask = 0;
 
-  convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
-  active = (bool)convI.val.u8;
+  active = (bool)convU.val.u8;
 
   if (!active) {
     config.pulseCfg.active = false;
@@ -206,12 +207,12 @@ static bool configPulse(void) {
     pu = 0;
   }
 
-  convI = utilAtoui(inBuffer + 5, ITOA_BASE10);
-  if (!convI.valid) {
+  convU = utilAtoui(inBuffer + 5, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
-  timeMask = convI.val.u8;
+  timeMask = convU.val.u8;
 
   config.pulseCfg.active   = true;
   config.pulseCfg.pu       = pu;
@@ -231,7 +232,7 @@ static bool configRF433(void) {
 
   /* Only applies to 433 MHz ISM band */
   if (!((config.dataTxCfg.rfmFreq == 2u) || (config.dataTxCfg.rfmFreq == 3u))) {
-    uartPuts("> ERROR : only for 433 MHz ISM\r\n");
+    uartPutsError("only for 433 MHz ISM\r\n");
     return false;
   }
 
@@ -242,16 +243,16 @@ static bool configRF433(void) {
 }
 
 static bool configRFM(void) {
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
-  if (convI.val.u8 > 1u) {
+  if (convU.val.u8 > 1u) {
     printInvalidVal();
     return false;
   }
-  if (convI.val.u8) {
+  if (convU.val.u8) {
     config.dataTxCfg.txType |= (1u << 0);
   } else {
     config.dataTxCfg.txType &= ~(1u << 0);
@@ -262,17 +263,17 @@ static bool configRFM(void) {
 }
 
 static bool configRFPower(void) {
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
-  if ((convI.val.u8 == 0) || (convI.val.u8 > 31)) {
-    uartPuts("> ERROR : power must be in range [1..31]\r\n");
+  if ((convU.val.u8 == 0) || (convU.val.u8 > 31)) {
+    uartPutsError("power must be in range [1..31]\r\n");
     return false;
   }
 
-  config.dataTxCfg.rfmPwr = convI.val.u8;
+  config.dataTxCfg.rfmPwr = convU.val.u8;
 
   printSettingRF();
   return true;
@@ -281,12 +282,13 @@ static bool configRFPower(void) {
 static bool configSCD(void) {
 
   sepNullBuffer();
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
+    uartPutsError("invalid sample interval.");
     return false;
   }
 
-  config.scdCfg.sampleInterval = convI.val.u16;
+  config.scdCfg.sampleInterval = convU.val.u16;
 
   size_t i;
   for (i = 0; i < IN_BUFFER_W; i++) {
@@ -295,26 +297,29 @@ static bool configSCD(void) {
     }
   }
 
-  convI = utilAtoui(inBuffer + i, ITOA_BASE10);
-  if (!convI.valid) {
+  convU = utilAtoui(inBuffer + i, ITOA_BASE10);
+  if (!convU.valid) {
+    uartPutsError("invalid altitude.");
     return false;
   }
-  config.scdCfg.altitude = convI.val.u16;
+  config.scdCfg.altitude = convU.val.u16;
 
   return true;
 }
 
 static bool configUART(void) {
-  ConvUint_t convI = utilAtoui(inBuffer + 1, ITOA_BASE10);
-  if (!convI.valid) {
+  ConvUint_t convU = utilAtoui(inBuffer + 1, ITOA_BASE10);
+  if (!convU.valid) {
     printInvalidVal();
     return false;
   }
-  if (convI.val.u8 > 8u) {
+
+  if (convU.val.u8 > 8u) {
     printInvalidVal();
     return false;
   }
-  if (convI.val.u8) {
+
+  if (convU.val.u8) {
     config.dataTxCfg.txType |= (1u << 1);
   } else {
     config.dataTxCfg.txType &= ~(1u << 1);
@@ -372,7 +377,7 @@ static void inBufferClear(void) {
   }
 }
 
-static void printInvalidVal(void) { uartPuts("> ERROR : invalid value\r\n"); }
+static void printInvalidVal(void) { uartPutsError("invalid value\r\n"); }
 
 static void printSettingJSON(void) {
   uartPuts("json = ");
@@ -525,6 +530,12 @@ static void sepNullBuffer(void) {
       inBuffer[i] = 0;
     }
   }
+}
+
+static void uartPutsError(const char *msg) {
+  uartPuts("> ERROR: ");
+  uartPuts(msg);
+  uartPuts("\r\n");
 }
 
 void configCmdChar(const uint8_t c) {
