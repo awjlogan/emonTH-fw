@@ -247,7 +247,7 @@ static void measureInternal(EmonTHDataset_t *pData) {
 
   adcSampleTrigger();
 
-  while (!hdc2010SampleReady() && !adcSampleReady()) {
+  while (!hdc2010SampleReady() || !adcSampleReady()) {
     samlSleepEnter();
   }
 
