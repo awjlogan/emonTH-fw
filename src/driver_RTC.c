@@ -2,6 +2,7 @@
 
 #include "driver_RTC.h"
 #include "emonTH_assert.h"
+#include "emonTH_saml.h"
 
 #define EVT_MAX 4u
 

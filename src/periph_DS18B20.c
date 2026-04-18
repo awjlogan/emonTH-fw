@@ -5,7 +5,6 @@
 #include "board_def.h"
 #include "driver_PORT.h"
 #include "driver_TIME.h"
-#include "emonTH.h"
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
 
@@ -126,6 +125,7 @@ static void oneWireReadBytes(void *pDst, const size_t n) {
   uint8_t *pData = (uint8_t *)pDst;
 
   for (size_t i = 0; i < n; i++) {
+    *pData = 0;
     for (size_t j = 0; j < 8; j++) {
       /* Data received LSB first */
       *pData |= (oneWireReadBit() << j);
@@ -384,7 +384,7 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
 
   /* Check for spurious 85°C reading. This could be caused by e.g. a power
    * glitch after the sample was requested. */
-  if ((0x0C == scratch.res_X) && (DS_T85DEG == tempRes.temp)) {
+  if ((0x0C == scratch.res_X) && (DS_T85DEG == scratch.temp)) {
     tempRes.status = TEMP_BAD_SENSOR;
     return tempRes;
   }

@@ -15,7 +15,6 @@ static void (*ovfCB)(void);
 static void (*tcLPCB)(void);
 static void (*tcPulseCB)(void);
 
-static volatile bool tcEnabled = false;
 static volatile bool tdMatch   = false;
 static volatile bool tdLPMatch = false;
 
@@ -62,7 +61,7 @@ bool timerDelaySleep_ms(const uint16_t t_ms) {
   }
 }
 
-bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)()) {
+bool timerDelaySleepAsync_ms(const uint16_t t_ms, void (*cb)(void)) {
   return timerDelaySleepAsync_us((uint32_t)t_ms * 1000u, cb);
 }
 
@@ -83,7 +82,7 @@ bool timerDelaySleep_us(const uint32_t t_us) {
   return true;
 }
 
-bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)()) {
+bool timerDelaySleepAsync_us(const uint32_t t_us, void (*cb)(void)) {
   tcCB = cb;
   return timerSleepCommon(t_us);
 }
@@ -134,8 +133,7 @@ static bool timerSleepCommon(const uint32_t t_us) {
 
 void timerFlush(void) {
   /* Flush internal flags and values */
-  tcCB      = 0;
-  tcEnabled = false;
+  tcCB = 0;
   TIMER_DELAY->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
   tcSync(TIMER_DELAY);
 }
@@ -191,7 +189,7 @@ void timerSetup() {
   }
 }
 
-void timerSetupLED(void (*cb)()) {
+void timerSetupLED(void (*cb)(void)) {
   EMONTH_ASSERT(cb);
   ovfCB = cb;
 
@@ -216,7 +214,7 @@ void timerSetupLED(void (*cb)()) {
   NVIC_EnableIRQ(TIMER_LP_IRQn);
 }
 
-void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)()) {
+void timerSetupPulse(const uint16_t timeMask_ms, void (*cb)(void)) {
   EMONTH_ASSERT(cb);
 
   tcPulseCB                      = cb;

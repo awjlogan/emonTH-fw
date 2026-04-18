@@ -1,41 +1,20 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2021 Alethea Katherine Flowers.
+# Copyright (c) 2021, 2026 Alethea Katherine Flowers, Angus Logan
 # Published under the standard MIT License.
 # Full text available at: https://opensource.org/licenses/MIT
 
 import argparse
-import os
-import os.path
+import getpass
 import platform
-import pwd
 import subprocess
-import tempfile
 import textwrap
 
 from datetime import datetime, timezone
 
 
 def username():
-    return pwd.getpwuid(os.getuid())[0]
-
-
-def extract_compiled_build_info(o_path):
-    with tempfile.TemporaryDirectory() as dstdir:
-        dst = os.path.join(dstdir, "output.txt")
-        subprocess.run(
-            [
-                "arm-none-eabi-objcopy",
-                "-O",
-                "binary",
-                "--only-section=.rodata.build_info",
-                o_path,
-                dst,
-            ],
-            check=True,
-        )
-        with open(dst, "r", encoding="utf-8") as fh:
-            return fh.read().strip("\x00")
+    return getpass.getuser() or "unknown"
 
 
 def generate_build_info_c(configuration):

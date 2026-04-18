@@ -31,3 +31,13 @@ jobs:
               with:
                 name: firmware-${{ github.ref_name }}
                 path: bin/emonTH*.*
+
+            - name: Create GitHub release and upload assets
+              uses: softprops/action-gh-release@v2
+              with:
+                tag_name: ${{ github.ref_name }}
+                name: ${{ github.ref_name }}
+                files: |
+                  bin/emonTH*.*
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

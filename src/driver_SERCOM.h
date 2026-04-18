@@ -1,10 +1,10 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "driver_PORT.h"
-#include "emonTH_saml.h"
 
 typedef enum I2CM_Ack_ { I2CM_ACK = 0u, I2CM_NACK = 1u } I2CM_Ack_t;
 

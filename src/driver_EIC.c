@@ -48,6 +48,6 @@ void EIC_IRQ_HANDLER(void) {
   }
 }
 
-void eicSetupHDC(void (*cb)()) { cbHDC = cb; }
+void eicSetupHDC(void (*cb)(void)) { cbHDC = cb; }
 
-void eicSetupPulse(void (*cb)()) { cbPulse = cb; }
+void eicSetupPulse(void (*cb)(void)) { cbPulse = cb; }

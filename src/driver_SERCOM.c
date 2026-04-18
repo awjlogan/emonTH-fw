@@ -1,12 +1,10 @@
 #include "emonTH_saml.h"
 
 #include "board_def.h"
-#include "configuration.h"
 #include "driver_DMAC.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
-#include "util.h"
 
 #define I2CM_ACTIVATE_TIMEOUT_US 200u /* Time to wait for I2C bus */
 
@@ -37,8 +35,13 @@ void setupI2C(void) {
   MCLK->APBCMASK.reg |= SERCOM_I2CM_APBCMASK;
   GCLK->PCHCTRL[SERCOM_I2CM_GCLK_ID].reg =
       GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN;
+  while (!(GCLK->PCHCTRL[SERCOM_I2CM_GCLK_ID].reg & GCLK_PCHCTRL_CHEN))
+    ;
+
   GCLK->PCHCTRL[SERCOM_I2CM_GCLK_SLOW_ID].reg =
       GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN;
+  while (!(GCLK->PCHCTRL[SERCOM_I2CM_GCLK_SLOW_ID].reg & GCLK_PCHCTRL_CHEN))
+    ;
 
   SERCOM_I2CM->I2CM.CTRLA.reg = SERCOM_I2CM_CTRLA_SWRST;
   while (SERCOM_I2CM->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SWRST)
@@ -67,6 +70,8 @@ static void setupSPI(void) {
   MCLK->APBCMASK.reg |= SERCOM_SPI_APBCMASK;
   GCLK->PCHCTRL[SERCOM_SPI_GCLK_ID].reg =
       GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN;
+  while (!(GCLK->PCHCTRL[SERCOM_SPI_GCLK_ID].reg & GCLK_PCHCTRL_CHEN))
+    ;
 
   portPinDrv(PIN_SPI_RFM_SS, PIN_DRV_SET);
   portPinMux(PIN_SPI_MISO, PMUX_SPI_DATA);
@@ -168,8 +173,7 @@ void sercomSetup(void) {
 void uartPutcBlocking(const char c) {
   while (!(SERCOM_UART->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE))
     ;
-  SERCOM_UART->USART.DATA.reg    = c;
-  SERCOM_UART->USART.INTFLAG.reg = SERCOM_USART_INTFLAG_DRE;
+  SERCOM_UART->USART.DATA.reg = c;
 }
 
 void uartPutsBlocking(const char *s) {
@@ -220,6 +224,14 @@ void uartDisableRx(void) {
 }
 
 void uartPutsNonBlocking(const char *const s, uint32_t len) {
+  if (0 == len) {
+    return;
+  }
+
+  /* Wait for any existing transfers */
+  while (!dmacUARTComplete())
+    ;
+
   volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_UART);
 
   /* Valid bit is cleared when a channel is complete */
@@ -336,8 +348,8 @@ void spiSendBuffer(const void *pSrc, size_t n) {
 uint8_t spiSendByte(const uint8_t b) {
   while (0 == (SERCOM_SPI->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE))
     ;
-  SERCOM_SPI->SPI.INTFLAG.reg = SERCOM_SPI_INTFLAG_RXC;
-  SERCOM_SPI->SPI.DATA.reg    = b;
+
+  SERCOM_SPI->SPI.DATA.reg = b;
 
   while (0 == (SERCOM_SPI->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_RXC))
     ;

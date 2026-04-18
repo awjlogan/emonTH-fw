@@ -1,9 +1,11 @@
-#include "pulse.h"
+#include "emonTH_saml.h"
+
 #include "board_def.h"
 #include "driver_EIC.h"
 #include "driver_PORT.h"
 #include "driver_TIME.h"
 #include "emonTH.h"
+#include "pulse.h"
 
 static volatile bool pulseMasked = false;
 static uint32_t      pulseCount  = 0;

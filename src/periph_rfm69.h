@@ -1,6 +1,8 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define RFM_PALEVEL_DEF                                                        \
   0x19 /* Default power level must be below maximum                            \
@@ -65,6 +67,3 @@ void rfmSetAESKey(const char *aes);
 
 /*! @brief Put the RFM into retention sleep mode */
 void rfmSleep(void);
-
-/*! @brief Finish Tx sequence, putting RFM to sleep */
-void rfmTxFinish(void);

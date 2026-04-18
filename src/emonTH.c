@@ -1,5 +1,4 @@
 #include <stddef.h>
-#include <string.h>
 
 #include "emonTH_saml.h"
 
@@ -104,7 +103,7 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum) {
   uartPuts("\r\n");
 
   RFMOpt_t rfmOpt = {.freq    = pCfg->dataTxCfg.rfmFreq,
-                     .group   = NETWORK_GROUP_DEF,
+                     .group   = pCfg->baseCfg.dataGrp,
                      .nodeID  = (swVal + pCfg->baseCfg.nodeID),
                      .paLevel = pCfg->dataTxCfg.rfmPwr};
 
@@ -158,13 +157,12 @@ static void errorFatal(void) {
   }
 }
 
-/*! @brief Check if an event source is active. Clear on read.
+/*! @brief Check if an event source is active.
  *  @param [in] evt : event source to check
  *  @return true if pending, false otherwise
  */
 static bool evtPending(const EVTSRC_t evt) {
   bool ret = (evtPend & (1u << evt)) ? true : false;
-  evtPend &= ~(1u << evt);
   return ret;
 }
 
@@ -224,6 +222,7 @@ static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
     stcc4SetRHT(temp, rh);
     pData->co2 = stcc4MeasureCO2();
   }
+  pData->pulseCnt = pulseGetCount();
 
   /* Only a single external will be reported, use 300°C for OEM */
   if (!numExt) {
@@ -231,18 +230,20 @@ static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
     return;
   }
 
-  /* DS18B20 conversion takes 750 ms @ 12 bit resolution */
-  if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
-    timerDelaySleep_ms(800u);
-  }
-
+  /* Default slots to failure (304°C) */
   for (size_t i = 0; i < numExt; i++) {
-    tempSampleRead(TEMP_INTF_ONEWIRE, pData->tempExternal);
+    pData->tempExternal[i] = 4864;
   }
 
   /* Mark unused slots as 300°C */
   for (size_t i = numExt; i < TEMP_MAX_ONEWIRE; i++) {
     pData->tempExternal[i] = 4800;
+  }
+
+  /* DS18B20 conversion takes 750 ms @ 12 bit resolution */
+  if (TEMP_OK == tempSampleStart(TEMP_INTF_ONEWIRE, 0)) {
+    timerDelaySleep_ms(800u);
+    tempSampleRead(TEMP_INTF_ONEWIRE, pData->tempExternal);
   }
 }
 
@@ -255,7 +256,7 @@ static void measureInternal(EmonTHDataset_t *pData) {
 
   adcSampleTrigger();
 
-  while (!hdc2010SampleReady() && !adcSampleReady()) {
+  while (!hdc2010SampleReady() || !adcSampleReady()) {
     samlSleepEnter();
   }
 

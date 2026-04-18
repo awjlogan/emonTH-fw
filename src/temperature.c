@@ -9,15 +9,12 @@
 #include "temperature.h"
 #include "util.h"
 
-static volatile bool tempSampleReadyFlag = false;
-static bool          tempSampled         = false;
-static size_t        numSensors          = 0;
+static bool   tempSampled = false;
+static size_t numSensors  = 0;
 
-void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire);
-void tempPowerOff(void);
-void tempPowerOn(void);
+static void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire);
 
-void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire) {
+static void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire) {
   uartPuts("  - DS18B20... ");
   if (numOneWire) {
     char s[4] = {0};
@@ -40,12 +37,6 @@ void printOneWireDetails(DS18B20_Slot_t *pSlot, size_t numOneWire) {
   }
 }
 
-/*! @brief Remove power from temperature sensors */
-void tempPowerOff(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_CLR); }
-
-/*! @brief Apply power to temperature sensors */
-void tempPowerOn(void) { portPinDrv(PIN_ONEWIRE_PWR, PIN_DRV_SET); }
-
 size_t tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   (void)pParams;
 
@@ -62,13 +53,7 @@ size_t tempSensorsInit(const TEMP_INTF_t intf, const void *pParams) {
   return numSensors;
 }
 
-bool tempSampleReady(void) { return tempSampleReadyFlag; }
-
-void tempSampleReadySet(void) { tempSampleReadyFlag = true; }
-
 TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
-
-  tempSampleReadyFlag = false;
 
   if (!tempSampled) {
     return TEMP_NO_SAMPLE;
@@ -88,7 +73,6 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
       } else if (TEMP_OUT_OF_RANGE == dsbResult.status) {
         pDst[i] = 4832; /* 302°C */
       } else {
-        pDst[i]  = 4864; /* 304°C */
         presence = false;
       }
       i++;
@@ -97,9 +81,6 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
 
     /* No presence pulse detected, scrub and exit */
     if (!presence) {
-      for (i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-        pDst[i] = INT16_MIN;
-      }
       return TEMP_NO_SENSORS;
     }
 
@@ -114,16 +95,15 @@ TempStatus_t tempSampleRead(const TEMP_INTF_t intf, int16_t *pDst) {
 
 TempStatus_t tempSampleStart(const TEMP_INTF_t intf, const size_t dev) {
 
+  tempSampled = false;
   if (0 == numSensors) {
     return TEMP_NO_SENSORS;
   }
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    tempSampled = true;
     (void)dev;
     if (TEMP_OK == ds18b20StartSample()) {
-      tempSampleReadyFlag = false;
-      timerDelaySleepAsync_ms(800, &tempSampleReadySet);
+      tempSampled = true;
       return TEMP_OK;
     }
   }

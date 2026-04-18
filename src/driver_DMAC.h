@@ -21,11 +21,6 @@ void dmacSetup(void);
  */
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch);
 
-/*! @brief Disable a DMAC channel
- *  @param [in] ch : channel number
- */
-void dmacChannelDisable(unsigned int ch);
-
 /*! @brief Enable a DMAC channel
  *  @param [in] ch : channel number
  */

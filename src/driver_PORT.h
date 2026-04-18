@@ -3,8 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "emonTH_saml.h"
-
 /* Types */
 typedef struct Pin_ {
   uint16_t pin;

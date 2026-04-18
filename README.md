@@ -19,16 +19,6 @@ Please include as much information as possible, including at least:
 - All settings (run the `l` command on the serial link)
 - A full description, including a reproduction if possible, of the issue
 
-### Contributing
-
-Contributions are welcome! Small PRs can be accepted at any time. Please get in touch before making _large_ changes to see if it's going to fit before spending too much time on things.
-
-> [!TIP]
-> A [clang-format](https://clang.llvm.org/docs/ClangFormat.html) autoformat pattern is included in the repository. Run the `install-hooks.sh` script to install the pre-commit hook to the autoformatter. You may need to install `clang-format` using your OS's package manager.
-
-> [!NOTE]
-> Please bear in mind that this is an open source project and PRs and enhancements may not be addressed quickly, or at all. This is no comment on the quality of the contribution, and please feel free to fork as you like!
-
 ## Functional Description
 
 ### Version information
@@ -53,15 +43,33 @@ A UART is provided for configuration and, optionally, data transmission. It has 
 
 ### Run time configuration
 
-When the emonTH3 is powered on or reset, the **STATUS** indicator will blink for 5 seconds. If any character is received over the UART connection in this time, the emonTH3 will enter configuration mode. It is not possible to configure the emonTH3 outside this period.
+When the emonTH3 is powered on or reset, the **STATUS** indicator will slowly pulse for 5 seconds. If any character is received over the UART connection in this time, the emonTH3 will enter configuration mode. It is not possible to configure the emonTH3 outside this period.
 
 > [!NOTE]
 > All options can be listed by entering `?`.
 
-The following options are available:
+The following options are available through the serial configuration interface.
 
-> [!WARNING]
-> The RFM69 transmitter will be damaged if it is run at maximum power without an antenna.
+| Command | Description | Arguments |
+|---------|-------------|-----------|
+| `?` | Show help text | None |
+| `a<n> <m>` | Configure the SCD4x CO2 sensor | `n`: sample interval (s)<br>`m`: altitude above sea level (m) |
+| `c<n>` | Enable UART output | `0`: off, `1`: on |
+| `d<n>` | Set the data acquisition period | `n`: period value |
+| `e<n>` | Set the number of external temperature sensors | `0`, `1`, or `4` |
+| `f` | Exit configuration mode and continue boot | None |
+| `j<n>` | Enable JSON serial format | `0`: off, `1`: on |
+| `l` | List settings as key/value pairs | None |
+| `lh` | List settings in human readable form | None |
+| `m <x> <y> <z>` | Configure pulse counting | `x`: `0` off, `1` on<br>`y`: `n` no pull, `d` pull down, `u` pull up<br>`z`: minimum pulse period (ms) |
+| `n<n>` | Set node ID | `[1..60]` |
+| `p<n>` | Set RF power level | `n`: RF power level |
+| `r` | Restore defaults | None |
+| `s` | Save settings to NVM | None |
+| `t<x> <yy> <yy> <yy> <yy> <yy> <yy> <yy> <yy>` | Change an external sensor's position | `x`: sensor position in the list (1-based)<br>`yy`: hexadecimal address bytes, e.g. `28 81 43 31 07 00 00 D9` |
+| `v` | Print firmware and board information | None |
+| `w<n>` | Enable wireless | `0`: off, `1`: on |
+| `x<n>` | Set 433 MHz compatibility | `0`: `433.92 MHz`, `1`: `433.00 MHz` |
 
 ## Compiling and uploading
 
@@ -86,17 +94,19 @@ The `-dirty` tag (if present) indicates that there are uncommitted changes when 
 
 ### Uploading
 
-The emonTH3 is supplied with a serial bootloader installed. To enter the bootloader, press the **BOOT** button while powering on the emonTH3. The LED will blink to indicate it has entered the bootloader.
+The emonTH3 is supplied with a [serial bootloader](https://github.com/awjlogan/bootloader_uart_saml10/) installed. To enter the bootloader, press the **BOOT** button while powering on the emonTH3. The LED will blink to indicate it has entered the bootloader.
 
 ## Modifications
 
 ### Helper scripts
 
 > [!NOTE]
-> A Python virtual environment shoulde be setup by running `python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt` in `./scripts/`.
+> A Python virtual environment should be setup by running `python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt` in `./scripts/`.
 
-- `a2l.sh`: converts a hex address to a file line. Usage: `a2l.sh <address>`
-- `elf-size.sh`: this script decomposes the built `.elf` file into functions with their sizes.
+- `build_info.py`: generates `src/emonTH_build_info.c` during the build with the git revision, compiler version, build time, machine, and release metadata embedded in the firmware.
+- `version_info.py`: derives the versioned output filename from the firmware version in `src/emonTH.h` and the current git revision.
+- `elf_size.sh`: runs `elf-size-analyze` on `build/emonTH.elf` to break the image down by function size.
+- `led_pulse.py`: generates the `ledIntensity[]` lookup table used for the startup LED pulse effect.
 
 ### Compile Time Configuration
 
@@ -118,15 +128,16 @@ The following table lists the peripherals used in the SAML10.
 |DMAC             |                 |DMA Controller                 |UART transmission                  |
 |EIC              |                 |External interrupt controller  |External device sense              |
 |PORT             |                 |GPIO handling                  |                                   |
+|SERCOM0          |SERCOM_I2CM      |I2C                            |I2C for internal peripherals       |
+|SERCOM1          |SERCOM_SPI       |SPI                            |Drives RFM module                  |
 |SERCOM2          |SERCOM_UART      |UART                           |Configuration and data UART        |
-|SERCOM3          |SERCOM_I2CM      |I2C (internal)                 |I2C for internal peripherals       |
-|SERCOM4          |SERCOM_SPI       |SPI                            |Drives RFM module                  |
-|TC1              |TIMER_DELAY      |Timer/Counter (16bit)          |Delay counter, 8 us resolution     |
-|TC2              |TIMER_PULSE      |Timer/Counter (16bit)          |Low power 1 ms resolution          |
+|TC0              |TIMER_LP         |Timer/Counter (16bit)          |Low power timing                   |
+|TC1              |TIMER_PULSE      |Timer/Counter (16bit)          |Pulse timing / mask window         |
+|TC2              |TIMER_DELAY      |Timer/Counter (16bit)          |Delay counter, 8 us resolution     |
 
 ### Designing a new board
 
-The files `/src/board_def.h` and `/src/board_def.c` contain options for configuring the microcontroller for a given board. Pin mappings and peripheral usage will need to be adjusted to your design.
+The files `./src/board_def.h` and `./src/board_def.c` contain options for configuring the microcontroller for a given board. Pin mappings and peripheral usage will need to be adjusted to your design.
 
 ### Porting to different microcontroller
 
@@ -135,6 +146,16 @@ Within the top level loop, there are no direct calls to low level hardware. You 
 All peripheral drivers are in header/source pairs named **driver_\<PERIPHERAL\>**. For example, the ADC driver is in **driver_ADC.\***. If you are porting to a new microcontroller, you will need to provide implementations of all the functions exposed in **driver_\<PERIPHERAL\>.h** and any internal functions within **driver_\<PERIPHERAL\>.c**. If your microcontroller does not support a particular function (for example, it doesn't have a DMA), then either no operation or an alternative must be provided.
 
 You will also need to ensure that the vendor's headers are included and visible to the compiler.
+
+## Contributing
+
+Contributions are welcome! Small PRs can be accepted at any time. Please get in touch before making _large_ changes to see if it's going to fit before spending too much time on things.
+
+> [!TIP]
+> A [clang-format](https://clang.llvm.org/docs/ClangFormat.html) autoformat pattern is included in the repository. Run the `install-hooks.sh` script to install the pre-commit hook to the autoformatter. You may need to install `clang-format` using your OS's package manager.
+
+> [!NOTE]
+> Please bear in mind that this is an open source project and PRs and enhancements may not be addressed quickly, or at all. This is no comment on the quality of the contribution, and please feel free to fork as you like!
 
 ## Acknowledgements
 
