@@ -78,7 +78,7 @@ static SC_Resp_t cmdExecute(const SC_Cmd_t *cmd, uint8_t *pData);
 static uint8_t   crcCalc(const uint8_t *pData, const size_t n);
 static void      printInfo(const SC_Type_t type);
 static void      regRead(const SC_Cmd_t *cmd, uint8_t *pData);
-static void      regWrite(const uint8_t *pData);
+static void      regWrite(const SC_Cmd_t *cmd, const uint8_t *pData);
 
 /* ==== SCD4x functions ==== */
 static void     byteSwap(uint8_t *pBuf);
@@ -93,9 +93,12 @@ static uint16_t  convH2H(const uint16_t h);
 static uint16_t  convT2T(const int16_t t);
 static SC_Resp_t stccSleepExit(void);
 
-/*  */
+/* Presence */
 static SCD_ID_t scdID;
 static bool     stccPresent;
+
+static int16_t  tInt = 0; /* Temperature from board sensor */
+static uint16_t hInt = 0; /* RH from board sensor */
 
 static void byteSwap(uint8_t *pBuf) {
   uint8_t tmp0 = pBuf[0];
@@ -112,11 +115,13 @@ static uint16_t convAltitude2Pressure(const uint16_t altitude) {
 }
 
 static uint16_t convH2H(const uint16_t h) {
+  /* Section 3.5 Conversion of Signal Input and Output */
   uint32_t tmpH = (((uint32_t)h + 6u) * ((1u << 16) - 1u)) / 125u;
   return (uint16_t)(tmpH & 0xFFFFu);
 }
 
 static uint16_t convT2T(const int16_t t) {
+  /* Section 3.5 Conversion of Signal Input and Output */
   uint32_t tmpT = t < 0 ? 0 : (uint32_t)t;
   tmpT          = ((tmpT + 45u) * ((1u << 16) - 1u)) / 175u;
   return (uint16_t)(tmpT & 0xFFFFu);
@@ -135,7 +140,7 @@ static SC_Resp_t cmdExecute(const SC_Cmd_t *cmd, uint8_t *pData) {
   i2cDataWrite(regLSB);
 
   if (W == cmd->rwc) {
-    regWrite(pData);
+    regWrite(cmd, pData);
     timerDelaySleep_ms(cmd->t_wait);
   } else if (R == cmd->rwc) {
     regRead(cmd, pData);
@@ -246,11 +251,13 @@ static void regRead(const SC_Cmd_t *cmd, uint8_t *pData) {
   }
 }
 
-static void regWrite(const uint8_t *pData) {
+static void regWrite(const SC_Cmd_t *cmd, const uint8_t *pData) {
   /* All commands are 16 bit, MSB first */
-  i2cDataWrite(pData[1]);
-  i2cDataWrite(pData[0]);
-  i2cDataWrite(crcCalc(pData, 2));
+  for (size_t i = 0; i < cmd->n; i = i + 2u) {
+    i2cDataWrite(pData[i + 1u]);
+    i2cDataWrite(pData[i]);
+    i2cDataWrite(crcCalc(pData + i, 2));
+  }
   i2cAck(I2CM_ACK, I2CM_ACK_CMD_STOP);
 }
 
@@ -325,8 +332,8 @@ void stcc4Discover(const uint16_t altitude) {
   stccPresent       = false;
 
   /* Section 3.4.16 : STCC-4 product ID */
-  if (SC_RESP_OK == cmdExecute(&cmdSTCCId, rxBuf)) {
-
+  if (SC_RESP_OK == stccSleepExit()) {
+    cmdExecute(&cmdSTCCId, rxBuf);
     uint32_t pid = ((uint32_t)rxBuf[0] << 24) | (uint32_t)rxBuf[1] << 16 |
                    ((uint32_t)rxBuf[2] << 8) | (uint32_t)rxBuf[3];
 
@@ -348,17 +355,23 @@ void stcc4Discover(const uint16_t altitude) {
 
 uint16_t stcc4MeasureCO2(void) {
 
-  uint8_t co2[2];
+  uint8_t co2[2]       = {0};
+  RHT_t   rht          = {0};
   bool    i2cIsEnabled = i2cEnabled();
 
   if (!i2cIsEnabled) {
     i2cEnable();
   }
 
-  stccSleepExit();
-  cmdExecute(&cmdSampleSingleSTCC, NULL);
-  cmdExecute(&cmdSampleReadSTCC, co2);
-  cmdExecute(&cmdSleepEnter, NULL);
+  rht.h = convH2H(hInt);
+  rht.t = convT2T(tInt);
+
+  if (SC_RESP_OK == stccSleepExit()) {
+    cmdExecute(&cmdSetRHT, (uint8_t *)&rht);
+    cmdExecute(&cmdSampleSingleSTCC, NULL);
+    cmdExecute(&cmdSampleReadSTCC, co2);
+    cmdExecute(&cmdSleepEnter, NULL);
+  }
 
   if (!i2cIsEnabled) {
     i2cDisable();
@@ -370,12 +383,8 @@ uint16_t stcc4MeasureCO2(void) {
 bool stcc4Present(void) { return stccPresent; }
 
 void stcc4SetRHT(const int16_t t, const uint16_t rh) {
-  RHT_t rht = {0};
-
-  rht.h = convH2H(rh);
-  rht.t = convT2T(t);
-
-  cmdExecute(&cmdSetRHT, (uint8_t *)&rht);
+  tInt = t;
+  hInt = rh;
 }
 
 static SC_Resp_t stccSleepExit(void) {

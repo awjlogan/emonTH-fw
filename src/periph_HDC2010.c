@@ -25,6 +25,14 @@ void hdc2010ConversionStart(void) {
   sampleReady = false;
 }
 
+uint16_t hdc2010ConvRHx10(const uint16_t rhRaw) {
+  return (uint16_t)((uint32_t)rhRaw * 1000u / (1u << 16));
+}
+
+int16_t hdc2010ConvTx10(const int16_t tRaw) {
+  return (int16_t)((int32_t)tRaw * 1650 / (1 << 16) - 400);
+}
+
 static void hdc2010Interrupt(void) { sampleReady = true; }
 
 static void hdc2010RegNRead(const uint8_t ptrStart, void *pDst,

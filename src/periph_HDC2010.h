@@ -12,6 +12,18 @@ typedef struct __attribute__((__packed__)) HDCResultInt_ {
 /*! @brief Start a conversion for the HDC2010. */
 void hdc2010ConversionStart(void);
 
+/*! @brief Convert the raw RH value to actual value
+ *  @param [in] rhRaw : RH as read from HDC2010
+ *  @return RH% x10
+ */
+uint16_t hdc2010ConvRHx10(const uint16_t rhRaw);
+
+/*! @brief Convert the raw temperature value to actual value
+ *  @param [in] tRaw : Temperature as read from HDC2010
+ *  @return T°C x10
+ */
+int16_t hdc2010ConvTx10(const int16_t tRaw);
+
 /*! @brief Fetch the readings from the HDC2010.
  *         Results are raw register values, little-endian as read from device.
  *  @param [out] pRes : pointer to the result structure (raw values)

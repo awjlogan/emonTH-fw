@@ -217,6 +217,11 @@ static void ledPulseOvfIncr(void) { ledPulseOvf++; }
 static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
 
   if (stcc4Present()) {
+
+    int16_t  temp = hdc2010ConvTx10(pData->hdcResRaw.temp) / 10;
+    uint16_t rh   = hdc2010ConvRHx10(pData->hdcResRaw.humidity) / 10u;
+
+    stcc4SetRHT(temp, rh);
     pData->co2 = stcc4MeasureCO2();
   }
 
