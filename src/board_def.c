@@ -12,4 +12,6 @@ const uint8_t pinsGPIO_Out[] = {
 
 const uint8_t pinsGPIO_In[] = {PIN_ONEWIRE, PIN_SW_NODE0, PIN_SW_NODE1, 0xFF};
 
-const uint8_t pinsUnused[] = {1, 17, 0xFF};
+const uint8_t pinExt5VSense = PIN_EXT5V_SENSE;
+
+const uint8_t pinsUnused[] = {1u, 0xFF};

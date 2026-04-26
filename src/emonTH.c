@@ -247,7 +247,7 @@ static void measureInternal(EmonTHDataset_t *pData) {
 
   adcSampleTrigger();
 
-  while (!hdc2010SampleReady() || !adcSampleReady()) {
+  while (!adcSampleReady() || !hdc2010SampleReady()) {
     samlSleepEnter();
   }
 
@@ -271,7 +271,9 @@ static uint8_t readSlideSW(void) {
       portPinCfg(swPin[i], PORT_PINCFG_PULLEN, PIN_CFG_CLR);
     }
   }
-  return swVal;
+
+  /* Return the bitwise NOT as the switch ON position -> value of 0 */
+  return ~swVal & 0x3u;
 }
 
 /*! @brief Disable the external boost regulator. */
@@ -361,6 +363,7 @@ int main(void) {
 
   ucSetup();
   regEnable(true);
+  eicEnable();
 
   configFirmwareBoardInfo();
 
@@ -392,7 +395,6 @@ int main(void) {
       emonTHEventClr(EVT_WAKE_TIMER);
 
       regEnable(true);
-      eicEnable();
 
       measureInternal(&dataset);
       measureExternal(&dataset, tempExtNum);
@@ -400,7 +402,6 @@ int main(void) {
       transmitData(&dataset, &txOpt, txBuffer);
 
       timerDelaySleep_ms(1);
-      eicDisable();
       regDisable();
     }
 

@@ -62,7 +62,8 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define TIMER_DELAY_HANDLER  irq_handler_tc2
 
 /* EIC channels */
-#define EIC_IRQ_HANDLER irq_handler_eic_4
+#define EIC_PULSE_HANDLER irq_handler_eic_3
+#define EIC_IRQ_HANDLER   irq_handler_eic_4
 
 /* Regulator enable */
 #define PIN_REG_EN 0u
@@ -76,16 +77,17 @@ _Static_assert(((1 == TEMP_MAX_ONEWIRE) || (4 == TEMP_MAX_ONEWIRE)),
 #define PIN_GPIO0 11u
 #define PIN_GPIO1 10u
 
-/* Battery sensing */
-#define PIN_VBATT 2u
-#define AIN_VBATT ADC_INPUTCTRL_MUXPOS_AIN0
+/* Power sensing */
+#define PIN_VBATT       2u
+#define AIN_VBATT       ADC_INPUTCTRL_MUXPOS_AIN0
+#define PIN_EXT5V_SENSE 27u
 
 /* OneWire Interface */
 #define PIN_ONEWIRE     5u
-#define PIN_ONEWIRE_PWR 3u
+#define PIN_ONEWIRE_PWR 4u
 
 /* Pulse interface */
-#define PIN_PULSE 4u
+#define PIN_PULSE 3u
 
 /* UART related defines */
 #define PIN_UART_RX 9u

@@ -55,6 +55,7 @@ void portSetup(void) {
   extern const uint8_t pinsGPIO_Out[];
   extern const uint8_t pinsGPIO_In[];
   extern const uint8_t pinsUnused[];
+  extern const uint8_t pinExt5VSense;
 
   /* GPIO outputs - also enable read buffer */
   for (unsigned int i = 0; pinsGPIO_Out[i] != 0xFF; i++) {
@@ -62,13 +63,17 @@ void portSetup(void) {
     portPinCfg(pinsGPIO_Out[i], PORT_PINCFG_INEN, PIN_CFG_SET);
   }
 
-  /* GPIO inputs  - all inputs currently need pull ups, so default enable */
+  /* GPIO inputs  - most inputs currently need pull ups, so default enable */
   for (unsigned int i = 0; pinsGPIO_In[i] != 0xFF; i++) {
     portPinDir(pinsGPIO_In[i], PIN_DIR_IN);
     portPinCfg(pinsGPIO_In[i], PORT_PINCFG_PULLEN, PIN_CFG_SET);
     portPinCfg(pinsGPIO_In[i], PORT_PINCFG_INEN, PIN_CFG_SET);
     portPinDrv(pinsGPIO_In[i], PIN_DRV_SET);
   }
+
+  /* 5V external sense has an external pull down */
+  portPinDir(pinExt5VSense, PIN_DIR_IN);
+  portPinCfg(pinExt5VSense, PORT_PINCFG_INEN, PIN_CFG_SET);
 
   /* Unused pins: input, pull down (Table 23-2) */
   for (unsigned int i = 0; pinsUnused[i] != 0xFF; i++) {

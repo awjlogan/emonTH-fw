@@ -106,7 +106,7 @@ static void configDefault(void) {
 
   config.pulseCfg.active   = false; // Pulse channel inactive
   config.pulseCfg.pu       = 1;     // Pull down
-  config.pulseCfg.timeMask = 25u;   // 100 ms minimum between pulses
+  config.pulseCfg.timeMask = 25u;   // 25 ms minimum between pulses
 
   config.scdCfg.altitude       = 0u;   // Sea level
   config.scdCfg.sampleInterval = 600u; // 10 minute CO2 sampling
@@ -314,7 +314,7 @@ static bool configUART(void) {
     return false;
   }
 
-  if (convU.val.u8 > 8u) {
+  if (convU.val.u8 > 1u) {
     printInvalidVal();
     return false;
   }
