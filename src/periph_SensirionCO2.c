@@ -340,9 +340,9 @@ void stcc4Discover(const uint16_t altitude) {
   }
 
   uartPuts("  - STCC...");
-  uartPuts("\r\n    > Reconditioning... ");
 
   if (stccPresent) {
+    uartPuts("\r\n    > Reconditioning... ");
 
     uint16_t pa = convAltitude2Pressure(altitude);
     cmdExecute(&cmdPressureSet, (uint8_t *)&pa);
