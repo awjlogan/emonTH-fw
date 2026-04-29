@@ -167,7 +167,7 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
   strn.n += strnCatInt(&strn, tempInt % 10);
 
-  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+  for (int i = 0; i < (int)pData->numExtMax; i++) {
     /* Only include sensors that have been found */
     if (pData->tempExternal[i] != 4800) {
       tempInt = pData->tempExternal[i] * 62500; /* micro-degrees */
