@@ -224,9 +224,6 @@ static void printInfo(const SC_Type_t type) {
     case SCD4x_NONE:
       uartPuts("None");
     }
-  } else if (TYPE_STCC == type) {
-    uartPuts("  - STCC... ");
-    uartPuts(stccPresent ? "Done" : "None");
   }
   uartPuts("\r\n");
 }
@@ -342,7 +339,11 @@ void stcc4Discover(const uint16_t altitude) {
     }
   }
 
+  uartPuts("  - STCC...");
+  uartPuts("\r\n    > Reconditioning... ");
+
   if (stccPresent) {
+
     uint16_t pa = convAltitude2Pressure(altitude);
     cmdExecute(&cmdPressureSet, (uint8_t *)&pa);
     /* Assume >3 hr since last sample on boot so recondition (Section 1.1.13) */
@@ -350,7 +351,7 @@ void stcc4Discover(const uint16_t altitude) {
     cmdExecute(&cmdSleepEnter, NULL);
   }
 
-  printInfo(TYPE_STCC);
+  uartPuts(stccPresent ? "Done\r\n" : "None\r\n");
 }
 
 uint16_t stcc4MeasureCO2(void) {
