@@ -132,7 +132,8 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
     tx->battery           = bInt;
     tx->pulse             = pData->pulseCnt;
     for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-      tx->tempExternal[i] = pData->tempExternal[i];
+      tx->tempExternal[i] = (int16_t)((pData->tempExternal[i] * 6) +
+                                      (pData->tempExternal[i] >> 2));
     }
     tx->co2 = pData->co2;
   } else {
@@ -141,8 +142,9 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
     tx->humidityInternal  = hInt;
     tx->battery           = bInt;
     tx->pulse             = pData->pulseCnt;
-    tx->tempExternal      = pData->tempExternal[0];
-    tx->co2               = pData->co2;
+    tx->tempExternal =
+        (int16_t)((pData->tempExternal[0] * 6) + (pData->tempExternal[0] >> 2));
+    tx->co2 = pData->co2;
   }
 }
 
