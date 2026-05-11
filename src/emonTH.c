@@ -350,8 +350,11 @@ static void txOptions(const EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt) {
 
 /*! @brief Setup the microcontroller. Must be called once at startup. */
 static void ucSetup(void) {
-  clkSetup();
+  /* Start the boost regulator as early as possible */
   portSetup();
+  regEnable(true);
+
+  clkSetup();
   sercomSetup();
   rtcSetup();
   adcSetup();
@@ -372,7 +375,6 @@ int main(void) {
   TransmitOpt_t         txOpt                 = {0};
 
   ucSetup();
-  regEnable(true);
   eicEnable();
 
   configFirmwareBoardInfo();
