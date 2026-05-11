@@ -476,14 +476,18 @@ static void printSettingsHR(void) {
 
   uartPuts("Data transmission :\r\n");
   if (config.dataTxCfg.txType & 0x1) {
-    uartPuts("  - RFM69, ");
+    uartPuts("  - RFM69 (LowPowerLabs), ");
     printSettingRFFreq();
     uartPuts(" MHz @ ");
     putUint(config.dataTxCfg.rfmPwr - 18u);
     uartPuts("dB\r\n");
   }
   if (config.dataTxCfg.txType & 0x2) {
-    uartPuts("  - Serial enabled\r\n");
+    uartPuts("  - Serial enabled");
+    if (config.baseCfg.useJson) {
+      uartPuts(" (JSON)");
+    }
+    uartPuts("\r\n");
   }
 
   uartPuts("Pulse channel     : ");

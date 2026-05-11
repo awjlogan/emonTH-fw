@@ -351,7 +351,7 @@ void stcc4Discover(const uint16_t altitude) {
     cmdExecute(&cmdSleepEnter, NULL);
   }
 
-  uartPuts(stccPresent ? "Done\r\n" : "None\r\n");
+  uartPuts(stccPresent ? "Done\r\n" : " None\r\n");
 }
 
 uint16_t stcc4MeasureCO2(void) {

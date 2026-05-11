@@ -368,6 +368,7 @@ int main(void) {
   EmonTHConfigPacked_t *pConfig               = 0;
   size_t                tempExtNum            = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
+  uint32_t              txCnt                 = 0;
   TransmitOpt_t         txOpt                 = {0};
 
   ucSetup();
@@ -400,6 +401,7 @@ int main(void) {
   rtcEnable(pConfig->baseCfg.reportTime);
 
   while (1) {
+
     if (evtPending(EVT_WAKE_TIMER)) {
       emonTHEventClr(EVT_WAKE_TIMER);
 
@@ -411,7 +413,13 @@ int main(void) {
       transmitData(&dataset, &txOpt, txBuffer);
 
       timerDelaySleep_ms(1);
-      regDisable();
+      txCnt++;
+
+      /* Flash LED for the first 5 transmissions to provide indication to user
+       * that the emonTH3 is active. */
+      if (txCnt < 6u) {
+        emonTHEventSet(EVT_LED_FLASH);
+      }
     }
 
     if (evtPending(EVT_SCD4x_SAMPLE)) {
@@ -420,10 +428,16 @@ int main(void) {
       regEnable(true);
 
       dataset.co2 = scd4xMeasureCO2();
-
-      regDisable();
     }
 
+    if (evtPending(EVT_LED_FLASH)) {
+      portPinDrv(PIN_LED, PIN_DRV_SET);
+      timerDelaySleep_ms(500u);
+      portPinDrv(PIN_LED, PIN_DRV_CLR);
+      emonTHEventClr(EVT_LED_FLASH);
+    }
+
+    regDisable();
     samlSleepEnter();
   }
 }

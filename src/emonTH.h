@@ -78,7 +78,11 @@ _Static_assert((sizeof(PackedData_4Ext_t) + 4) < 62,
 /* EVTSRC_t contains all the event/interrupts sources. This value is shifted
  * to provide a vector of set events as bits.
  */
-typedef enum EVTSRC_ { EVT_WAKE_TIMER = 0u, EVT_SCD4x_SAMPLE = 1u } EVTSRC_t;
+typedef enum EVTSRC_ {
+  EVT_WAKE_TIMER,
+  EVT_SCD4x_SAMPLE,
+  EVT_LED_FLASH
+} EVTSRC_t;
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled.
  *  @param [in] evt : event source in enum
