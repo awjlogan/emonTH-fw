@@ -12,14 +12,6 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 #define WAKE_PERIOD_DEF 55u
 
 /*********************************
- * Firmware version
- *********************************/
-
-#define VERSION_FW_MAJ 0u
-#define VERSION_FW_MIN 99u
-#define VERSION_FW_REV 0u
-
-/*********************************
  * Device configuration
  *********************************/
 

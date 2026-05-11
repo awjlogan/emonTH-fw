@@ -409,7 +409,7 @@ static void printSettingRF(void) {
   uartPuts(", rfBand = ");
   printSettingRFFreq();
   uartPuts(" MHz, ");
-  uartPuts(", rfGroup = ");
+  uartPuts("rfGroup = ");
   putUint(config.baseCfg.dataGrp);
   uartPuts(", rfNode = ");
   putUint(config.baseCfg.nodeID);
@@ -582,6 +582,8 @@ void configEnter(void) {
 }
 
 void configFirmwareBoardInfo(void) {
+  struct EmonTHBuildInfo buildInfo = emonTH_build_info();
+
   uartPuts("\033c==== emonTH3 ====\r\n\r\n");
 
   uartPuts("> Board:\r\n");
@@ -594,11 +596,7 @@ void configFirmwareBoardInfo(void) {
 
   uartPuts("> Firmware:\r\n");
   uartPuts("  - Version:    ");
-  putUint(VERSION_FW_MAJ);
-  uartPuts(".");
-  putUint(VERSION_FW_MIN);
-  uartPuts(".");
-  putUint(VERSION_FW_REV);
+  uartPuts(buildInfo.release);
   uartPuts("\r\n");
   uartPuts("  - Build:      ");
   uartPuts(emonTH_build_info_string());

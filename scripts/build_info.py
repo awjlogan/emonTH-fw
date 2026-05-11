@@ -17,6 +17,19 @@ def username():
     return getpass.getuser() or "unknown"
 
 
+def parse_release_date(release):
+    parts = release.split(".")
+    if len(parts) != 3:
+        return 0, 0, 0
+
+    try:
+        month, day, year = [int(part, 10) for part in parts]
+    except ValueError:
+        return 0, 0, 0
+
+    return year, month, day
+
+
 def generate_build_info_c(configuration):
     gcc_version = subprocess.run(
         ["arm-none-eabi-gcc", "-dumpversion"],
@@ -35,10 +48,7 @@ def generate_build_info_c(configuration):
     except subprocess.CalledProcessError:
         release = "None"
 
-    if "." in release:
-        year, month, day = [x.lstrip("0") for x in release.split(".", 3)]
-    else:
-        year, month, day = 0, 0, 0
+    year, month, day = parse_release_date(release)
 
     try:
         revision = subprocess.run(

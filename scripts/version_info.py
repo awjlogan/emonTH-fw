@@ -4,7 +4,7 @@ import subprocess
 def extract_commit():
     try:
         commit = subprocess.run(
-            ["git", "describe", "--always", "--tags", "--dirty"],
+            ["git", "describe", "--always", "--dirty"],
             capture_output=True,
             check=True,
             text=True,
@@ -16,29 +16,23 @@ def extract_commit():
 
 
 def extract_version():
-    found = 0
-    with open("./src/emonTH.h", "r") as f:
-        for ln in f:
-            if "VERSION_FW" in ln:
-                var = ln.split()[-1].rstrip("u")
-                if "MAJ" in ln:
-                    maj = var
-                    found += 1
-                elif "MIN" in ln:
-                    min = var
-                    found += 1
-                elif "REV" in ln:
-                    rev = var
-                    found += 1
+    try:
+        release = subprocess.run(
+            ["git", "describe", "--always", "--tags", "--abbrev=0"],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout.strip()
+    except subprocess.CalledProcessError:
+        release = "None"
 
-            if found == 3:
-                return (maj, min, rev)
+    return release
 
 
 def main():
-    maj, min, rev = extract_version()
+    release = extract_version()
     commit = extract_commit()
-    print(f"emonTH-v{maj}.{min}.{rev}-{commit}")
+    print(f"emonTH-{release}-{commit}")
 
 
 if __name__ == "__main__":
