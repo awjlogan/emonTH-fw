@@ -250,8 +250,10 @@ void TIMER_LP_HANDLER(void) {
 
   /* Pulsed LED at startup + configuration */
   if ((TIMER_LP->COUNT16.INTFLAG.reg & TC_INTFLAG_OVF)) {
+    void (*ovfCbLocal)(void) = ovfCB;
+
     TIMER_LP->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
-    if (ovfCB) {
+    if (ovfCbLocal) {
       if (false == ledPulseDown) {
         ledPulseIdx++;
         if (32 == ledPulseIdx) {
@@ -266,7 +268,7 @@ void TIMER_LP_HANDLER(void) {
         }
       }
       TIMER_LP->COUNT16.CCBUF[0].reg = ledIntensity[ledPulseIdx];
-      ovfCB();
+      ovfCbLocal();
     }
   }
 }
