@@ -4,6 +4,7 @@
 .vscode/
 *.backup
 bin/emonTH*
+bin
 build/
 emonTH_build_info.c
 venv/

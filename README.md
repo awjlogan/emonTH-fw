@@ -1,6 +1,6 @@
 # _emonTH3_ Firmware
 
-This describes the firmware provided for the [_emonTH3_](https://github.com/awjlogan/emonTH3) temperature, humidity, and pulse counting system.
+This describes the firmware provided for the [_emonTH3_](https://github.com/openenergymonitor/emonTH3) wires temperature, humidity, co2 and pulse counting unit.
 
 This firmware is intended to be used with the [OpenEnergyMonitor](https://openenergymonitor.org) platform. Hardware systems are available directly from them.
 
@@ -10,7 +10,7 @@ This firmware is intended to be used with the [OpenEnergyMonitor](https://openen
 
 Issues can be reported:
 
-- As a [GitHub issue](https://github.com/awjlogan/emonTH3-fw/issues)
+- As a [GitHub issue](https://github.com/openenergymonitor/emonTH3-fw/issues)
 - On the [OpenEnergyMonitor forums](https://community.openenergymonitor.org/)
 
 Please include as much information as possible, including at least:
@@ -41,9 +41,24 @@ A UART is provided for configuration and, optionally, data transmission. It has 
 - 115200 baud
 - 8N1
 
+### Hardware Configuration 
+
+#### DIP Switches
+
+- The DIP switches set the node ID for the device. They are read at power on.
+- Each DIP switch addess adds 1 to the base node ID (default 27):
+
+  | Switch 1 | Switch 2 | ID         | Default Base-ID=27 |
+  |----------|----------|----------  |------------------|
+  | OFF      |  OFF     |  base-ID   |27 |
+  |  ON      |  OFF     |  base-ID+1 |28 |
+  | OFF      |  ON      |  base-ID+2 |29 |
+  | ON       | ON       | base-ID+3  |30 |
+
+
 ### Run time configuration
 
-When the emonTH3 is powered on or reset, the **STATUS** indicator will slowly pulse for 5 seconds. If any character is received over the UART connection in this time, the emonTH3 will enter configuration mode. It is not possible to configure the emonTH3 outside this period.
+When the emonTH3 is first powered on or reset, the **STATUS** LED indicator will slowly pulse for 5 seconds. If any character is received over the UART connection in this time, the emonTH3 will enter configuration mode. It is not possible to configure the emonTH3 outside this period.
 
 > [!NOTE]
 > All options can be listed by entering `?`.
@@ -71,11 +86,64 @@ The following options are available through the serial configuration interface.
 | `w<n>` | Enable wireless | `0`: off, `1`: on |
 | `x<n>` | Set 433 MHz compatibility | `0`: `433.92 MHz`, `1`: `433.00 MHz` |
 
+
+### Run time
+
+- The LED indicator will flash for the first 5 transmissions then be disabled for power saving
+- By default UART output is disabled during runtime. It can be enabled during runtime by sending `c1` over the serial interface.
+- The default transmission period is 55s. This can be changed during runtime by sending `d<n>` over the serial interface, where `n` is the period in seconds.
+
+
+## EmomHub Decoders 
+
+The emonTH3 requires the following emonHub decoder in `emonhub.conf`:
+
+Assuming default node ID of 27.
+
+### For none or one external temperature sensor
+```
+    [[27]]
+        nodename = emonth3_27
+        [[[rx]]]
+            names = temperature, external temperature, humidity, battery, pulsecount, co2
+            datacodes = h, h, h, h, L, h
+            scales = 0.1, 0.1, 0.1, 0.01, 1, 1
+            units = C, C, %, V, p, ppm
+```
+
+### For four external temperature sensors
+```
+    [[27]]
+        nodename = emonth3_27
+        [[[rx]]]
+            names = temperature, external temperature1, external temperature2, external temperature3, external temperature4, humidity, battery, pulsecount, co2
+            datacodes = h, h, h, h, h, h, h, L, h
+            scales = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.01, 1, 1
+            units = C, C, C, C, C, %, V, p, ppm
+```
+
+## Co2 Sensor 
+
+- Co2 sensor is optional and is not fitted to the board by default. 
+- The Co2 add-on board is connected to the board via the I2C interface, the **Co2 board should be oriented towards the antenna**
+- The sensor is a SEK-STCC4 from Sensirion [datasheet](https://sensirion.com/media/documents/6AED4B15/69295E41/CD_DS_STCC4_D1.pdf)
+- The Co2 sensor requires 20s at startup to "recondition"
+- The Co2 sensor will be automatically enabled at startup if fitted
+
+
 ## Compiling and uploading
 
 ### Compiling
 
 Compiling the firmware requires the the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution). The Makefile is for a Cortex-M23 based microcontroller, specifically the Microchip ATSAML10E15 ([datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/MCU32/ProductDocuments/DataSheets/SAM-L10-L11-Family-Data-Sheet-DS60001513.pdf), [errata](https://ww1.microchip.com/downloads/aemDocuments/documents/MCU32/ProductDocuments/Errata/SAM-L10-L11-Family-Silicon-Errata-and-Data-Sheet-Clarification-DS80000795.pdf)).
+
+
+To install the toolchain on Ubuntu:
+
+```bash
+sudo apt-get install gcc-arm-none-eabi
+```
+Full linux install guide: https://developer.arm.com/documentation/110477/221/Installation
 
 > [!NOTE]
 > To find which version, if any, of the toolchain is on your path, enter `arm-none-eabi-gcc --version`. You can set the path to a compiler off your path by setting the `TC_PATH` variable in `Makefile`.
@@ -94,7 +162,11 @@ The `-dirty` tag (if present) indicates that there are uncommitted changes when 
 
 ### Uploading
 
-The emonTH3 is supplied with a [serial bootloader](https://github.com/awjlogan/bootloader_uart_saml10/) installed. To enter the bootloader, press the **BOOT** button while powering on the emonTH3. The LED will blink to indicate it has entered the bootloader.
+The emonTH3 is supplied with a [serial bootloader](https://github.com/openenergymonitor/bootloader_uart_saml10/) installed. 
+
+- To enter the bootloader, press the **BOOT** button while powering on the emonTH3. The LED will blink rapidly to indicate it has entered the bootloader.
+
+- Follow the instructions for uploading the firmware in the [bootloader repository](https://github.com/openenergymonitor/bootloader_uart_saml10/).
 
 ## Modifications
 
