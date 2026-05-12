@@ -41,7 +41,7 @@ A UART is provided for configuration and, optionally, data transmission. It has 
 - 115200 baud
 - 8N1
 
-### Hardware Configuration 
+### Hardware Configuration
 
 #### DIP Switches
 
@@ -86,7 +86,6 @@ The following options are available through the serial configuration interface.
 | `w<n>` | Enable wireless | `0`: off, `1`: on |
 | `x<n>` | Set 433 MHz compatibility | `0`: `433.92 MHz`, `1`: `433.00 MHz` |
 
-
 ### Run time
 
 - The LED indicator will flash for the first 5 transmissions then be disabled for power saving
@@ -94,7 +93,7 @@ The following options are available through the serial configuration interface.
 - The default transmission period is 55s. This can be changed during runtime by sending `d<n>` over the serial interface, where `n` is the period in seconds.
 
 
-## EmomHub Decoders 
+## EmonHub Decoders
 
 The emonTH3 requires the following emonHub decoder in `emonhub.conf`:
 
@@ -122,14 +121,13 @@ Assuming default node ID of 27.
             units = C, C, C, C, C, %, V, p, ppm
 ```
 
-## Co2 Sensor 
+## CO<sub>2</sub> Sensor
 
-- Co2 sensor is optional and is not fitted to the board by default. 
-- The Co2 add-on board is connected to the board via the I2C interface, the **Co2 board should be oriented towards the antenna**
-- The sensor is a SEK-STCC4 from Sensirion [datasheet](https://sensirion.com/media/documents/6AED4B15/69295E41/CD_DS_STCC4_D1.pdf)
-- The Co2 sensor requires 20s at startup to "recondition"
-- The Co2 sensor will be automatically enabled at startup if fitted
-
+- CO<sub>2</sub> sensor is optional and is not fitted to the board by default.
+- The CO<sub>2</sub> add-on board is connected to the board via the I2C interface, the **CO<sub>2</sub> board should be oriented towards the antenna**.
+- The sensor is a SEK-STCC4 from Sensirion [datasheet](https://sensirion.com/media/documents/6AED4B15/69295E41/CD_DS_STCC4_D1.pdf).
+- The CO<sub>2</sub> sensor requires 20s at startup to "recondition".
+- The CO<sub>2</sub> sensor will be automatically enabled at startup, if fitted.
 
 ## Compiling and uploading
 
@@ -137,12 +135,12 @@ Assuming default node ID of 27.
 
 Compiling the firmware requires the the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution). The Makefile is for a Cortex-M23 based microcontroller, specifically the Microchip ATSAML10E15 ([datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/MCU32/ProductDocuments/DataSheets/SAM-L10-L11-Family-Data-Sheet-DS60001513.pdf), [errata](https://ww1.microchip.com/downloads/aemDocuments/documents/MCU32/ProductDocuments/Errata/SAM-L10-L11-Family-Silicon-Errata-and-Data-Sheet-Clarification-DS80000795.pdf)).
 
-
 To install the toolchain on Ubuntu:
 
 ```bash
 sudo apt-get install gcc-arm-none-eabi
 ```
+
 Full linux install guide: https://developer.arm.com/documentation/110477/221/Installation
 
 > [!NOTE]
@@ -162,7 +160,7 @@ The `-dirty` tag (if present) indicates that there are uncommitted changes when 
 
 ### Uploading
 
-The emonTH3 is supplied with a [serial bootloader](https://github.com/openenergymonitor/bootloader_uart_saml10/) installed. 
+The emonTH3 is supplied with a [serial bootloader](https://github.com/openenergymonitor/bootloader_uart_saml10/) installed.
 
 - To enter the bootloader, press the **BOOT** button while powering on the emonTH3. The LED will blink rapidly to indicate it has entered the bootloader.
 
