@@ -144,6 +144,9 @@ void timerPulseStart(void) {
 }
 
 void timerSetup() {
+  ovfCB        = 0;
+  ledPulseIdx  = 0;
+  ledPulseDown = false;
 
   tcCfg_t tcCfg[TC_NUM_INST] = {/* High resolution (8 us) timer */
                                 {.instance    = TIMER_DELAY,
@@ -182,6 +185,7 @@ void timerSetup() {
                                      TC_CTRLA_PRESCSYNC_RESYNC | t->prescalar;
 
     t->instance->COUNT16.WAVE.reg     = TC_WAVE_WAVEGEN_NFRQ;
+    t->instance->COUNT16.INTENCLR.reg = TC_INTENCLR_OVF;
     t->instance->COUNT16.INTENSET.reg = TC_INTENSET_MC0;
     t->instance->COUNT16.COUNT.reg    = 0;
 
@@ -247,21 +251,23 @@ void TIMER_LP_HANDLER(void) {
   /* Pulsed LED at startup + configuration */
   if ((TIMER_LP->COUNT16.INTFLAG.reg & TC_INTFLAG_OVF)) {
     TIMER_LP->COUNT16.INTFLAG.reg = TC_INTFLAG_OVF;
-    if (false == ledPulseDown) {
-      ledPulseIdx++;
-      if (32 == ledPulseIdx) {
-        ledPulseIdx  = 31;
-        ledPulseDown = true;
+    if (ovfCB) {
+      if (false == ledPulseDown) {
+        ledPulseIdx++;
+        if (32 == ledPulseIdx) {
+          ledPulseIdx  = 31;
+          ledPulseDown = true;
+        }
+      } else {
+        ledPulseIdx--;
+        if (-1 == ledPulseIdx) {
+          ledPulseIdx  = 0;
+          ledPulseDown = false;
+        }
       }
-    } else {
-      ledPulseIdx--;
-      if (-1 == ledPulseIdx) {
-        ledPulseIdx  = 0;
-        ledPulseDown = false;
-      }
+      TIMER_LP->COUNT16.CCBUF[0].reg = ledIntensity[ledPulseIdx];
+      ovfCB();
     }
-    TIMER_LP->COUNT16.CCBUF[0].reg = ledIntensity[ledPulseIdx];
-    ovfCB();
   }
 }
 
