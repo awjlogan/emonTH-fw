@@ -26,28 +26,40 @@ void eicSetup(void) {
   /* EIC APB clock is unmasked on reset (19.8.7 APBA Mask). */
   portPinCfg(PIN_HDC_DRDY, PORT_PINCFG_INEN, PIN_CFG_SET);
   portPinMux(PIN_HDC_DRDY, PORT_PMUX_PMUXE(0));
-  // portPinMux(PIN_PULSE, PORT_PMUX_PMUXE(0));
 
-  EIC->CONFIG[0].reg = EIC_CONFIG_SENSE4_RISE | EIC_CONFIG_FILTEN4;
-  EIC->INTENSET.reg  = 0x10;
-  EIC->ASYNCH.reg    = 0x10;
-
-  /* Both HDC and pulse are on EXTINT[4] */
-  NVIC_EnableIRQ(EIC_4_IRQn);
-
+  EIC->CONFIG[0].reg   = EIC_CONFIG_SENSE4_RISE | EIC_CONFIG_FILTEN4;
+  EIC->INTENSET.reg    = 1u << 4;
+  EIC->ASYNCH.reg      = 1u << 4;
   EIC->CTRLA.bit.CKSEL = 1u;
-}
 
-void EIC_IRQ_HANDLER(void) {
-  EIC->INTFLAG.reg = EIC_INTFLAG_EXTINT(0x10);
-  if (cbHDC) {
-    cbHDC();
-  }
-  if (cbPulse) {
-    cbPulse();
-  }
+  NVIC_EnableIRQ(EIC_4_IRQn);
 }
 
 void eicSetupHDC(void (*cb)(void)) { cbHDC = cb; }
 
-void eicSetupPulse(void (*cb)(void)) { cbPulse = cb; }
+void eicSetupPulse(void (*cb)(void)) {
+  cbPulse = cb;
+
+  portPinCfg(PIN_PULSE, PORT_PINCFG_INEN, PIN_CFG_SET);
+  portPinMux(PIN_PULSE, PORT_PMUX_PMUXE(0));
+
+  EIC->CONFIG[0].reg = EIC_CONFIG_SENSE3_RISE | EIC_CONFIG_FILTEN3;
+  EIC->INTENSET.reg  = 1u << 3;
+  EIC->ASYNCH.reg |= 1u << 3;
+
+  NVIC_EnableIRQ(EIC_3_IRQn);
+}
+
+void EIC_IRQ_HANDLER(void) {
+  EIC->INTFLAG.reg = EIC_INTFLAG_EXTINT(0x10u);
+  if (cbHDC) {
+    cbHDC();
+  }
+}
+
+void EIC_PULSE_HANDLER(void) {
+  EIC->INTFLAG.reg = EIC_INTFLAG_EXTINT(0x8u);
+  if (cbPulse) {
+    cbPulse();
+  }
+}

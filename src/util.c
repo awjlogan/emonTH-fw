@@ -75,6 +75,11 @@ ConvUint_t utilAtoui(const char *pBuf, ITOA_BASE_t base) {
   uint32_t   result = 0;
   ConvUint_t conv   = {false, {0}};
 
+  /* Empty string should be treated as failure */
+  if (*pBuf == '\0') {
+    return conv;
+  }
+
   /* Process left-to-right, no string reversal needed */
   if (ITOA_BASE10 == base) {
     while (*pBuf) {

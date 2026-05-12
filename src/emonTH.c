@@ -18,7 +18,7 @@
 #include "emonTH_assert.h"
 #include "periph_DS18B20.h"
 #include "periph_HDC2010.h"
-#include "periph_SCD4x.h"
+#include "periph_SensirionCO2.h"
 #include "periph_rfm69.h"
 #include "pulse.h"
 #include "temperature.h"
@@ -140,6 +140,7 @@ static void boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum) {
   }
 
   scd4xDiscover(pCfg->scdCfg.altitude);
+  stcc4Discover(pCfg->scdCfg.altitude);
 
   i2cDisable();
 
@@ -213,6 +214,14 @@ static void ledPulseOvfIncr(void) { ledPulseOvf++; }
 
 static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
 
+  if (stcc4Present()) {
+
+    int16_t  temp = hdc2010ConvTx10(pData->hdcResRaw.temp) / 10;
+    uint16_t rh   = hdc2010ConvRHx10(pData->hdcResRaw.humidity) / 10u;
+
+    stcc4SetRHT(temp, rh);
+    pData->co2 = stcc4MeasureCO2();
+  }
   pData->pulseCnt = pulseGetCount();
 
   /* Only a single external will be reported, use 300°C for OEM */
@@ -247,7 +256,7 @@ static void measureInternal(EmonTHDataset_t *pData) {
 
   adcSampleTrigger();
 
-  while (!hdc2010SampleReady() || !adcSampleReady()) {
+  while (!adcSampleReady() || !hdc2010SampleReady()) {
     samlSleepEnter();
   }
 
@@ -271,7 +280,9 @@ static uint8_t readSlideSW(void) {
       portPinCfg(swPin[i], PORT_PINCFG_PULLEN, PIN_CFG_CLR);
     }
   }
-  return swVal;
+
+  /* Return the bitwise NOT as the switch ON position -> value of 0 */
+  return ~swVal & 0x3u;
 }
 
 /*! @brief Disable the external boost regulator. */
@@ -339,8 +350,11 @@ static void txOptions(const EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt) {
 
 /*! @brief Setup the microcontroller. Must be called once at startup. */
 static void ucSetup(void) {
-  clkSetup();
+  /* Start the boost regulator as early as possible */
   portSetup();
+  regEnable(true);
+
+  clkSetup();
   sercomSetup();
   rtcSetup();
   adcSetup();
@@ -357,10 +371,11 @@ int main(void) {
   EmonTHConfigPacked_t *pConfig               = 0;
   size_t                tempExtNum            = 0;
   char                  txBuffer[TX_BUFFER_W] = {0};
+  uint32_t              txCnt                 = 0;
   TransmitOpt_t         txOpt                 = {0};
 
   ucSetup();
-  regEnable(true);
+  eicEnable();
 
   configFirmwareBoardInfo();
 
@@ -388,11 +403,11 @@ int main(void) {
   rtcEnable(pConfig->baseCfg.reportTime);
 
   while (1) {
+
     if (evtPending(EVT_WAKE_TIMER)) {
       emonTHEventClr(EVT_WAKE_TIMER);
 
       regEnable(true);
-      eicEnable();
 
       measureInternal(&dataset);
       measureExternal(&dataset, tempExtNum);
@@ -400,8 +415,13 @@ int main(void) {
       transmitData(&dataset, &txOpt, txBuffer);
 
       timerDelaySleep_ms(1);
-      eicDisable();
-      regDisable();
+      txCnt++;
+
+      /* Flash LED for the first 5 transmissions to provide indication to user
+       * that the emonTH3 is active. */
+      if (txCnt < 6u) {
+        emonTHEventSet(EVT_LED_FLASH);
+      }
     }
 
     if (evtPending(EVT_SCD4x_SAMPLE)) {
@@ -410,10 +430,16 @@ int main(void) {
       regEnable(true);
 
       dataset.co2 = scd4xMeasureCO2();
-
-      regDisable();
     }
 
+    if (evtPending(EVT_LED_FLASH)) {
+      portPinDrv(PIN_LED, PIN_DRV_SET);
+      timerDelaySleep_ms(500u);
+      portPinDrv(PIN_LED, PIN_DRV_CLR);
+      emonTHEventClr(EVT_LED_FLASH);
+    }
+
+    regDisable();
     samlSleepEnter();
   }
 }

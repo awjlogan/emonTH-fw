@@ -3,6 +3,7 @@
 
 #include "dataPack.h"
 #include "emonTH_assert.h"
+#include "periph_HDC2010.h"
 #include "util.h"
 
 #define CONV_STR_W (16u)
@@ -119,10 +120,8 @@ static size_t strnCat(StrN_t *strD, const StrN_t *strS) {
 void dataPackPacked(const EmonTHDataset_t *restrict pData,
                     void *restrict pPacked) {
 
-  const int16_t tInt =
-      (int16_t)((int32_t)pData->hdcResRaw.temp * 1650 / (1 << 16) - 400);
-  const uint16_t hInt =
-      (uint16_t)((uint32_t)pData->hdcResRaw.humidity * 1000u / (1u << 16));
+  const int16_t  tInt = hdc2010ConvTx10(pData->hdcResRaw.temp);
+  const uint16_t hInt = hdc2010ConvRHx10(pData->hdcResRaw.humidity);
   const uint16_t bInt = (uint16_t)((pData->battery * 3226u) / 10000u);
 
   /* T/H 10x value, e.g. 261 = 26.1ºC */
@@ -133,7 +132,8 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
     tx->battery           = bInt;
     tx->pulse             = pData->pulseCnt;
     for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
-      tx->tempExternal[i] = pData->tempExternal[i];
+      tx->tempExternal[i] = (int16_t)((pData->tempExternal[i] * 6) +
+                                      (pData->tempExternal[i] >> 2));
     }
     tx->co2 = pData->co2;
   } else {
@@ -142,8 +142,9 @@ void dataPackPacked(const EmonTHDataset_t *restrict pData,
     tx->humidityInternal  = hInt;
     tx->battery           = bInt;
     tx->pulse             = pData->pulseCnt;
-    tx->tempExternal      = pData->tempExternal[0];
-    tx->co2               = pData->co2;
+    tx->tempExternal =
+        (int16_t)((pData->tempExternal[0] * 6) + (pData->tempExternal[0] >> 2));
+    tx->co2 = pData->co2;
   }
 }
 
@@ -153,9 +154,8 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
   EMONTH_ASSERT(pDst);
 
   uint32_t     battery = pData->battery * 3226;
-  int          tempInt = ((pData->hdcResRaw.temp * 1650) / (1 << 16)) - 400;
-  unsigned int humInt =
-      ((unsigned int)pData->hdcResRaw.humidity & 0xFFFF) * 1000 / (1 << 16);
+  int          tempInt = hdc2010ConvTx10(pData->hdcResRaw.temp);
+  unsigned int humInt  = hdc2010ConvRHx10(pData->hdcResRaw.humidity);
 
   StrN_t strn;
   initFields(&strn, pDst, m);
@@ -169,7 +169,7 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
   strn.n += strnCatInt(&strn, tempInt % 10);
 
-  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+  for (int i = 0; i < (int)pData->numExtMax; i++) {
     /* Only include sensors that have been found */
     if (pData->tempExternal[i] != 4800) {
       tempInt = pData->tempExternal[i] * 62500; /* micro-degrees */
