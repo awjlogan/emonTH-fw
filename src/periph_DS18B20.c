@@ -297,10 +297,13 @@ size_t ds18b20InitSensors(DS18B20_Slot_t *pSlot) {
 
   searchResult = oneWireFirst();
 
+  /* DS18B20's family ID is 0x28 in LSB */
   while (searchResult && (deviceCount < TEMP_MAX_ONEWIRE)) {
-    pSlot[deviceCount].active  = true;
-    pSlot[deviceCount].address = ROM_NO;
-    deviceCount++;
+    if (0x28u == (ROM_NO & (uint64_t)0xFFu)) {
+      pSlot[deviceCount].active  = true;
+      pSlot[deviceCount].address = ROM_NO;
+      deviceCount++;
+    }
 
     searchResult = oneWireNext();
   }

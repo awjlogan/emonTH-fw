@@ -106,7 +106,7 @@ static void configDefault(void) {
 
   config.pulseCfg.active   = false; // Pulse channel inactive
   config.pulseCfg.pu       = 1;     // Pull down
-  config.pulseCfg.timeMask = 25u;   // 100 ms minimum between pulses
+  config.pulseCfg.timeMask = 25u;   // 25 ms minimum between pulses
 
   config.scdCfg.altitude       = 0u;   // Sea level
   config.scdCfg.sampleInterval = 600u; // 10 minute CO2 sampling
@@ -314,7 +314,7 @@ static bool configUART(void) {
     return false;
   }
 
-  if (convU.val.u8 > 8u) {
+  if (convU.val.u8 > 1u) {
     printInvalidVal();
     return false;
   }
@@ -409,7 +409,7 @@ static void printSettingRF(void) {
   uartPuts(", rfBand = ");
   printSettingRFFreq();
   uartPuts(" MHz, ");
-  uartPuts(", rfGroup = ");
+  uartPuts("rfGroup = ");
   putUint(config.baseCfg.dataGrp);
   uartPuts(", rfNode = ");
   putUint(config.baseCfg.nodeID);
@@ -476,14 +476,18 @@ static void printSettingsHR(void) {
 
   uartPuts("Data transmission :\r\n");
   if (config.dataTxCfg.txType & 0x1) {
-    uartPuts("  - RFM69, ");
+    uartPuts("  - RFM69 (LowPowerLabs), ");
     printSettingRFFreq();
     uartPuts(" MHz @ ");
     putUint(config.dataTxCfg.rfmPwr - 18u);
     uartPuts("dB\r\n");
   }
   if (config.dataTxCfg.txType & 0x2) {
-    uartPuts("  - Serial enabled\r\n");
+    uartPuts("  - Serial enabled");
+    if (config.baseCfg.useJson) {
+      uartPuts(" (JSON)");
+    }
+    uartPuts("\r\n");
   }
 
   uartPuts("Pulse channel     : ");
@@ -582,6 +586,8 @@ void configEnter(void) {
 }
 
 void configFirmwareBoardInfo(void) {
+  struct EmonTHBuildInfo buildInfo = emonTH_build_info();
+
   uartPuts("\033c==== emonTH3 ====\r\n\r\n");
 
   uartPuts("> Board:\r\n");
@@ -594,11 +600,7 @@ void configFirmwareBoardInfo(void) {
 
   uartPuts("> Firmware:\r\n");
   uartPuts("  - Version:    ");
-  putUint(VERSION_FW_MAJ);
-  uartPuts(".");
-  putUint(VERSION_FW_MIN);
-  uartPuts(".");
-  putUint(VERSION_FW_REV);
+  uartPuts(buildInfo.release);
   uartPuts("\r\n");
   uartPuts("  - Build:      ");
   uartPuts(emonTH_build_info_string());
