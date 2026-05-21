@@ -101,7 +101,7 @@ static void configDefault(void) {
   config.baseCfg.extTempEn  = TEMP_NUM_DEF;      // Max num external sensors
 
   config.dataTxCfg.txType  = (uint8_t)DATATX_RFM69; // RFM only
-  config.dataTxCfg.rfmPwr  = 0x18u;                 // +12 dBm
+  config.dataTxCfg.rfmPwr  = 0x1Fu;                 // +13 dBm (REVISIT)
   config.dataTxCfg.rfmFreq = 3u;                    // 433.92 MHz
 
   config.pulseCfg.active   = false; // Pulse channel inactive
@@ -480,7 +480,7 @@ static void printSettingsHR(void) {
     printSettingRFFreq();
     uartPuts(" MHz @ ");
     putUint(config.dataTxCfg.rfmPwr - 18u);
-    uartPuts("dB\r\n");
+    uartPuts("dBm\r\n");
   }
   if (config.dataTxCfg.txType & 0x2) {
     uartPuts("  - Serial enabled");
@@ -637,7 +637,7 @@ static bool configProcessCmd(void) {
       "\r\n"
       "emonTH information and configuration commands\r\n\r\n"
       " - ?             : show this text again\r\n"
-      " - a<n> <m>      : Configure SCD4x CO2 sensor\r\n"
+      " - a<n> <m>      : Configure SCD4x and STCC-4 CO2 sensors\r\n"
       "     -  n : sample interval (s)\r\n"
       "     -  m : altitude above sea level (m)\r\n"
       " - c<n>          : enable UART. n = 0: OFF, n = 1: ON\r\n"
