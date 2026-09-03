@@ -86,11 +86,18 @@ static void initFields(StrN_t *pD, char *pS, const size_t m) {
 }
 
 static size_t strnCatFromTmp(StrN_t *strD, const size_t len) {
-  const size_t space  = strD->m - strD->n;
-  const size_t toCopy = (len < space) ? len : space;
+  size_t toCopy = 0;
 
-  memcpy(strD->str + strD->n, tmpStr, toCopy);
-  return toCopy;
+  if (strD->n < strD->m) {
+    const size_t space = strD->m - strD->n;
+    toCopy             = (len < space) ? len : space;
+  }
+
+  if (toCopy) {
+    memcpy(strD->str + strD->n, tmpStr, toCopy);
+  }
+
+  return len;
 }
 
 static size_t strnCatInt(StrN_t *strD, const int32_t v) {
@@ -102,20 +109,18 @@ static size_t strnCatUint(StrN_t *strD, const uint32_t v) {
 }
 
 static size_t strnCat(StrN_t *strD, const StrN_t *strS) {
-  /* Check bounds to make sure it won't go over the end. If so, return the
-   * actual number of bytes that are copied.
-   */
-  size_t newLen;
-  size_t bytesToCopy;
+  size_t bytesToCopy = 0;
 
-  bytesToCopy = strS->n;
-  newLen      = strS->n + strD->n;
-  if (newLen >= strD->m) {
-    bytesToCopy = strD->m - strD->n;
+  if (strD->n < strD->m) {
+    const size_t space = strD->m - strD->n;
+    bytesToCopy        = (strS->n < space) ? strS->n : space;
   }
 
-  memcpy((strD->str + strD->n), strS->str, bytesToCopy);
-  return bytesToCopy;
+  if (bytesToCopy) {
+    memcpy((strD->str + strD->n), strS->str, bytesToCopy);
+  }
+
+  return strS->n;
 }
 
 void dataPackPacked(const EmonTHDataset_t *restrict pData,

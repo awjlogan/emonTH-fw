@@ -308,8 +308,9 @@ static void transmitData(const EmonTHDataset_t *pSrc, const TransmitOpt_t *pOpt,
 
   if (pOpt->logSerial) {
     samlSleepIdle(); /* Require IDLE for DMA rather than standby */
-    uint32_t n = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
-    uartPutsNonBlocking(txBuffer, n);
+    size_t   n   = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
+    uint32_t len = (n > TX_BUFFER_W) ? TX_BUFFER_W : (uint32_t)n;
+    uartPutsNonBlocking(txBuffer, len);
   }
 
   if (pOpt->useRFM) {
