@@ -47,7 +47,6 @@ AssertInfo_t             g_assert_info;
 
 static void    boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum);
 static void    errorFatal(void);
-static bool    evtPending(const EVTSRC_t evt);
 static void    gpioClr(const size_t gpio);
 static void    gpioSet(const size_t gpio);
 static void    ledPulseOvfIncr(void);
@@ -75,17 +74,31 @@ void uartPuts(const char *s) {
 void emonTHEventClr(const EVTSRC_t evt) {
   /* Disable interrupts during RMW update of event status */
   uint32_t evtDecode = ~(1u << evt);
+  uint32_t primask   = __get_PRIMASK();
   __disable_irq();
   evtPend &= evtDecode;
-  __enable_irq();
+  __set_PRIMASK(primask);
 }
 
 void emonTHEventSet(const EVTSRC_t evt) {
   /* Disable interrupts during RMW update of event status */
   uint32_t evtDecode = (1u << evt);
+  uint32_t primask   = __get_PRIMASK();
   __disable_irq();
   evtPend |= evtDecode;
-  __enable_irq();
+  __set_PRIMASK(primask);
+}
+
+bool emonTHEventTake(const EVTSRC_t evt) {
+  uint32_t evtDecode = (1u << evt);
+  uint32_t primask   = __get_PRIMASK();
+
+  __disable_irq();
+  bool ret = (evtPend & evtDecode) ? true : false;
+  evtPend &= ~evtDecode;
+  __set_PRIMASK(primask);
+
+  return ret;
 }
 
 static void boardSetup(EmonTHConfigPacked_t *pCfg, size_t *tempNum) {
@@ -155,15 +168,6 @@ static void errorFatal(void) {
     timerDelaySleep_ms(100);
     portPinDrv(PIN_LED, PIN_DRV_TGL);
   }
-}
-
-/*! @brief Check if an event source is active.
- *  @param [in] evt : event source to check
- *  @return true if pending, false otherwise
- */
-static bool evtPending(const EVTSRC_t evt) {
-  bool ret = (evtPend & (1u << evt)) ? true : false;
-  return ret;
 }
 
 __attribute__((__unused__)) static void gpioClr(const size_t gpio) {
@@ -405,9 +409,7 @@ int main(void) {
 
   while (1) {
 
-    if (evtPending(EVT_WAKE_TIMER)) {
-      emonTHEventClr(EVT_WAKE_TIMER);
-
+    if (emonTHEventTake(EVT_WAKE_TIMER)) {
       regEnable(true);
 
       measureInternal(&dataset);
@@ -425,19 +427,16 @@ int main(void) {
       }
     }
 
-    if (evtPending(EVT_SCD4x_SAMPLE)) {
-      emonTHEventClr(EVT_SCD4x_SAMPLE);
-
+    if (emonTHEventTake(EVT_SCD4x_SAMPLE)) {
       regEnable(true);
 
       dataset.co2 = scd4xMeasureCO2();
     }
 
-    if (evtPending(EVT_LED_FLASH)) {
+    if (emonTHEventTake(EVT_LED_FLASH)) {
       portPinDrv(PIN_LED, PIN_DRV_SET);
       timerDelaySleep_ms(500u);
       portPinDrv(PIN_LED, PIN_DRV_CLR);
-      emonTHEventClr(EVT_LED_FLASH);
     }
 
     regDisable();
