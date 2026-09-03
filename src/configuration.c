@@ -5,6 +5,7 @@
 
 #include "driver_NVM.h"
 #include "driver_PORT.h"
+#include "driver_RTC.h"
 #include "driver_SAML.h"
 #include "driver_SERCOM.h"
 
@@ -94,6 +95,14 @@ static bool configDatalog(void) {
   }
   if (convU.val.u16 < 5u) {
     uartPutsError("sample period must be greater than 4 s\r\n");
+    return false;
+  }
+  if (convU.val.u32 > RTC_PERIOD_MAX_SECONDS) {
+    uartPutsError("sample period exceeds RTC maximum");
+    return false;
+  }
+  if (convU.val.u32 > config.scdCfg.sampleInterval) {
+    uartPutsError("sample period must not exceed CO2 sample interval");
     return false;
   }
 
@@ -356,6 +365,14 @@ static bool configSCD(void) {
   ConvUint_t convU = utilAtoui(cmdArgs.argv[0] + 1, ITOA_BASE10);
   if (!convU.valid) {
     uartPutsError("invalid sample interval.");
+    return false;
+  }
+  if (convU.val.u32 < config.baseCfg.reportTime) {
+    uartPutsError("sample interval must be at least the report period");
+    return false;
+  }
+  if (convU.val.u32 > 0xFFFFu) {
+    uartPutsError("sample interval exceeds storage maximum");
     return false;
   }
 
