@@ -4,6 +4,7 @@
 #include "dataPack.h"
 #include "emonTH_assert.h"
 #include "periph_HDC2010.h"
+#include "temperature.h"
 #include "util.h"
 
 #define CONV_STR_W (16u)
@@ -171,7 +172,7 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
 
   for (int i = 0; i < (int)pData->numExtMax; i++) {
     /* Only include sensors that have been found */
-    if (pData->tempExternal[i] != 4800) {
+    if (pData->tempExternal[i] != TEMP_ONEWIRE_RAW_UNUSED) {
       tempInt = pData->tempExternal[i] * 62500; /* micro-degrees */
       tempInt = tempInt / 100000;               /* deci-degrees */
       catId(&strn, (i + 1), STR_TEMPEX, json);

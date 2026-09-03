@@ -353,9 +353,9 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
   uint8_t         crcDS   = 0;
   DS18B20_Res_t   tempRes = {0};
 
-  /* 304ºC indicates a bad temperature reading. */
+  /* Initialise with the bad-temperature sentinel. */
   tempRes.status = TEMP_OK;
-  tempRes.temp   = 30400;
+  tempRes.temp   = TEMP_ONEWIRE_RAW_FAILED;
 
   /* Check for presence pulse before continuing */
   if (!oneWireReset()) {

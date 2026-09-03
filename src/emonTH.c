@@ -224,20 +224,20 @@ static void measureExternal(EmonTHDataset_t *pData, const size_t numExt) {
   }
   pData->pulseCnt = pulseGetCount();
 
-  /* Only a single external will be reported, use 300°C for OEM */
+  /* Only a single external will be reported, use OEM unused sentinel. */
   if (!numExt) {
-    pData->tempExternal[0] = 4800;
+    pData->tempExternal[0] = TEMP_ONEWIRE_RAW_UNUSED;
     return;
   }
 
-  /* Default slots to failure (304°C) */
+  /* Default slots to failure. */
   for (size_t i = 0; i < numExt; i++) {
-    pData->tempExternal[i] = 4864;
+    pData->tempExternal[i] = TEMP_ONEWIRE_RAW_FAILED;
   }
 
-  /* Mark unused slots as 300°C */
+  /* Mark unused slots. */
   for (size_t i = numExt; i < TEMP_MAX_ONEWIRE; i++) {
-    pData->tempExternal[i] = 4800;
+    pData->tempExternal[i] = TEMP_ONEWIRE_RAW_UNUSED;
   }
 
   /* DS18B20 conversion takes 750 ms @ 12 bit resolution */
