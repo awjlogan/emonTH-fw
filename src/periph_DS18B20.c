@@ -46,7 +46,6 @@ static void         oneWireWriteBytes(const void *pSrc, const size_t n);
 static void         setRstPulseComplete(void);
 
 static uint64_t ROM_NO;
-static uint8_t  crc8;
 static int32_t  lastDiscrepancy;
 static int32_t  lastFamilyDiscrepancy;
 static bool     lastDeviceFlag;
@@ -177,6 +176,7 @@ static bool oneWireSearch(void) {
   bool     searchResult    = false;
   uint8_t  idBit           = 0;
   uint8_t  cmpidBit        = 0;
+  uint8_t  crc8            = 0;
   uint8_t *romBuffer       = (uint8_t *)&ROM_NO;
 
   /* If the last call was not the last one... */
@@ -370,14 +370,13 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
 
   /* Check CRC for received data */
   for (size_t i = 0; i < (sizeof(scratch) - 1); i++) {
-    calcCRC8(crcDS, si[i]);
+    crcDS = calcCRC8(crcDS, si[i]);
   }
 
-  /* REVISIT : CRC is not being calculated correctly */
-  // if (crcDS != scratch.crc) {
-  //   tempRes.status = TEMP_BAD_CRC;
-  //   return tempRes;
-  // }
+  if (crcDS != scratch.crc) {
+    tempRes.status = TEMP_BAD_CRC;
+    return tempRes;
+  }
 
   /* The DS18B20's configuration register must not be zero (Figure 10) */
   if (!scratch.cfg) {
