@@ -256,16 +256,23 @@ static bool configPulse(void) {
     return false;
   }
 
-  switch (cmdArgs.argv[2][0]) {
-  case 'd':
-    pu = 1u;
-    break;
-  case 'u':
-    pu = 2u;
-    break;
-  case 'n':
-  default:
-    pu = 0;
+  const char pull = cmdArgs.argv[2][0];
+
+  bool validPull = ('d' == pull) || ('u' == pull) || ('n' == pull);
+
+  if (validPull) {
+    switch (pull) {
+    case 'd':
+      pu = 1u;
+      break;
+    case 'u':
+      pu = 2u;
+      break;
+    case 'n':
+      pu = 0;
+    }
+  } else {
+    uartPutsError("invalid pull configuration (u, d, n).");
   }
 
   convU = utilAtoui(cmdArgs.argv[3], ITOA_BASE10);
@@ -636,7 +643,7 @@ static void printSettingsKV(void) {
 }
 
 static void putUint(const uint32_t u) {
-  char strBuffer[8];
+  char strBuffer[12];
   (void)utilUtoa(strBuffer, u, ITOA_BASE10);
   uartPuts(strBuffer);
 }
