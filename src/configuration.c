@@ -36,6 +36,7 @@ typedef struct CmdArgs_ {
  * Prototypes
  *************************************/
 
+static bool        configCheckUnsaved(void);
 static bool        configDatalog(void);
 static void        configDefault(void);
 static bool        configExtTempMax(void);
@@ -43,6 +44,7 @@ static bool        configJSON(void);
 static bool        configOneWire(void);
 static bool        configProcessCmd(void);
 static bool        configPulse(void);
+static void        configRestore(void);
 static bool        configRF433(void);
 static bool        configRFM(void);
 static bool        configRFPower(void);
@@ -78,9 +80,15 @@ static volatile char   inBufferVolatile[IN_BUFFER_W];
 static volatile size_t inBufferIdx = 0;
 static volatile bool   cmdPending  = false;
 
-static EmonTHConfigPacked_t config        = {0};
-static CmdArgs_t            cmdArgs       = {0};
-static bool                 unsavedChange = false;
+static EmonTHConfigPacked_t config    = {0};
+static EmonTHConfigPacked_t configNVM = {0};
+
+static CmdArgs_t cmdArgs       = {0};
+static bool      unsavedChange = false;
+
+static bool configCheckUnsaved(void) {
+  return (0 != memcmp(&config, &configNVM, sizeof(config)));
+}
 
 static bool configDatalog(void) {
   if (1u != cmdArgs.argc) {
@@ -273,6 +281,7 @@ static bool configPulse(void) {
     }
   } else {
     uartPutsError("invalid pull configuration (u, d, n).");
+    return false;
   }
 
   convU = utilAtoui(cmdArgs.argv[3], ITOA_BASE10);
@@ -288,6 +297,22 @@ static bool configPulse(void) {
 
   printSettingPulse();
   return true;
+}
+
+static void configRestore(void) {
+  if (requireExactArgs(1u)) {
+    if ('\0' == cmdArgs.argv[0][1]) {
+      configDefault();
+      uartPuts("> Restored default values.\r\n");
+    } else if ('s' == cmdArgs.argv[0][1]) {
+      memcpy(&config, &configNVM, sizeof(config));
+      uartPuts("> Restored saved values.\r\n");
+    } else {
+      uartPutsError("invalid option.");
+    }
+  } else {
+    uartPutsError("unexpected arguments.");
+  }
 }
 
 static bool configRF433(void) {
@@ -752,6 +777,7 @@ EmonTHConfigPacked_t *configLoadFromNVM(void) {
   }
 
   memcpy(&config, pCfg, sizeof(*pCfg));
+  memcpy(&configNVM, pCfg, sizeof(*pCfg));
   return &config;
 }
 
@@ -759,7 +785,6 @@ static bool configProcessCmd(void) {
   bool         exitConfig = false;
   unsigned int arglen     = 0;
   bool         termFound  = false;
-  bool         cmdUnsaved = false;
 
   /* Help text - serves as documentation interally as well */
   static const char helpText[] =
@@ -784,7 +809,7 @@ static bool configProcessCmd(void) {
       "     - z : minimum period (ms). Only for x = 1\r\n"
       " - n<n>          : set node ID [1..60].\r\n"
       " - p<n>          : set the RF power level\r\n"
-      " - r             : restore defaults\r\n"
+      " - r[s]          : restore defaults, rs to restore saved config\r\n"
       " - s             : save settings to NVM\r\n"
       " - t<x> <yy> <yy> <yy> <yy> <yy> <yy> <yy> <yy>\r\n"
       "   : change an external sensor's position\r\n"
@@ -828,24 +853,16 @@ static bool configProcessCmd(void) {
     }
     break;
   case 'a':
-    if (configSCD()) {
-      cmdUnsaved = true;
-    }
+    (void)configSCD();
     break;
   case 'c':
-    if (configUART()) {
-      cmdUnsaved = true;
-    }
+    (void)configUART();
     break;
   case 'd':
-    if (configDatalog()) {
-      cmdUnsaved = true;
-    }
+    (void)configDatalog();
     break;
   case 'e':
-    if (configExtTempMax()) {
-      cmdUnsaved = true;
-    }
+    (void)configExtTempMax();
     break;
   case 'f':
     if (requireExactArgs(1u)) {
@@ -853,43 +870,30 @@ static bool configProcessCmd(void) {
     }
     break;
   case 'j':
-    if (configJSON()) {
-      cmdUnsaved = true;
-    }
+    (void)configJSON();
     break;
   case 'l':
     printSettings();
     break;
   case 'm':
-    if (configPulse()) {
-      cmdUnsaved = true;
-    }
+    (void)configPulse();
     break;
   case 'n':
-    if (configNodeID()) {
-      cmdUnsaved = true;
-    }
+    (void)configNodeID();
     break;
   case 'p':
-    if (configRFPower()) {
-      cmdUnsaved = true;
-    }
+    (void)configRFPower();
     break;
   case 'r':
-    if (requireExactArgs(1u)) {
-      configDefault();
-      uartPuts("> Restored default values.\r\n");
-      cmdUnsaved = true;
-    }
+    configRestore();
     break;
   case 's':
     if (requireExactArgs(1u)) {
       configSaveToNVM();
-      unsavedChange = false;
     }
     break;
   case 't':
-    cmdUnsaved = configOneWire();
+    (void)configOneWire();
     break;
   case 'v':
     if (requireExactArgs(1u)) {
@@ -897,30 +901,35 @@ static bool configProcessCmd(void) {
     }
     break;
   case 'w':
-    cmdUnsaved = configRFM();
+    (void)configRFM();
     break;
   case 'x':
-    cmdUnsaved = configRF433();
+    (void)configRF433();
     break;
   default:
     uartPutsError("unknown command");
     break;
   }
 
-  if (!unsavedChange) {
-    unsavedChange = cmdUnsaved;
-  }
+  unsavedChange = configCheckUnsaved();
+
   cmdPending = false;
   inBufferClear();
   return exitConfig;
 }
 
 void configSaveToNVM(void) {
-  nvmPageBufferClear();
-  memcpy(nvmPageBuffer(), &config, sizeof(config));
-  nvmDataFlashWrite(NVM_PAGE_CONFIG, sizeof(config));
+  if (unsavedChange) {
+    nvmPageBufferClear();
+    memcpy(nvmPageBuffer(), &config, sizeof(config));
+    nvmDataFlashWrite(NVM_PAGE_CONFIG, sizeof(config));
 
-  uartPuts("> All settings saved.\r\n");
+    unsavedChange = false;
+    memcpy(&configNVM, &config, sizeof(config));
+    uartPuts("> All settings saved.\r\n");
+  } else {
+    uartPuts("> No changes to save.\r\n");
+  }
 }
 
 /* =======================

@@ -79,7 +79,7 @@ The following options are available through the serial configuration interface.
 | `m <x> <y> <z>` | Configure pulse counting | `x`: `0` off, `1` on<br>`y`: `n` no pull, `d` pull down, `u` pull up<br>`z`: minimum pulse period (ms) |
 | `n<n>` | Set node ID | `[1..60]` |
 | `p<n>` | Set RF power level | `n`: RF power level |
-| `r` | Restore defaults | None |
+| `r[s]` | Restore defaults, `rs` to restore saved settings | None |
 | `s` | Save settings to NVM | None |
 | `t<x> <yy> <yy> <yy> <yy> <yy> <yy> <yy> <yy>` | Change an external sensor's position | `x`: sensor position in the list (1-based)<br>`yy`: hexadecimal address bytes, e.g. `28 81 43 31 07 00 00 D9` |
 | `v` | Print firmware and board information | None |

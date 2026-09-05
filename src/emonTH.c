@@ -350,6 +350,9 @@ static void txOptions(const EmonTHConfigPacked_t *pCfg, TransmitOpt_t *pOpt) {
     pOpt->logSerial = true;
     uartDisableRx();
     break;
+  default:
+    pOpt->useRFM = true;
+    uartDisable();
   }
 }
 
