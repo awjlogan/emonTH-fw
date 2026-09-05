@@ -1,7 +1,7 @@
  # Example emonHub interfacer for the emonTH3
 
-[[27]]
-    nodename = emonTH3_27
+[[30]]
+    nodename = emonTH3_30
     [[[rx]]]
         names = temperature, external temperature, humidity, battery, pulsecount, co2
         datacodes =  h, h, h, h, L, h
