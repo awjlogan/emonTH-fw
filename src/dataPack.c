@@ -170,10 +170,14 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
     strn.n += strnCat(&strn, &baseStr[STR_LCURL]);
   }
 
+  int tempMod = tempInt % 10;
+  if (tempMod < 0) {
+    tempMod *= -1;
+  }
   catId(&strn, -1, STR_TEMP, json);
   strn.n += strnCatInt(&strn, tempInt / 10);
   strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-  strn.n += strnCatInt(&strn, tempInt % 10);
+  strn.n += strnCatInt(&strn, tempMod);
 
   for (int i = 0; i < (int)pData->numExtMax; i++) {
     /* Only include sensors that have been found */
