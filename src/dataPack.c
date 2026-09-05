@@ -35,6 +35,7 @@ typedef struct StrN {
 static void   catId(StrN_t *strD, int id, const size_t field, const bool json);
 static void   initFields(StrN_t *pD, char *pS, const size_t m);
 static size_t strnCat(StrN_t *strD, const StrN_t *strS);
+static size_t strnCatDeci(StrN_t *strD, const int32_t v);
 static size_t strnCatInt(StrN_t *strD, const int32_t v);
 static size_t strnCatUint(StrN_t *strD, const uint32_t v);
 
@@ -123,6 +124,21 @@ static size_t strnCat(StrN_t *strD, const StrN_t *strS) {
   return strS->n;
 }
 
+static size_t strnCatDeci(StrN_t *strD, const int32_t v) {
+  uint32_t mag = (uint32_t)v;
+  size_t   n   = 0;
+
+  if (v < 0) {
+    mag = (uint32_t)(-(v + 1)) + 1u;
+    n += strnCat(strD, &(StrN_t){.str = "-", .n = 1, .m = 2});
+  }
+
+  n += strnCatUint(strD, mag / 10u);
+  n += strnCat(strD, &baseStr[STR_PERIOD]);
+  n += strnCatUint(strD, mag % 10u);
+  return n;
+}
+
 void dataPackPacked(const EmonTHDataset_t *restrict pData,
                     void *restrict pPacked) {
 
@@ -170,14 +186,8 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
     strn.n += strnCat(&strn, &baseStr[STR_LCURL]);
   }
 
-  int tempMod = tempInt % 10;
-  if (tempMod < 0) {
-    tempMod *= -1;
-  }
   catId(&strn, -1, STR_TEMP, json);
-  strn.n += strnCatInt(&strn, tempInt / 10);
-  strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-  strn.n += strnCatInt(&strn, tempMod);
+  strn.n += strnCatDeci(&strn, tempInt);
 
   for (int i = 0; i < (int)pData->numExtMax; i++) {
     /* Only include sensors that have been found */
@@ -186,9 +196,7 @@ size_t dataPackSerial(const EmonTHDataset_t *restrict pData,
       tempInt = tempInt / 100000;               /* deci-degrees */
       catId(&strn, (i + 1), STR_TEMPEX, json);
 
-      strn.n += strnCatInt(&strn, tempInt / 10);
-      strn.n += strnCat(&strn, &baseStr[STR_PERIOD]);
-      strn.n += strnCatInt(&strn, tempInt % 10);
+      strn.n += strnCatDeci(&strn, tempInt);
     }
   }
 
