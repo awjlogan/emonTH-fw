@@ -81,7 +81,6 @@ static void      regRead(const SC_Cmd_t *cmd, uint8_t *pData);
 static void      regWrite(const SC_Cmd_t *cmd, const uint8_t *pData);
 
 /* ==== SCD4x functions ==== */
-static void     byteSwap(uint8_t *pBuf);
 static void     initSCD(const uint16_t altitude);
 static uint16_t measureSCD40(void);
 static void     powerOff(void);
@@ -99,12 +98,6 @@ static bool     stccPresent;
 
 static int16_t  tInt = 0; /* Temperature from board sensor */
 static uint16_t hInt = 0; /* RH from board sensor */
-
-static void byteSwap(uint8_t *pBuf) {
-  uint8_t tmp0 = pBuf[0];
-  pBuf[0]      = pBuf[1];
-  pBuf[1]      = tmp0;
-}
 
 static uint16_t convAltitude2Pressure(const uint16_t altitude) {
   /* Approximation to ~1.5% under 5 km: 101325 - 12(altitude) */
@@ -182,9 +175,10 @@ static void initSCD(uint16_t altitude) {
 
   /* Check altitude has been set as configured */
   cmdExecute(&cmdAltitudeGet, dBuf);
-  if (altitude != *(uint16_t *)dBuf) {
-    *(uint16_t *)dBuf = altitude;
-    byteSwap(dBuf);
+  uint16_t currentAltitude = ((uint16_t)dBuf[0] << 8) | dBuf[1];
+  if (altitude != currentAltitude) {
+    dBuf[0] = altitude & 0xFFu;
+    dBuf[1] = altitude >> 8;
     cmdExecute(&cmdAltitudeSet, dBuf);
     cmdExecute(&cmdPersistCfg, NULL);
   }
@@ -251,9 +245,11 @@ static void regRead(const SC_Cmd_t *cmd, uint8_t *pData) {
 static void regWrite(const SC_Cmd_t *cmd, const uint8_t *pData) {
   /* All commands are 16 bit, MSB first */
   for (size_t i = 0; i < cmd->n; i = i + 2u) {
-    i2cDataWrite(pData[i + 1u]);
-    i2cDataWrite(pData[i]);
-    i2cDataWrite(crcCalc(pData + i, 2));
+    uint8_t word[2] = {pData[i + 1u], pData[i]};
+
+    i2cDataWrite(word[0]);
+    i2cDataWrite(word[1]);
+    i2cDataWrite(crcCalc(word, sizeof(word)));
   }
   i2cAck(I2CM_ACK, I2CM_ACK_CMD_STOP);
 }
