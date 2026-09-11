@@ -127,15 +127,24 @@ static size_t strnCat(StrN_t *strD, const StrN_t *strS) {
 static size_t strnCatDeci(StrN_t *strD, const int32_t v) {
   uint32_t mag = (uint32_t)v;
   size_t   n   = 0;
+  size_t   appended;
+  StrN_t   str = *strD;
 
   if (v < 0) {
-    mag = (uint32_t)(-(v + 1)) + 1u;
-    n += strnCat(strD, &(StrN_t){.str = "-", .n = 1, .m = 2});
+    mag      = (uint32_t)(-(v + 1)) + 1u;
+    appended = strnCat(&str, &(StrN_t){.str = "-", .n = 1, .m = 2});
+    n += appended;
+    str.n += appended;
   }
 
-  n += strnCatUint(strD, mag / 10u);
-  n += strnCat(strD, &baseStr[STR_PERIOD]);
-  n += strnCatUint(strD, mag % 10u);
+  appended = strnCatUint(&str, mag / 10u);
+  n += appended;
+  str.n += appended;
+  appended = strnCat(&str, &baseStr[STR_PERIOD]);
+  n += appended;
+  str.n += appended;
+  appended = strnCatUint(&str, mag % 10u);
+  n += appended;
   return n;
 }
 
