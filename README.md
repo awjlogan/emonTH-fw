@@ -48,12 +48,12 @@ A UART is provided for configuration and, optionally, data transmission. It has 
 - The DIP switches set the node ID for the device. They are read at power on.
 - Each DIP switch addess adds 1 to the base node ID (default 27):
 
-  | Switch 1 | Switch 2 | ID         | Default Base-ID=27 |
+  | Switch 1 | Switch 2 | ID         | ID |
   |----------|----------|----------  |------------------|
   | OFF      |  OFF     |  base-ID   |27 |
   |  ON      |  OFF     |  base-ID+1 |28 |
   | OFF      |  ON      |  base-ID+2 |29 |
-  | ON       | ON       | base-ID+3  |30 |
+  | ON (default)      | ON (default)       | base-ID+3 (default)  |30 (default) |
 
 
 ### Run time configuration
