@@ -49,12 +49,13 @@ static bool        configRF433(void);
 static bool        configRFM(void);
 static bool        configRFPower(void);
 static void        configSaveToNVM(void);
-static bool        configSCD(void);
+static bool        configCO2(void);
 static bool        configUART(void);
 static const char *getLastReset(void);
 static void        inBufferClear(void);
 static CmdArgs_t   inBufferTok(void);
 static void        printInvalidVal(void);
+static void        printSettingCO2(void);
 static void        printSettingJSON(void);
 static void        printSettingPeriod(void);
 static void        printSettingPulse(void);
@@ -387,36 +388,43 @@ static bool configRFPower(void) {
   return true;
 }
 
-static bool configSCD(void) {
+static bool configCO2(void) {
 
-  if (2u != cmdArgs.argc) {
-    uartPutsError("expected sample interval and altitude");
+  if (2u > cmdArgs.argc) {
+    uartPutsError("expected at least altitude");
+    return false;
+  } else if (3u < cmdArgs.argc) {
+    uartPutsError("unexpected argument");
     return false;
   }
 
-  ConvUint_t convU = utilAtoui(cmdArgs.argv[0] + 1, ITOA_BASE10);
-  if (!convU.valid) {
-    uartPutsError("invalid sample interval.");
-    return false;
-  }
-  if (convU.val.u32 < config.baseCfg.reportTime) {
-    uartPutsError("sample interval must be at least the report period");
-    return false;
-  }
-  if (convU.val.u32 > 0xFFFFu) {
-    uartPutsError("sample interval exceeds storage maximum");
-    return false;
-  }
-
-  config.scdCfg.sampleInterval = convU.val.u16;
-
-  convU = utilAtoui(cmdArgs.argv[1], ITOA_BASE10);
+  ConvUint_t convU = utilAtoui(cmdArgs.argv[1], ITOA_BASE10);
   if (!convU.valid) {
     uartPutsError("invalid altitude.");
     return false;
+  } else {
+    config.scdCfg.altitude = convU.val.u16;
   }
-  config.scdCfg.altitude = convU.val.u16;
 
+  if (3u == cmdArgs.argc) {
+
+    convU = utilAtoui(cmdArgs.argv[2], ITOA_BASE10);
+    if (!convU.valid) {
+      uartPutsError("invalid sample time.");
+      return false;
+    }
+    if (convU.val.u32 < config.baseCfg.reportTime) {
+      uartPutsError("sample interval must be at least the report period");
+      return false;
+    }
+    if (convU.val.u32 > 0xFFFFu) {
+      uartPutsError("sample interval exceeds storage maximum");
+      return false;
+    }
+    config.scdCfg.sampleInterval = convU.val.u16;
+  }
+
+  printSettingCO2();
   return true;
 }
 
@@ -522,6 +530,14 @@ static CmdArgs_t inBufferTok(void) {
 }
 
 static void printInvalidVal(void) { uartPutsError("invalid value\r\n"); }
+
+static void printSettingCO2(void) {
+  uartPuts("co2_altitude = ");
+  putUint(config.scdCfg.altitude);
+  uartPuts(", scd4x_period = ");
+  putUint(config.scdCfg.sampleInterval);
+  uartPuts("\r\n");
+}
 
 static void printSettingJSON(void) {
   uartPuts("json = ");
@@ -665,6 +681,7 @@ static void printSettingsKV(void) {
   printSettingPulse();
   printSettingUART();
   printSettingJSON();
+  printSettingCO2();
 }
 
 static void putUint(const uint32_t u) {
@@ -791,9 +808,9 @@ static bool configProcessCmd(void) {
       "\r\n"
       "emonTH information and configuration commands\r\n\r\n"
       " - ?             : show this text again\r\n"
-      " - a<n> <m>      : Configure SCD4x and STCC-4 CO2 sensors\r\n"
-      "     -  n : sample interval (s)\r\n"
-      "     -  m : altitude above sea level (m)\r\n"
+      " - a <a> <t>     : Configure SCD4x and STCC-4 CO2 sensors\r\n"
+      "     -  a : altitude above sea level (m) (s)\r\n"
+      "     -  t : sample interval (s); SCD4x only.\r\n"
       " - c<n>          : enable UART. n = 0: OFF, n = 1: ON\r\n"
       " - d<n>          : set the data acquisition period\r\n"
       " - e<n>          : number of external temperature sensors (0, 1, or "
@@ -853,7 +870,7 @@ static bool configProcessCmd(void) {
     }
     break;
   case 'a':
-    (void)configSCD();
+    (void)configCO2();
     break;
   case 'c':
     (void)configUART();

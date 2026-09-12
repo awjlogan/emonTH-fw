@@ -68,7 +68,7 @@ The following options are available through the serial configuration interface.
 | Command | Description | Arguments |
 |---------|-------------|-----------|
 | `?` | Show help text | None |
-| `a<n> <m>` | Configure the SCD4x CO2 sensor | `n`: sample interval (s)<br>`m`: altitude above sea level (m) |
+| `a <a> <t>` | Configure CO2 sensors | `a`: altitude above sea level (m)<br>`t`: sample interval (s), SCD4x only |
 | `c<n>` | Enable UART output | `0`: off, `1`: on |
 | `d<n>` | Set the data acquisition period | `n`: period value |
 | `e<n>` | Set the number of external temperature sensors | `0`, `1`, or `4` |
